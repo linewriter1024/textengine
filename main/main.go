@@ -8,16 +8,19 @@ import (
 )
 
 func main() {
-    game := mud1024.Game{}
+	game := mud1024.Game{}
+
+	fmt.Printf("Welcome to %s %s\n", mud1024.VersionName, mud1024.VersionVersion().String())
+
 	scanner := bufio.NewScanner(os.Stdin)
 	for {
-        fmt.Print("> ");
+		fmt.Print("> ")
 		scanner.Scan()
 		text := scanner.Text()
 		if len(text) == 0 {
 			break
 		} else {
-			fmt.Printf("%s\n", game.FeedText(text));
+			fmt.Printf("%s\n", game.FeedText(text))
 		}
 	}
 }
