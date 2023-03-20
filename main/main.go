@@ -1,12 +1,23 @@
 package main
 
 import (
-    "fmt"
-    "benleskey.com/packages/golang/mud1024"
+	"benleskey.com/packages/golang/mud1024"
+	"bufio"
+	"fmt"
+	"os"
 )
 
 func main() {
-    // Get a greeting message and print it.
-    message := mud1024.Hello("Gladys")
-    fmt.Println(message)
+    game := mud1024.Game{}
+	scanner := bufio.NewScanner(os.Stdin)
+	for {
+        fmt.Print("> ");
+		scanner.Scan()
+		text := scanner.Text()
+		if len(text) == 0 {
+			break
+		} else {
+			fmt.Printf("%s\n", game.FeedText(text));
+		}
+	}
 }
