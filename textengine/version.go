@@ -1,8 +1,8 @@
-package mud1024
+package textengine
 
 import "github.com/hashicorp/go-version"
 
-const VersionName = "mud1024"
+const VersionName = "textengine"
 const VersionNumber = "0.0.1"
 
 func VersionVersion() *version.Version {

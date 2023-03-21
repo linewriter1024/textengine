@@ -1,16 +1,16 @@
 package main
 
 import (
-	"benleskey.com/packages/golang/mud1024"
+	"benleskey.com/packages/golang/textengine"
 	"bufio"
 	"fmt"
 	"os"
 )
 
 func main() {
-	game := mud1024.Game{}
+	game := textengine.NewGame()
 
-	fmt.Printf("Welcome to %s %s\n", mud1024.VersionName, mud1024.VersionVersion().String())
+	fmt.Printf("Welcome to %s %s\n", textengine.VersionName, textengine.VersionVersion().String())
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for {

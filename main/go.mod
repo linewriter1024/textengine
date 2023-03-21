@@ -1,3 +1,3 @@
-module benleskey.com/packages/golang/mud1024_main
+module benleskey.com/packages/golang/textengine_main
 
 go 1.20

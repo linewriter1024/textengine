@@ -1,4 +1,4 @@
-module benleskey.com/packages/golang/mud1024
+module benleskey.com/packages/golang/textengine
 
 go 1.20
 
