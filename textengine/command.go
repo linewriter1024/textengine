@@ -12,7 +12,7 @@ type CommandOutput map[string]string
 type CommandVariantFunction func([]string) CommandInput
 
 type CommandVariant struct {
-	command *Command
+	command  *Command
 	name     string
 	regex    *regexp.Regexp
 	function CommandVariantFunction
@@ -65,8 +65,8 @@ func (g *Game) FeedCommand(command CommandInput) CommandOutput {
 func (g *Game) FeedText(text string) string {
 	normalized := strings.ToLower(text)
 
-	for _, command := range(g.commands) {
-		for _, variant := range(command.variants) {
+	for _, command := range g.commands {
+		for _, variant := range command.variants {
 			ran, commandmap := variant.Run(normalized)
 			if ran {
 				return g.FeedCommand(commandmap)["text"]
@@ -76,6 +76,6 @@ func (g *Game) FeedText(text string) string {
 
 	return g.FeedCommand(CommandInput{
 		"command": "unknowncommand",
-		"text": text,
+		"text":    text,
 	})["text"]
 }
