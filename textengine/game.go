@@ -38,7 +38,13 @@ func (game *Game) Exit() {
 
 func (game *Game) RegisterClient(client *Client) {
 	game.clients = append(game.clients, client)
-	client.Send(CommandOutput{"output": "welcome", "text": fmt.Sprintf("Welcome to %s %s", VersionFriendlyName, VersionVersion().String())})
+	client.Send(CommandOutput{
+		"output":       "welcome",
+		"friendlyname": VersionFriendlyName,
+		"name":         VersionName,
+		"version":      VersionVersion().String(),
+		"text":         fmt.Sprintf("Welcome to %s %s", VersionFriendlyName, VersionVersion().String()),
+	})
 }
 
 func (game *Game) Process() {
