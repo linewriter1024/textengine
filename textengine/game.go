@@ -31,7 +31,7 @@ func NewGame() *Game {
 
 func (game *Game) Exit() {
 	for _, client := range game.clients {
-		client.Send(CommandOutput{"output": "game_exit", "text": "Farewell."})
+		client.Send(CommandOutput{"output": "gameexit", "text": "Farewell."})
 	}
 	game.running = false
 }
