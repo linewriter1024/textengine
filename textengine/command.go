@@ -9,7 +9,7 @@ type CommandInput map[string]string
 
 type CommandOutput map[string]string
 
-type CommandVariantFunction func([]string) CommandInput
+type CommandVariantFunction func([]string) (CommandInput, error)
 
 type CommandVariant struct {
 	command  *Command
@@ -20,7 +20,7 @@ type CommandVariant struct {
 
 type CommandVariants map[string]*CommandVariant
 
-type CommandFunction func(CommandInput) CommandOutput
+type CommandFunction func(*Client, CommandInput)
 
 type Command struct {
 	name     string
@@ -42,40 +42,43 @@ func (command *Command) Register(name string, regex string, function CommandVari
 	return variant
 }
 
-func (variant *CommandVariant) Run(normalizedtext string) (bool, CommandInput) {
+func (variant *CommandVariant) Run(normalizedtext string) (bool, CommandInput, error) {
 	if match := variant.regex.FindStringSubmatch(normalizedtext); len(match) > 0 {
-		commandmap := variant.function(match)
-		commandmap["command"] = variant.command.name
-		return true, commandmap
+		commandmap, err := variant.function(match)
+		if err == nil {
+			commandmap["command"] = variant.command.name
+			return true, commandmap, nil
+		} else {
+			return false, nil, err
+		}
 	} else {
-		return false, nil
+		return false, nil, nil
 	}
 }
 
-// Feed a command into a game.
-// Will return the output of the command.
-// The "text" key in the returned output is the human readable output of the command.
-func (g *Game) FeedCommand(command CommandInput) CommandOutput {
-	return g.commands[command["command"]].function(command)
+func (g *Game) FeedCommand(client *Client, command CommandInput) {
+	g.commands[command["command"]].function(client, command)
 }
 
-// Feed a line of text into a game.
-// The text will be processed into a command, and then executed in the game.
-// The resulting output of the command will be returned.
-func (g *Game) FeedText(text string) string {
+func (client *Client) TextToCommandInput(text string) CommandInput {
 	normalized := strings.ToLower(text)
 
-	for _, command := range g.commands {
+	for _, command := range client.game.commands {
 		for _, variant := range command.variants {
-			ran, commandmap := variant.Run(normalized)
+			ran, commandmap, err := variant.Run(normalized)
 			if ran {
-				return g.FeedCommand(commandmap)["text"]
+				return commandmap
+			} else if err != nil {
+				return CommandInput{
+					"command": "errorcommand",
+					"error":   err.Error(),
+				}
 			}
 		}
 	}
 
-	return g.FeedCommand(CommandInput{
+	return CommandInput{
 		"command": "unknowncommand",
 		"text":    text,
-	})["text"]
+	}
 }
