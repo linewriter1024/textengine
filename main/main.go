@@ -8,27 +8,35 @@ import (
 )
 
 func main() {
+	const apidebug = true
+
 	game := textengine.NewGame()
 
-	fmt.Printf("Connecting to %s %s\n", textengine.VersionFriendlyName, textengine.VersionVersion().String())
-
 	client := game.NewClient(
-		func(client *textengine.Client) textengine.CommandInput {
+		func(client *textengine.Client) (textengine.CommandInput, error) {
 			scanner := bufio.NewScanner(os.Stdin)
 			fmt.Print("> ")
 			scanned := scanner.Scan()
 			text := scanner.Text()
 			if len(text) == 0 && !scanned {
-				return textengine.CommandInput{"command": "quit"}
+				return textengine.CommandInput{"command": "quit"}, nil
 			} else {
-				return client.TextToCommandInput(text)
+				commandinput := client.TextToCommandInput(text)
+				if apidebug {
+					fmt.Printf("> (%s)\n", commandinput);
+				}
+				return commandinput, nil
 			}
 		},
 		func(client *textengine.Client, output textengine.CommandOutput) {
-			fmt.Printf("%s\n", output["text"])
+			if apidebug {
+				fmt.Printf("< (%s)\n", output)
+			}
+
+			fmt.Printf("%s\n", output["text"]);
 		},
 	)
 
 	game.RegisterClient(client)
-	game.Loop()
+	game.LoopWithClients()
 }
