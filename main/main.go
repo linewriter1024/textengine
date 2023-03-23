@@ -5,7 +5,28 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"sort"
 )
+
+func pretty(m map[string]string) string {
+	r := ""
+
+	keys := make([]string, 0)
+	for k := range m {
+		keys = append(keys, k)
+	}
+
+	sort.Strings(keys)
+
+	for i, k := range keys {
+		if i > 0 {
+			r += ", "
+		}
+		r += fmt.Sprintf("%s: %q", k, m[k])
+	}
+
+	return r
+}
 
 func main() {
 	const apidebug = true
@@ -23,17 +44,17 @@ func main() {
 			} else {
 				commandinput := client.TextToCommandInput(text)
 				if apidebug {
-					fmt.Printf("> (%s)\n", commandinput);
+					fmt.Printf("> (%s)\n", pretty(commandinput))
 				}
 				return commandinput, nil
 			}
 		},
 		func(client *textengine.Client, output textengine.CommandOutput) {
 			if apidebug {
-				fmt.Printf("< (%s)\n", output)
+				fmt.Printf("< (%s)\n", pretty(output))
 			}
 
-			fmt.Printf("%s\n", output["text"]);
+			fmt.Printf("%s\n", output["text"])
 		},
 	)
 
