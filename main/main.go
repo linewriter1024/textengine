@@ -54,7 +54,9 @@ func main() {
 				fmt.Printf("< (%s)\n", pretty(output))
 			}
 
-			fmt.Printf("%s\n", output["text"])
+			if _, exists := output["text"]; exists {
+				fmt.Printf("%s\n", output["text"])
+			}
 		},
 	)
 

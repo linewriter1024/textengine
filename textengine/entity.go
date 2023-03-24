@@ -5,18 +5,18 @@ import (
 )
 
 type Entity struct {
-	id   string
-	game *Game
+	Id   string
+	Game *Game
 }
 
 func (game *Game) AddEntity(entity *Entity) {
-	game.entities[entity.id] = entity
+	game.entities[entity.Id] = entity
 }
 
 func (game *Game) NewEntity() *Entity {
 	entity := &Entity{
-		id:   uuid.New().String(),
-		game: game,
+		Id:   uuid.New().String(),
+		Game: game,
 	}
 
 	return entity
