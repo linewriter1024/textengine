@@ -20,7 +20,13 @@ func (client *Client) Send(output CommandOutput) {
 }
 
 func (client *Client) Quit() {
-	client.alive = false
+	if client.alive {
+		client.alive = false
+		client.Send(CommandOutput{
+			"output": "clientquit",
+			"text": "Goodbye.",
+		})
+	}
 }
 
 func (client *Client) SetEntity(entity *Entity) {
