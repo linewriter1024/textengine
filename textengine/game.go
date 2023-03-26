@@ -45,7 +45,7 @@ func (game *Game) RegisterClient(client *Client) {
 		"version":      VersionVersion().String(),
 		"text":         fmt.Sprintf("Welcome to %s %s", VersionFriendlyName, VersionVersion().String()),
 	})
-	client.SetEntity(game.NewEntity())
+	client.SetEntity(game.NewActor())
 }
 
 func (game *Game) Process() {
