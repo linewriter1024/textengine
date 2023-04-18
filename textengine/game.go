@@ -9,6 +9,7 @@ type Game struct {
 	clients  []*Client
 	time     Time
 	running  bool
+	world *Entity
 }
 
 // Create a new game context.
@@ -25,6 +26,8 @@ func NewGame() *Game {
 
 	CommandQuitRegister(game, game.commands)
 	CommandWaitRegister(game, game.commands)
+
+	game.world = game.NewPlace()
 
 	return game
 }
@@ -45,7 +48,13 @@ func (game *Game) RegisterClient(client *Client) {
 		"version":      VersionVersion().String(),
 		"text":         fmt.Sprintf("Welcome to %s %s", VersionFriendlyName, VersionVersion().String()),
 	})
-	client.SetEntity(game.NewActor())
+
+	actor := game.NewActor()
+	game.AddEntity(actor)
+
+	actor.AddRelationship(game.world, "in", "contains")
+
+	client.SetEntity(actor)
 }
 
 func (game *Game) Process() {

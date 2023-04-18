@@ -4,36 +4,23 @@ import (
 	"github.com/google/uuid"
 )
 
-type EntityProperties map[string]string
-
 type EntityRelationship struct {
-	Type string
+	Type      string
 	OtherType string
-	Other *Entity
-	Properties EntityProperties
+	Other     *Entity
 }
 
 type EntityRelationshipKey struct {
-	Id string
+	Id   string
 	Type string
 }
 
 type EntityRelationships map[EntityRelationshipKey]EntityRelationship
 
-type EntityComponent struct {
-	Initialize func(*Entity)
-	Update func(*Entity)
-}
-
-type EntityComponents []EntityComponent
-
 type Entity struct {
-	Id   string
-	Game *Game
-	ActionTime Time
+	Id            string
+	Game          *Game
 	Relationships EntityRelationships
-	Properties EntityProperties
-	Components EntityComponents
 }
 
 func (entity *Entity) AddRelationship(other *Entity, selftype string, othertype string) {
@@ -43,15 +30,15 @@ func (entity *Entity) AddRelationship(other *Entity, selftype string, othertype 
 	entity.RemoveRelationship(other, selftype)
 
 	entity.Relationships[key] = EntityRelationship{
-		Type: selftype,
+		Type:      selftype,
 		OtherType: othertype,
-		Other: other,
+		Other:     other,
 	}
 
 	other.Relationships[otherkey] = EntityRelationship{
-		Type: othertype,
+		Type:      othertype,
 		OtherType: selftype,
-		Other: entity,
+		Other:     entity,
 	}
 }
 
@@ -70,13 +57,11 @@ func (game *Game) AddEntity(entity *Entity) {
 	game.entities[entity.Id] = entity
 }
 
-func (game *Game) NewEntity(properties EntityProperties) *Entity {
+func (game *Game) NewEntity() *Entity {
 	entity := &Entity{
-		Id:   uuid.New().String(),
-		Game: game,
-		Properties: properties,
+		Id:            uuid.New().String(),
+		Game:          game,
 		Relationships: EntityRelationships{},
-		Components: EntityComponents{},
 	}
 
 	return entity

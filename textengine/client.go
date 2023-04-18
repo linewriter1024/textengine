@@ -24,7 +24,7 @@ func (client *Client) Quit() {
 		client.alive = false
 		client.Send(CommandOutput{
 			"output": "clientquit",
-			"text": "Goodbye.",
+			"text":   "Goodbye.",
 		})
 	}
 }
