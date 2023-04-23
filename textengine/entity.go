@@ -4,65 +4,22 @@ import (
 	"github.com/google/uuid"
 )
 
-type EntityRelationship struct {
-	Type      string
-	OtherType string
-	Other     *Entity
-}
-
-type EntityRelationshipKey struct {
-	Id   string
-	Type string
-}
-
-type EntityRelationships map[EntityRelationshipKey]EntityRelationship
-
-type Entity struct {
+type EntityRef struct {
 	Id            string
 	Game          *Game
-	Relationships EntityRelationships
 }
 
-func (entity *Entity) AddRelationship(other *Entity, selftype string, othertype string) {
-	key := EntityRelationshipKey{Id: other.Id, Type: selftype}
-	otherkey := EntityRelationshipKey{Id: entity.Id, Type: othertype}
-
-	entity.RemoveRelationship(other, selftype)
-
-	entity.Relationships[key] = EntityRelationship{
-		Type:      selftype,
-		OtherType: othertype,
-		Other:     other,
-	}
-
-	other.Relationships[otherkey] = EntityRelationship{
-		Type:      othertype,
-		OtherType: selftype,
-		Other:     entity,
-	}
+func (entity EntityRef) AddRelationship(other EntityRef, selftype string, othertype string) {
 }
 
-func (entity *Entity) RemoveRelationship(other *Entity, selftype string) {
-	key := EntityRelationshipKey{Id: other.Id, Type: selftype}
-
-	if relationship, ok := entity.Relationships[key]; ok {
-		otherkey := EntityRelationshipKey{Id: entity.Id, Type: relationship.OtherType}
-
-		delete(entity.Relationships, key)
-		delete(other.Relationships, otherkey)
-	}
+func (entity EntityRef) RemoveRelationship(other EntityRef, selftype string) {
 }
 
-func (game *Game) AddEntity(entity *Entity) {
-	game.entities[entity.Id] = entity
-}
-
-func (game *Game) NewEntity() *Entity {
-	entity := &Entity{
+func (game *Game) NewEntity() EntityRef {
+	entityRef := EntityRef{
 		Id:            uuid.New().String(),
 		Game:          game,
-		Relationships: EntityRelationships{},
 	}
 
-	return entity
+	return entityRef
 }

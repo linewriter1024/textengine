@@ -5,7 +5,7 @@ type outputfunc func(*Client, CommandOutput)
 
 type Client struct {
 	game         *Game
-	entity       *Entity
+	entity       EntityRef
 	alive        bool
 	waitforinput inputfunc
 	sendoutput   outputfunc
@@ -29,7 +29,7 @@ func (client *Client) Quit() {
 	}
 }
 
-func (client *Client) SetEntity(entity *Entity) {
+func (client *Client) SetEntity(entity EntityRef) {
 	client.entity = entity
 	client.Send(CommandOutput{
 		"output": "controllingentity",

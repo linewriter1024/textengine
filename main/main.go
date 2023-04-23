@@ -31,7 +31,12 @@ func pretty(m map[string]string) string {
 func main() {
 	const apidebug = true
 
-	game := textengine.NewGame()
+	game, err := textengine.NewGame()
+
+	if err != nil {
+		fmt.Printf("Could not open game: %s\n", err)
+		os.Exit(1)
+	}
 
 	client := game.NewClient(
 		func(client *textengine.Client) (textengine.CommandInput, error) {

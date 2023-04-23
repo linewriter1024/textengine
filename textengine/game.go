@@ -1,24 +1,43 @@
 package textengine
 
-import "fmt"
+import (
+	"database/sql"
+	"fmt"
+	_ "github.com/mattn/go-sqlite3"
+)
 
 // A game. Includes the entire world and all actors.
 type Game struct {
 	commands Commands
-	entities map[string]*Entity
 	clients  []*Client
 	time     Time
 	running  bool
-	world *Entity
+	world EntityRef
+	database *sql.DB
 }
 
 // Create a new game context.
-func NewGame() *Game {
+func NewGame() (*Game, error) {
 	game := &Game{
 		commands: make(Commands),
-		entities: make(map[string]*Entity),
 		clients:  make([]*Client, 0),
 		running:  true,
+	}
+
+	{
+		db, err := sql.Open("sqlite3", ":memory:")
+		if err != nil {
+			return nil, err
+		}
+
+		game.database = db
+	}
+
+	{
+		err := game.CreateSchemaTableIfNeeded()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	CommandUnknownRegister(game.commands)
@@ -27,9 +46,7 @@ func NewGame() *Game {
 	CommandQuitRegister(game, game.commands)
 	CommandWaitRegister(game, game.commands)
 
-	game.world = game.NewPlace()
-
-	return game
+	return game, nil
 }
 
 func (game *Game) Exit() {
@@ -48,13 +65,6 @@ func (game *Game) RegisterClient(client *Client) {
 		"version":      VersionVersion().String(),
 		"text":         fmt.Sprintf("Welcome to %s %s", VersionFriendlyName, VersionVersion().String()),
 	})
-
-	actor := game.NewActor()
-	game.AddEntity(actor)
-
-	actor.AddRelationship(game.world, "in", "contains")
-
-	client.SetEntity(actor)
 }
 
 func (game *Game) Process() {
