@@ -28,11 +28,15 @@ type Command struct {
 	function CommandFunction
 }
 
-type Commands map[string]*Command
+type Commands struct {
+	game *Game
+	commands map[string]*Command
+}
 
-func (commands Commands) Register(name string, function CommandFunction) *Command {
+func (commands *Commands) Register(name string, function CommandFunction) *Command {
+	commands.game.systemLog.Printf("Registering command %q", name)
 	command := &Command{name: name, variants: make(CommandVariants), function: function}
-	commands[name] = command
+	commands.commands[name] = command
 	return command
 }
 
@@ -57,13 +61,13 @@ func (variant *CommandVariant) Run(normalizedtext string) (bool, CommandInput, e
 }
 
 func (g *Game) FeedCommand(client *Client, command CommandInput) {
-	g.commands[command["command"]].function(client, command)
+	g.commands.commands[command["command"]].function(client, command)
 }
 
 func (client *Client) TextToCommandInput(text string) CommandInput {
 	normalized := strings.ToLower(text)
 
-	for _, command := range client.game.commands {
+	for _, command := range client.game.commands.commands {
 		for _, variant := range command.variants {
 			ran, commandmap, err := variant.Run(normalized)
 			if ran {

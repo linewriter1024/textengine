@@ -1,6 +1,6 @@
 package textengine
 
-func CommandWaitRegister(game *Game, commands Commands) {
+func CommandWaitRegister(game *Game, commands *Commands) {
 	command := commands.Register("wait", func(client *Client, args CommandInput) {
 		client.Send(CommandOutput{"text": args["time"]})
 	})

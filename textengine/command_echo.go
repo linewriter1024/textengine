@@ -1,6 +1,6 @@
 package textengine
 
-func CommandEchoRegister(commands Commands) {
+func CommandEchoRegister(commands *Commands) {
 	command := commands.Register("echo", func(client *Client, args CommandInput) {
 		client.Send(CommandOutput{"output": "echo", "text": args["text"]})
 	})
