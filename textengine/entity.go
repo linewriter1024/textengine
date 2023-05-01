@@ -5,14 +5,14 @@ import (
 )
 
 type EntityRef struct {
-	Id            string
-	Game          *Game
+	Id   string
+	Game *Game
 }
 
 func (game *Game) NewEntity() EntityRef {
 	entityRef := EntityRef{
-		Id:            uuid.New().String(),
-		Game:          game,
+		Id:   uuid.New().String(),
+		Game: game,
 	}
 
 	return entityRef

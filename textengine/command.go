@@ -29,7 +29,7 @@ type Command struct {
 }
 
 type Commands struct {
-	game *Game
+	game     *Game
 	commands map[string]*Command
 }
 

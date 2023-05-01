@@ -3,35 +3,35 @@ package textengine
 import (
 	"database/sql"
 	"fmt"
+	_ "github.com/mattn/go-sqlite3"
 	"log"
 	"os"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 // A game. Includes the entire world and all actors.
 type Game struct {
-	commands *Commands
-	systems Systems
-	clients  []*Client
-	time     Time
-	running  bool
-	world EntityRef
-	database *sql.DB
+	commands  *Commands
+	systems   Systems
+	clients   []*Client
+	time      Time
+	running   bool
+	world     EntityRef
+	database  *sql.DB
 	systemLog *log.Logger
 }
 
 // Create a new game context.
 func NewGame() (*Game, error) {
 	game := &Game{
-		systems: make(Systems),
-		clients:  make([]*Client, 0),
-		running:  true,
+		systems:   make(Systems),
+		clients:   make([]*Client, 0),
+		running:   true,
 		systemLog: log.New(os.Stdout, "", log.LstdFlags),
 	}
 
 	game.commands = &Commands{game: game, commands: make(map[string]*Command)}
 
-	game.systemLog.Printf("Creating game context...");
+	game.systemLog.Printf("Creating game context...")
 
 	{
 		db, err := sql.Open("sqlite3", ":memory:")
@@ -51,7 +51,7 @@ func NewGame() (*Game, error) {
 
 	SystemRelationshipRegister(game)
 
-	for _, system := range(game.systems) {
+	for _, system := range game.systems {
 		var previousVersion int
 		var nextVersion int
 		var err error
@@ -74,7 +74,7 @@ func NewGame() (*Game, error) {
 		if previousVersion == nextVersion {
 			game.systemLog.Printf("System %q version %d", system.SystemId, nextVersion)
 		} else if previousVersion == 0 {
-			game.systemLog.Printf("System %q initialized version %d", system.SystemId, nextVersion);
+			game.systemLog.Printf("System %q initialized version %d", system.SystemId, nextVersion)
 		} else {
 			game.systemLog.Printf("System %q version upgraded %d -> %d", system.SystemId, previousVersion, nextVersion)
 		}
@@ -90,7 +90,7 @@ func NewGame() (*Game, error) {
 }
 
 func (game *Game) Exit() {
-	game.systemLog.Printf("Exiting...");
+	game.systemLog.Printf("Exiting...")
 	for _, client := range game.clients {
 		client.Quit()
 	}
@@ -98,7 +98,7 @@ func (game *Game) Exit() {
 }
 
 func (game *Game) RegisterClient(client *Client) {
-	game.systemLog.Printf("Client connected...");
+	game.systemLog.Printf("Client connected...")
 	game.clients = append(game.clients, client)
 	client.Send(CommandOutput{
 		"output":       "welcome",
@@ -130,7 +130,7 @@ func (game *Game) LoopWithClients() {
 		}
 
 		if livingclients == 0 {
-			game.systemLog.Printf("No clients left alive");
+			game.systemLog.Printf("No clients left alive")
 			game.Exit()
 		}
 

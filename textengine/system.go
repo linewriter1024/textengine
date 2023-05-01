@@ -1,9 +1,9 @@
 package textengine
 
 type System struct {
-	Game *Game
-	SystemId string
-	DatabaseInitialize func (*System) error
+	Game               *Game
+	SystemId           string
+	DatabaseInitialize func(*System) error
 }
 
 type Systems map[string]*System
