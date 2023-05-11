@@ -33,7 +33,7 @@ func (client *Client) SetEntity(entity EntityRef) {
 	client.entity = entity
 	client.Send(CommandOutput{
 		"output": "controllingentity",
-		"entity": client.entity.Id,
+		"entity": client.entity.id,
 	})
 }
 

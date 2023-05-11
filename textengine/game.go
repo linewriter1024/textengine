@@ -49,34 +49,15 @@ func NewGame() (*Game, error) {
 		}
 	}
 
+	SystemEntityRegister(game)
 	SystemRelationshipRegister(game)
+	SystemLookRegister(game)
+	SystemPositionRegister(game)
 
-	for _, system := range game.systems {
-		var previousVersion int
-		var nextVersion int
-		var err error
-
-		previousVersion, err = system.GetSchemaVersionNumber()
+	{
+		err := game.InitializeSystems()
 		if err != nil {
 			return nil, err
-		}
-
-		err = system.DatabaseInitialize(system)
-		if err != nil {
-			return nil, err
-		}
-
-		nextVersion, err = system.GetSchemaVersionNumber()
-		if err != nil {
-			return nil, err
-		}
-
-		if previousVersion == nextVersion {
-			game.systemLog.Printf("System %q version %d", system.SystemId, nextVersion)
-		} else if previousVersion == 0 {
-			game.systemLog.Printf("System %q initialized version %d", system.SystemId, nextVersion)
-		} else {
-			game.systemLog.Printf("System %q version upgraded %d -> %d", system.SystemId, previousVersion, nextVersion)
 		}
 	}
 
@@ -85,6 +66,8 @@ func NewGame() (*Game, error) {
 
 	CommandQuitRegister(game, game.commands)
 	CommandWaitRegister(game, game.commands)
+
+	CommandLookRegister(game, game.commands)
 
 	return game, nil
 }
@@ -97,7 +80,7 @@ func (game *Game) Exit() {
 	game.running = false
 }
 
-func (game *Game) RegisterClient(client *Client) {
+func (game *Game) RegisterClient(client *Client) error {
 	game.systemLog.Printf("Client connected...")
 	game.clients = append(game.clients, client)
 	client.Send(CommandOutput{
@@ -107,6 +90,28 @@ func (game *Game) RegisterClient(client *Client) {
 		"version":      VersionVersion().String(),
 		"text":         fmt.Sprintf("Welcome to %s %s", VersionFriendlyName, VersionVersion().String()),
 	})
+
+	var err error
+
+	var place EntityRef
+	place, err = game.NewPlaceEntity()
+
+	if err != nil {
+		return err
+	}
+
+	var entity EntityRef
+	entity, err = game.NewActorEntity()
+
+	if err != nil {
+		return err
+	}
+
+	place.AddRelationship("contains", entity)
+
+	client.SetEntity(entity)
+
+	return nil
 }
 
 func (game *Game) Process() {

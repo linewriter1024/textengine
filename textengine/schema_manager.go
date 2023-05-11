@@ -24,7 +24,7 @@ func (game *Game) GetSchemaVersionNumber(systemid string) (int, error) {
 }
 
 func (system *System) GetSchemaVersionNumber() (int, error) {
-	return system.Game.GetSchemaVersionNumber(system.SystemId)
+	return system.game.GetSchemaVersionNumber(system.id)
 }
 
 func (game *Game) SetSchemaVersionNumber(systemid string, versionnumber int) error {
@@ -33,5 +33,5 @@ func (game *Game) SetSchemaVersionNumber(systemid string, versionnumber int) err
 }
 
 func (system *System) SetSchemaVersionNumber(versionnumber int) error {
-	return system.Game.SetSchemaVersionNumber(system.SystemId, versionnumber)
+	return system.game.SetSchemaVersionNumber(system.id, versionnumber)
 }

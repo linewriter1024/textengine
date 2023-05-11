@@ -65,6 +65,14 @@ func main() {
 		},
 	)
 
-	game.RegisterClient(client)
+	{
+		err := game.RegisterClient(client)
+
+		if err != nil {
+			fmt.Printf("Could not register client: %s\n", err)
+			os.Exit(1)
+		}
+	}
+
 	game.LoopWithClients()
 }

@@ -1,13 +1,25 @@
 package textengine
 
-func databaseInitialize(system *System) error {
+import (
+	"github.com/google/uuid"
+)
+
+type Relationship struct {
+	id string
+	game *Game
+	provider EntityRef
+	receiver EntityRef
+	verb string
+}
+
+func systemRelationshipInitialize(system *System) error {
 	v, err := system.GetSchemaVersionNumber()
 	if err != nil {
 		return err
 	}
 
 	if v == 0 {
-		_, err := system.Game.database.Exec("CREATE TABLE IF NOT EXISTS entity_relationship(entityfromid TEXT, entitytoid TEXT, relationshipverbto TEXT, relationshipverb TEXT, PRIMARY KEY (entityfromid, entitytoid, relationshipverb))")
+		_, err := system.game.database.Exec("CREATE TABLE IF NOT EXISTS entity_relationship(relationshipid TEXT PRIMARY KEY, providerid TEXT, recieverid TEXT, relationshipverb TEXT, alive INTEGER)")
 		if err != nil {
 			return err
 		}
@@ -19,17 +31,23 @@ func databaseInitialize(system *System) error {
 
 func SystemRelationshipRegister(game *Game) {
 	game.RegisterSystem("relationship", System{
-		DatabaseInitialize: databaseInitialize,
+		databaseInitialize: systemRelationshipInitialize,
 	})
 }
 
-func (entity EntityRef) AddRelationship(other EntityRef, verb string) error {
-	_, err := entity.Game.database.Exec("INSERT OR REPLACE INTO entity_relationship(entityfromid, entitytoid, relationshipverb) VALUES (?, ?, ?)", entity.Id, other.Id, verb)
-	return err
-
+func (entity EntityRef) AddRelationship(verb string, other EntityRef) (Relationship, error) {
+	id := uuid.New().String()
+	_, err := entity.game.database.Exec("INSERT INTO entity_relationship(relationshipid, providerid, recieverid, relationshipverb, alive) VALUES (?, ?, ?, ?, 1)", id, entity.id, other.id, verb)
+	return Relationship{
+		id: id,
+		game: entity.game,
+		provider: entity,
+		receiver: other,
+		verb: verb,
+	}, err
 }
 
-func (entity EntityRef) RemoveRelationship(other EntityRef, verb string) error {
-	_, err := entity.Game.database.Exec("DELETE FROM entity_relationship WHERE entityfromid = ? AND entitytoid = ? AND relationshipverb = ?", entity.Id, other.Id, verb)
+func (relationship Relationship) Remove() error {
+	_, err := relationship.game.database.Exec("UPDATE entity_relationship WHERE relationshipid = ? SET alive = 0", relationship.id)
 	return err
 }
