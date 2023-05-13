@@ -5,11 +5,11 @@ import (
 )
 
 type Relationship struct {
-	id string
-	game *Game
+	id       string
+	game     *Game
 	provider EntityRef
 	receiver EntityRef
-	verb string
+	verb     string
 }
 
 func systemRelationshipInitialize(system *System) error {
@@ -39,11 +39,11 @@ func (entity EntityRef) AddRelationship(verb string, other EntityRef) (Relations
 	id := uuid.New().String()
 	_, err := entity.game.database.Exec("INSERT INTO entity_relationship(relationshipid, providerid, recieverid, relationshipverb, alive) VALUES (?, ?, ?, ?, 1)", id, entity.id, other.id, verb)
 	return Relationship{
-		id: id,
-		game: entity.game,
+		id:       id,
+		game:     entity.game,
 		provider: entity,
 		receiver: other,
-		verb: verb,
+		verb:     verb,
 	}, err
 }
 

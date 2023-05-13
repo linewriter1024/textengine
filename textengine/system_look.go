@@ -24,6 +24,6 @@ func SystemLookRegister(game *Game) {
 }
 
 func (entity *EntityRef) AddLook(looktype string, desc string) error {
-	_, err := entity.game.database.Exec("INSERT INTO entity_look(entityid, type, desc) VALUES (?, ?, ?)", entity.id, looktype, desc);
+	_, err := entity.game.database.Exec("INSERT INTO entity_look(entityid, type, desc) VALUES (?, ?, ?)", entity.id, looktype, desc)
 	return err
 }

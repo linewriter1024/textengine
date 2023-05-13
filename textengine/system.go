@@ -2,7 +2,7 @@ package textengine
 
 type System struct {
 	game               *Game
-	id           string
+	id                 string
 	databaseInitialize func(*System) error
 }
 
