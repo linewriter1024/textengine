@@ -16,5 +16,11 @@ func (game *Game) NewPlaceEntity() (EntityRef, error) {
 		return entity, err
 	}
 
+	err = entity.SetPositionScale("area")
+
+	if err != nil {
+		return entity, err
+	}
+
 	return entity, nil
 }
