@@ -1,7 +1,7 @@
 package textengine
 
 type inputfunc func(*Client) (CommandInput, error)
-type outputfunc func(*Client, CommandOutput)
+type outputfunc func(*Client, CommandOutput, CommandInput, error)
 
 type Client struct {
 	game         *Game
@@ -16,7 +16,11 @@ func (client *Client) Wait() (CommandInput, error) {
 }
 
 func (client *Client) Send(output CommandOutput) {
-	client.sendoutput(client, output)
+	client.sendoutput(client, output, nil, nil)
+}
+
+func (client *Client) SendAll(output CommandOutput, input CommandInput, err error) {
+	client.sendoutput(client, output, input, err)
 }
 
 func (client *Client) Quit() {

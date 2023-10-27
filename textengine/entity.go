@@ -42,3 +42,10 @@ func (game *Game) NewEntity() (EntityRef, error) {
 
 	return entityRef, err
 }
+
+func (game *Game) GetEntity(id string) EntityRef {
+	return EntityRef{
+		id:   id,
+		game: game,
+	}
+}

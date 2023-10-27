@@ -10,7 +10,7 @@ func (game *Game) NewPlaceEntity() (EntityRef, error) {
 		return entity, err
 	}
 
-	err = entity.AddLook("basic", "place")
+	err = entity.AddLook("basic", "a place")
 
 	if err != nil {
 		return entity, err

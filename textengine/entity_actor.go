@@ -10,7 +10,7 @@ func (game *Game) NewActorEntity() (EntityRef, error) {
 		return entity, err
 	}
 
-	err = entity.AddLook("basic", "actor")
+	err = entity.AddLook("basic", "an actor")
 
 	if err != nil {
 		return entity, err

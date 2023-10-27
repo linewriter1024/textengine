@@ -54,7 +54,11 @@ func main() {
 				return commandinput, nil
 			}
 		},
-		func(client *textengine.Client, output textengine.CommandOutput) {
+		func(client *textengine.Client, output textengine.CommandOutput, input textengine.CommandInput, gameError error) {
+			if gameError != nil {
+				fmt.Printf("< ! %v\n", gameError)
+			}
+
 			if apidebug {
 				fmt.Printf("< (%s)\n", pretty(output))
 			}
