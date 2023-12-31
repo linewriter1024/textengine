@@ -1,7 +1,7 @@
 package textengine
 
 type LookDescriptor struct {
-	entity EntityRef
+	entity    EntityRef
 	look_type string
 	look_desc string
 }
@@ -36,10 +36,10 @@ func (entity *EntityRef) AddLook(looktype string, desc string) error {
 
 type LookDescriptorResult struct {
 	look LookDescriptor
-	err error
+	err  error
 }
 
-func (entity EntityRef) GetLooks() (chan LookDescriptorResult) {
+func (entity EntityRef) GetLooks() chan LookDescriptorResult {
 	c := make(chan LookDescriptorResult)
 
 	go func() {

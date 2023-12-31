@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
+	"io"
 	"log"
-	"os"
 )
 
 // A game. Includes the entire world and all actors.
@@ -21,15 +21,17 @@ type Game struct {
 }
 
 // Create a new game context.
-func NewGame() (*Game, error) {
+func NewGame(logWriter io.Writer) (*Game, error) {
 	game := &Game{
 		systems:   make(Systems),
 		clients:   make([]*Client, 0),
 		running:   true,
-		systemLog: log.New(os.Stdout, "", log.LstdFlags),
+		systemLog: log.New(logWriter, "", log.LstdFlags),
 	}
 
 	game.commands = &Commands{game: game, commands: make(map[string]*Command)}
+
+	game.systemLog.Printf("%q %s %s %s", VersionFriendlyName, VersionName, VersionVersion().String(), VersionURL)
 
 	game.systemLog.Printf("Creating game context...")
 
@@ -88,7 +90,8 @@ func (game *Game) RegisterClient(client *Client) error {
 		"friendlyname": VersionFriendlyName,
 		"name":         VersionName,
 		"version":      VersionVersion().String(),
-		"text":         fmt.Sprintf("Welcome to %s %s", VersionFriendlyName, VersionVersion().String()),
+		"url":          VersionURL,
+		"text":         fmt.Sprintf("Welcome to %s %s <%s>", VersionFriendlyName, VersionVersion().String(), VersionURL),
 	})
 
 	var err error

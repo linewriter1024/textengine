@@ -3,10 +3,15 @@ package main
 import (
 	"benleskey.com/packages/golang/textengine"
 	"bufio"
+	"flag"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 )
+
+var apidebug = flag.Bool("apidebug", false, "print api debug information with each command")
+var showlog = flag.Bool("showlog", false, "print game log to standard output")
 
 func pretty(m map[string]string) string {
 	r := ""
@@ -29,9 +34,18 @@ func pretty(m map[string]string) string {
 }
 
 func main() {
-	const apidebug = true
 
-	game, err := textengine.NewGame()
+	flag.Parse()
+
+	var logWriter io.Writer
+
+	if *showlog {
+		logWriter = os.Stdout
+	} else {
+		logWriter = io.Discard
+	}
+
+	game, err := textengine.NewGame(logWriter)
 
 	if err != nil {
 		fmt.Printf("Could not open game: %s\n", err)
@@ -48,7 +62,7 @@ func main() {
 				return textengine.CommandInput{"command": "quit"}, nil
 			} else {
 				commandinput := client.TextToCommandInput(text)
-				if apidebug {
+				if *apidebug {
 					fmt.Printf("> (%s)\n", pretty(commandinput))
 				}
 				return commandinput, nil
@@ -59,7 +73,7 @@ func main() {
 				fmt.Printf("< ! %v\n", gameError)
 			}
 
-			if apidebug {
+			if *apidebug {
 				fmt.Printf("< (%s)\n", pretty(output))
 			}
 
