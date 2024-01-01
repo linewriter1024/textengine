@@ -24,7 +24,7 @@ public class CommandOutput extends Message<CommandOutput> {
 	}
 
 	public CommandOutput textf(String fmt, Object... args) {
-		return text(String.format(fmt, (Object[]) args));
+		return text(String.format(fmt, args));
 	}
 
 	public Optional<String> getText() {

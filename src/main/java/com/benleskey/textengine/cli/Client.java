@@ -8,8 +8,8 @@ import lombok.Builder;
 import java.util.Scanner;
 
 public class Client extends com.benleskey.textengine.Client {
-	private Scanner scanner = new Scanner(System.in);
-	private boolean apiDebug;
+	private final Scanner scanner = new Scanner(System.in);
+	private final boolean apiDebug;
 
 	@Builder
 	private Client(Game game, boolean apiDebug) {
@@ -21,7 +21,16 @@ public class Client extends com.benleskey.textengine.Client {
 	public CommandInput waitForInput() {
 		System.out.print("> ");
 		if (scanner.hasNextLine()) {
-			return game.inputLineToCommandInput(scanner.nextLine());
+			String line = scanner.nextLine();
+			if (line.trim().isEmpty()) {
+				return waitForInput();
+			} else {
+				CommandInput input = game.inputLineToCommandInput(line);
+				if (apiDebug) {
+					System.out.printf("> %s\n", input.toPrettyString());
+				}
+				return input;
+			}
 		} else {
 			return CommandInput.make(M_QUIT_FROM_CLIENT);
 		}

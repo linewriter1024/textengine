@@ -39,7 +39,7 @@ public class Message<T> {
 				s.add(String.format("%s: '%s'", key, value));
 			}
 		}
-		return "(" + s.toString() + ")";
+		return "(" + s + ")";
 	}
 
 	@Override

@@ -1,7 +1,6 @@
 package com.benleskey.textengine;
 
 public abstract class Plugin {
-	private String id;
 	protected Game game;
 
 	public Plugin(Game game) {
@@ -9,7 +8,7 @@ public abstract class Plugin {
 	}
 
 	public String getId() {
-		return id == null ? this.getClass().getCanonicalName() : id;
+		return this.getClass().getCanonicalName();
 	}
 
 	public abstract void activate();

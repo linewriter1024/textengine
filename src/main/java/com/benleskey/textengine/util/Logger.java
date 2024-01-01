@@ -7,7 +7,7 @@ import java.io.PrintStream;
 import java.time.LocalDateTime;
 
 public class Logger {
-	private PrintStream stream;
+	private final PrintStream stream;
 
 	@Builder
 	private Logger(OutputStream stream) {
@@ -15,6 +15,6 @@ public class Logger {
 	}
 
 	public void log(String fmt, Object... args) {
-		stream.printf("[%s] %s\n", LocalDateTime.now().toString(), String.format(fmt, args));
+		stream.printf("[%s] %s\n", LocalDateTime.now(), String.format(fmt, args));
 	}
 }

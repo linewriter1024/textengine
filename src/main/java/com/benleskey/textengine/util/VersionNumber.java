@@ -1,7 +1,9 @@
 package com.benleskey.textengine.util;
 
 public class VersionNumber {
-	private int major, minor, patch;
+	private final int major;
+	private final int minor;
+	private final int patch;
 
 	public VersionNumber(int major, int minor, int patch) {
 		this.major = major;

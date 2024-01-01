@@ -1,16 +1,14 @@
 package com.benleskey.textengine.commands;
 
-import lombok.Builder;
 import lombok.Getter;
-import lombok.Setter;
 
 import java.util.regex.Pattern;
 
 @Getter
 public class CommandVariant {
-	private String name;
-	private Pattern regex;
-	private CommandVariantFunction function;
+	private final String name;
+	private final Pattern regex;
+	private final CommandVariantFunction function;
 
 	public CommandVariant(String name, String regex, CommandVariantFunction function) {
 		this.name = name;
