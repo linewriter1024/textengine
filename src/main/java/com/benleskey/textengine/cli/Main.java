@@ -2,6 +2,7 @@ package com.benleskey.textengine.cli;
 
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.Version;
+import com.benleskey.textengine.exceptions.InternalException;
 import com.benleskey.textengine.util.Logger;
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.impl.action.StoreTrueArgumentAction;
@@ -25,10 +26,16 @@ public class Main {
 				.stream(showLog ? System.out : OutputStream.nullOutputStream())
 				.build();
 
-		Game game = Game.builder().log(logger).build();
-		Client client = Client.builder().game(game).apiDebug(apiDebug).build();
-		game.registerClient(client);
+		try {
+			try (Game game = Game.builder().log(logger).build()) {
+				Client client = Client.builder().game(game).apiDebug(apiDebug).build();
+				game.registerClient(client);
 
-		game.loopWithClients();
+				game.loopWithClients();
+			}
+		} catch (InternalException e) {
+			System.err.println("Encountered internal game engine error: " + e);
+			e.printStackTrace();
+		}
 	}
 }

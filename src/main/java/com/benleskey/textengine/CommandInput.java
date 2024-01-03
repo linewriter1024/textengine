@@ -7,6 +7,10 @@ import java.util.Optional;
 public class CommandInput extends Message<CommandInput> {
 	public final static String M_ORIGINAL_LINE = "original_input_line";
 
+	public CommandInput() {
+		super(M_INPUT_ID);
+	}
+
 	public static CommandInput make(String id) {
 		return (new CommandInput()).id(id);
 	}

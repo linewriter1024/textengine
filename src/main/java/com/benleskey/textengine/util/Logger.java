@@ -1,11 +1,13 @@
 package com.benleskey.textengine.util;
 
 import lombok.Builder;
+import lombok.Getter;
 
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.time.LocalDateTime;
 
+@Getter
 public class Logger {
 	private final PrintStream stream;
 

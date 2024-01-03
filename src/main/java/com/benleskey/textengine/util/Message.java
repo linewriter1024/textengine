@@ -1,19 +1,26 @@
 package com.benleskey.textengine.util;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.StringJoiner;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class Message<T> {
+	public static final String M_TYPE = "type";
+	public static final String M_RAW_ID = "raw";
 	public static final String M_OUTPUT_ID = "output";
 	public static final String M_INPUT_ID = "input";
 
 	public Map<String, Object> values = new HashMap<>();
 
+	public Message(String type) {
+		put(M_TYPE, type);
+	}
+
 	public static RawMessage make() {
 		return new RawMessage();
+	}
+
+	public String getType() {
+		return Objects.requireNonNull(this.get(M_TYPE), "message has no type: " + this);
 	}
 
 	public T put(String key, Object value) {
@@ -48,5 +55,8 @@ public class Message<T> {
 	}
 
 	public static class RawMessage extends Message<RawMessage> {
+		public RawMessage() {
+			super(M_RAW_ID);
+		}
 	}
 }
