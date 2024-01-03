@@ -10,6 +10,9 @@ import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.Namespace;
 
 import java.io.OutputStream;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
 
 public class Main {
 	public static void main(String[] args) {
@@ -26,15 +29,22 @@ public class Main {
 				.stream(showLog ? System.out : OutputStream.nullOutputStream())
 				.build();
 
-		try {
-			try (Game game = Game.builder().log(logger).build()) {
+		try(Connection connection = DriverManager.getConnection("jdbc:sqlite::memory:")) {
+			try {
+				Game game = Game.builder().log(logger).databaseConnection(connection).build();
+
+				game.initialize();
+
 				Client client = Client.builder().game(game).apiDebug(apiDebug).build();
 				game.registerClient(client);
 
 				game.loopWithClients();
+			} catch (InternalException e) {
+				System.err.println("Encountered internal game engine error: " + e);
+				e.printStackTrace();
 			}
-		} catch (InternalException e) {
-			System.err.println("Encountered internal game engine error: " + e);
+		} catch (Exception e) {
+			System.err.println("Unexpected error encountered: " + e);
 			e.printStackTrace();
 		}
 	}

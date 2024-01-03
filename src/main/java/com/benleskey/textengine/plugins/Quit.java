@@ -13,7 +13,7 @@ public class Quit extends Plugin {
 	}
 
 	@Override
-	public void activate() {
+	public void initialize() {
 		game.registerCommand(new Command(Client.M_QUIT_FROM_CLIENT, (c, i) -> c.quitFromServer(),
 				new CommandVariant(Client.M_QUIT_FROM_CLIENT, "^quit([^\\w]+|$)", args -> CommandInput.makeNone())));
 	}

@@ -11,5 +11,5 @@ public abstract class Plugin {
 		return this.getClass().getCanonicalName();
 	}
 
-	public abstract void activate();
+	public abstract void initialize();
 }

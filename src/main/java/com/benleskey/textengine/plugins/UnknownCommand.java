@@ -12,7 +12,7 @@ public class UnknownCommand extends Plugin {
 	}
 
 	@Override
-	public void activate() {
+	public void initialize() {
 		game.registerCommand(new Command(CommandOutput.M_UNKNOWN_COMMAND, (c, i) -> {
 			CommandOutput output = CommandOutput.make(CommandOutput.M_UNKNOWN_COMMAND);
 			i.<CommandInput>getO(CommandOutput.M_ORIGINAL_UNKNOWN_COMMAND_COMMAND).ifPresent(original -> output.put(CommandOutput.M_ORIGINAL_UNKNOWN_COMMAND_COMMAND, original));

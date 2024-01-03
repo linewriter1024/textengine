@@ -3,14 +3,15 @@ package com.benleskey.textengine;
 import com.benleskey.textengine.commands.Command;
 import com.benleskey.textengine.commands.CommandVariant;
 import com.benleskey.textengine.exceptions.DatabaseException;
+import com.benleskey.textengine.exceptions.InternalException;
 import com.benleskey.textengine.plugins.Echo;
+import com.benleskey.textengine.plugins.EntityPlugin;
 import com.benleskey.textengine.plugins.Quit;
 import com.benleskey.textengine.plugins.UnknownCommand;
 import com.benleskey.textengine.util.Logger;
 import lombok.Builder;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -18,56 +19,108 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 
-public class Game implements AutoCloseable {
+public class Game {
 	public static final String M_WELCOME = "welcome";
 	public static final String M_VERSION = "version";
 
 	private final Logger log;
 	@Builder.Default
-	private final Logger errorLog = Logger.builder().stream(System.err).build();
+	private Logger errorLog = Logger.builder().stream(System.err).build();
 	private final Collection<Client> clients = new ArrayList<>();
 	private final Map<String, Plugin> plugins = new HashMap<>();
 	private final Map<String, Command> commands = new HashMap<>();
+	private final Map<String, GameSystem> systems = new HashMap<>();
 	private long idCounter = 1;
+
+	private final SchemaManager schemaManager;
 
 	private final Connection databaseConnection;
 
+	private boolean initialized = false;
+
 	@Builder
-	public Game(Logger log, Logger errorLog) throws DatabaseException {
+	public Game(Logger log, Logger errorLog, Connection databaseConnection) {
 		this.log = log;
+		this.errorLog = errorLog;
+		this.databaseConnection = databaseConnection;
 
 		log.log("%s", Version.toHumanString());
 
-		try {
-			databaseConnection = DriverManager.getConnection("jdbc:sqlite::memory:");
-		} catch (SQLException e) {
-			throw new DatabaseException("Unable to connect to database", e);
-		}
+		schemaManager = new SchemaManager(this);
 
 		registerPlugin(new UnknownCommand(this));
 		registerPlugin(new Quit(this));
 		registerPlugin(new Echo(this));
+
+		registerPlugin(new EntityPlugin(this));
 	}
 
-	private Connection getConnection() {
+	public void initialize() throws DatabaseException {
+		log.log("Initializing...");
+
+		try {
+			databaseConnection.setAutoCommit(false);
+		}
+		catch(SQLException autoCommitE) {
+			throw new DatabaseException("Unable to configure database connection", autoCommitE);
+		}
+
+		try {
+			schemaManager.initialize();
+
+			for(Plugin plugin : plugins.values()) {
+				plugin.initialize();
+			}
+
+			for(GameSystem system : systems.values()) {
+				int previousVersion = system.getSchema().getVersionNumber();
+				system.initialize();
+				int nextVersion = system.getSchema().getVersionNumber();
+				if(previousVersion == nextVersion) {
+					log.log("System %s version %d", system.getId(), nextVersion);
+				}
+				else if(previousVersion == 0) {
+					log.log("System %s initialized to version %d", system.getId(), nextVersion);
+				}
+				else {
+					log.log("System %s upgraded from version %d to version %d", system.getId(), previousVersion, nextVersion);
+				}
+			}
+
+			try {
+				databaseConnection.commit();
+			}
+			catch(SQLException commitE) {
+				throw new DatabaseException("Unable to commit initialization transaction", commitE);
+			}
+		}
+		catch(Throwable e) {
+			try {
+				databaseConnection.rollback();
+			}
+			catch(SQLException rollbackE) {
+				errorLog.log("Unable to rollback initialization transaction: " + rollbackE);
+				rollbackE.printStackTrace(errorLog.getStream());
+			}
+			throw e;
+		}
+
+		initialized = true;
+
+		log.log("Initialized.");
+	}
+
+	public Connection db() {
 		return databaseConnection;
 	}
 
-	public void close() {
-		try {
-			if (databaseConnection != null) {
-				databaseConnection.close();
-			}
-		} catch (SQLException e) {
-			errorLog.log("Unable to close database connection: " + e);
-			e.printStackTrace(errorLog.getStream());
-		}
+	public SchemaManager getSchemaManager() {
+		return schemaManager;
 	}
 
 	public void registerPlugin(Plugin plugin) {
 		plugins.put(plugin.getId(), plugin);
 		log.log("Registered plugin %s", plugin.getId());
-		plugin.activate();
 	}
 
 	public void registerCommand(Command command) {
@@ -83,15 +136,41 @@ public class Game implements AutoCloseable {
 		client.sendOutput(CommandOutput.make(M_WELCOME).put(M_VERSION, Version.toMessage()).textf("Welcome to %s %s <%s>", Version.humanName, Version.versionNumber, Version.url));
 	}
 
+	public void registerSystem(GameSystem system) {
+		log.log("Registering system: %s", system.getId());
+		systems.put(system.getId(), system);
+	}
+
 	private boolean anyClientAlive() {
 		return clients.stream().anyMatch(Client::isAlive);
 	}
 
-	public void loopWithClients() {
+	public void loopWithClients() throws InternalException {
+		if(!initialized) {
+			throw new IllegalStateException("Tried to run the game without calling initialize() first");
+		}
 		log.log("Looping with clients...");
 		while (anyClientAlive()) {
-			for (Client client : clients) {
-				feedCommand(client, client.waitForInput());
+			try {
+				for (Client client : clients) {
+					feedCommand(client, client.waitForInput());
+				}
+				try {
+					databaseConnection.commit();
+				}
+				catch(SQLException e) {
+					throw new DatabaseException("Unable to commit loop transaction", e);
+				}
+			}
+			catch(Throwable e) {
+				try {
+					databaseConnection.rollback();
+				}
+				catch(SQLException rollbackE) {
+					errorLog.log("Unable to rollback loop transaction: " + rollbackE);
+					rollbackE.printStackTrace(errorLog.getStream());
+				}
+				throw e;
 			}
 		}
 		log.log("No clients left alive...");

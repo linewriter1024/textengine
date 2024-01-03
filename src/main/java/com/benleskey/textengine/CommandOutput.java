@@ -32,6 +32,10 @@ public class CommandOutput extends Message<CommandOutput> {
 	}
 
 	public Optional<String> getText() {
-		return Optional.ofNullable((String) values.getOrDefault(M_TEXT, null));
+		return getO(M_TEXT);
+	}
+
+	public Optional<String> getError() {
+		return getO(M_ERROR);
 	}
 }

@@ -41,6 +41,7 @@ public class Client extends com.benleskey.textengine.Client {
 		if (apiDebug) {
 			System.out.printf("< %s\n", output.toPrettyString());
 		}
+		output.getError().ifPresent(error -> System.out.printf("! %s\n", error));
 		output.getText().ifPresent(text -> System.out.println(text));
 	}
 }

@@ -16,7 +16,7 @@ public class Echo extends Plugin {
 	}
 
 	@Override
-	public void activate() {
+	public void initialize() {
 		game.registerCommand(new Command(ECHO, (c, i) -> c.sendOutput(CommandOutput.make(ECHO).text(i.get(M_ECHO_TEXT))),
 				new CommandVariant(ECHO, "^echo[^\\w]*(.*)$", args -> CommandInput.makeNone().put(M_ECHO_TEXT, args.group(1)))));
 	}
