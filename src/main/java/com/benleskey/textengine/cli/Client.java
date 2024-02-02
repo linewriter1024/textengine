@@ -20,20 +20,24 @@ public class Client extends com.benleskey.textengine.Client {
 	@Override
 	public CommandInput waitForInput() {
 		System.out.print("> ");
+		CommandInput toServer;
 		if (scanner.hasNextLine()) {
 			String line = scanner.nextLine();
 			if (line.trim().isEmpty()) {
+				// Recurse
 				return waitForInput();
 			} else {
-				CommandInput input = game.inputLineToCommandInput(line);
-				if (apiDebug) {
-					System.out.printf("> %s\n", input.toPrettyString());
-				}
-				return input;
+				toServer = game.inputLineToCommandInput(line);
 			}
 		} else {
-			return CommandInput.make(M_QUIT_FROM_CLIENT);
+			toServer = CommandInput.make(M_QUIT_FROM_CLIENT);
 		}
+
+		if (apiDebug) {
+			System.out.printf("> %s\n", toServer.toPrettyString());
+		}
+
+		return toServer;
 	}
 
 	@Override

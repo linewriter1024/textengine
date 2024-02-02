@@ -1,4 +1,4 @@
-package com.benleskey.textengine.plugins;
+package com.benleskey.textengine.plugins.core;
 
 import com.benleskey.textengine.CommandInput;
 import com.benleskey.textengine.CommandOutput;

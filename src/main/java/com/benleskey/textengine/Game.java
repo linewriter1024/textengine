@@ -4,33 +4,36 @@ import com.benleskey.textengine.commands.Command;
 import com.benleskey.textengine.commands.CommandVariant;
 import com.benleskey.textengine.exceptions.DatabaseException;
 import com.benleskey.textengine.exceptions.InternalException;
-import com.benleskey.textengine.plugins.Echo;
-import com.benleskey.textengine.plugins.EntityPlugin;
-import com.benleskey.textengine.plugins.Quit;
-import com.benleskey.textengine.plugins.UnknownCommand;
+import com.benleskey.textengine.plugins.core.Echo;
+import com.benleskey.textengine.plugins.core.EntityPlugin;
+import com.benleskey.textengine.plugins.core.Quit;
+import com.benleskey.textengine.plugins.core.UnknownCommand;
+import com.benleskey.textengine.systems.EntitySystem;
 import com.benleskey.textengine.util.Logger;
 import lombok.Builder;
+import lombok.Data;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
 
 public class Game {
 	public static final String M_WELCOME = "welcome";
 	public static final String M_VERSION = "version";
 
-	private final Logger log;
+	public Logger log;
 	@Builder.Default
-	private Logger errorLog = Logger.builder().stream(System.err).build();
+	public Logger errorLog = Logger.builder().stream(System.err).build();
 	private final Collection<Client> clients = new ArrayList<>();
 	private final Map<String, Plugin> plugins = new HashMap<>();
 	private final Map<String, Command> commands = new HashMap<>();
 	private final Map<String, GameSystem> systems = new HashMap<>();
-	private long idCounter = 1;
 
 	private final SchemaManager schemaManager;
 
@@ -114,6 +117,10 @@ public class Game {
 		return databaseConnection;
 	}
 
+	public long getNewId() throws DatabaseException {
+		return schemaManager.getNewId();
+	}
+
 	public SchemaManager getSchemaManager() {
 		return schemaManager;
 	}
@@ -128,9 +135,9 @@ public class Game {
 		commands.put(command.getName(), command);
 	}
 
-	public void registerClient(Client client) {
+	public void registerClient(Client client) throws InternalException {
 		client.setAlive(true);
-		client.setId(String.valueOf(idCounter++));
+		client.setId(String.valueOf(getNewId()));
 		log.log("Registering client: %s", client);
 		clients.add(client);
 		client.sendOutput(CommandOutput.make(M_WELCOME).put(M_VERSION, Version.toMessage()).textf("Welcome to %s %s <%s>", Version.humanName, Version.versionNumber, Version.url));

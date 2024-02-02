@@ -1,5 +1,6 @@
 package com.benleskey.textengine;
 
+import com.benleskey.textengine.model.Entity;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -22,6 +23,7 @@ public abstract class Client {
 		if (alive) {
 			alive = false;
 			sendOutput(CommandOutput.make(M_QUIT_FROM_SERVER).text("Goodbye."));
+			game.log.log("Disconnected %s", this);
 		}
 	}
 

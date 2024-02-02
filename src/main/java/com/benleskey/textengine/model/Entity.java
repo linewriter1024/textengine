@@ -1,7 +1,9 @@
-package com.benleskey.textengine;
+package com.benleskey.textengine.model;
+
+import com.benleskey.textengine.Game;
 
 public class Entity extends Reference {
-	public Entity(String id, Game game) {
+	public Entity(long id, Game game) {
 		super(id, game);
 	}
 }

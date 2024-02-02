@@ -9,6 +9,13 @@ import java.sql.SQLException;
 public class SchemaManager {
 	private final Game game;
 
+	private PreparedStatement insertNewIdStatement;
+	private PreparedStatement getNewIdStatement;
+
+	private long idCounter;
+
+	private static final long idMultiplier = 100;
+
 	public SchemaManager(Game game) {
 		this.game = game;
 	}
@@ -18,8 +25,30 @@ public class SchemaManager {
 			try (PreparedStatement s = game.db().prepareStatement("CREATE TABLE IF NOT EXISTS system_schema(system_id TEXT PRIMARY KEY, version_number INTEGER)")) {
 				s.execute();
 			}
+
+			try (PreparedStatement s = game.db().prepareStatement("CREATE TABLE IF NOT EXISTS system_id(id INTEGER PRIMARY KEY)")) {
+				s.execute();
+			}
+
+			insertNewIdStatement = game.db().prepareStatement("INSERT INTO system_id (id) VALUES (NULL)");
+			getNewIdStatement = game.db().prepareStatement("SELECT last_insert_rowid()");
 		} catch (SQLException e) {
 			throw new DatabaseException("Unable to initialize schema table", e);
+		}
+	}
+
+	public synchronized long getNewId() throws DatabaseException {
+		try {
+			if (idCounter % idMultiplier == 0) {
+				insertNewIdStatement.execute();
+				getNewIdStatement.execute();
+				long nextFromDb = getNewIdStatement.getResultSet().getLong(1);
+				return (idCounter = nextFromDb * idMultiplier + 1);
+			} else {
+				return ++idCounter;
+			}
+		} catch(SQLException e) {
+			throw new DatabaseException("Unable to get new ID", e);
 		}
 	}
 
