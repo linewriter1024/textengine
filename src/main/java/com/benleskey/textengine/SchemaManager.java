@@ -7,14 +7,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 public class SchemaManager {
+	private static final long idMultiplier = 100;
 	private final Game game;
-
 	private PreparedStatement insertNewIdStatement;
 	private PreparedStatement getNewIdStatement;
-
 	private long idCounter;
-
-	private static final long idMultiplier = 100;
 
 	public SchemaManager(Game game) {
 		this.game = game;
@@ -47,7 +44,7 @@ public class SchemaManager {
 			} else {
 				return ++idCounter;
 			}
-		} catch(SQLException e) {
+		} catch (SQLException e) {
 			throw new DatabaseException("Unable to get new ID", e);
 		}
 	}

@@ -20,12 +20,12 @@ public class EntitySystem extends GameSystem {
 	public void initialize() throws DatabaseException {
 		int v = getSchema().getVersionNumber();
 
-		if(v == 0) {
+		if (v == 0) {
 			try {
 				try (Statement s = game.db().createStatement()) {
 					s.executeUpdate("CREATE TABLE IF NOT EXISTS entity(entity_id INTEGER PRIMARY KEY)");
 				}
-			} catch(SQLException e) {
+			} catch (SQLException e) {
 				throw new DatabaseException("Unable to create entity table", e);
 			}
 			getSchema().setVersionNumber(1);
@@ -33,7 +33,7 @@ public class EntitySystem extends GameSystem {
 
 		try {
 			addStatement = game.db().prepareStatement("INSERT INTO entity (entity_id) VALUES (?)");
-		} catch(SQLException e) {
+		} catch (SQLException e) {
 			throw new DatabaseException("Unable to prepare entity statements", e);
 		}
 	}
@@ -44,7 +44,7 @@ public class EntitySystem extends GameSystem {
 			addStatement.setLong(1, newId);
 			addStatement.executeUpdate();
 			return new Entity(newId, game);
-		} catch(SQLException e) {
+		} catch (SQLException e) {
 			throw new DatabaseException("Unable to add entity", e);
 		}
 	}

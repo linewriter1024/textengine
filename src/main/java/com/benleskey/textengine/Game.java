@@ -8,37 +8,29 @@ import com.benleskey.textengine.plugins.core.Echo;
 import com.benleskey.textengine.plugins.core.EntityPlugin;
 import com.benleskey.textengine.plugins.core.Quit;
 import com.benleskey.textengine.plugins.core.UnknownCommand;
-import com.benleskey.textengine.systems.EntitySystem;
 import com.benleskey.textengine.util.Logger;
 import lombok.Builder;
-import lombok.Data;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
 
 public class Game {
 	public static final String M_WELCOME = "welcome";
 	public static final String M_VERSION = "version";
-
-	public Logger log;
-	@Builder.Default
-	public Logger errorLog = Logger.builder().stream(System.err).build();
 	private final Collection<Client> clients = new ArrayList<>();
 	private final Map<String, Plugin> plugins = new HashMap<>();
 	private final Map<String, Command> commands = new HashMap<>();
 	private final Map<String, GameSystem> systems = new HashMap<>();
-
 	private final SchemaManager schemaManager;
-
 	private final Connection databaseConnection;
-
+	public Logger log;
+	@Builder.Default
+	public Logger errorLog = Logger.builder().stream(System.err).build();
 	private boolean initialized = false;
 
 	@Builder
@@ -63,45 +55,39 @@ public class Game {
 
 		try {
 			databaseConnection.setAutoCommit(false);
-		}
-		catch(SQLException autoCommitE) {
+		} catch (SQLException autoCommitE) {
 			throw new DatabaseException("Unable to configure database connection", autoCommitE);
 		}
 
 		try {
 			schemaManager.initialize();
 
-			for(Plugin plugin : plugins.values()) {
+			for (Plugin plugin : plugins.values()) {
 				plugin.initialize();
 			}
 
-			for(GameSystem system : systems.values()) {
+			for (GameSystem system : systems.values()) {
 				int previousVersion = system.getSchema().getVersionNumber();
 				system.initialize();
 				int nextVersion = system.getSchema().getVersionNumber();
-				if(previousVersion == nextVersion) {
+				if (previousVersion == nextVersion) {
 					log.log("System %s version %d", system.getId(), nextVersion);
-				}
-				else if(previousVersion == 0) {
+				} else if (previousVersion == 0) {
 					log.log("System %s initialized to version %d", system.getId(), nextVersion);
-				}
-				else {
+				} else {
 					log.log("System %s upgraded from version %d to version %d", system.getId(), previousVersion, nextVersion);
 				}
 			}
 
 			try {
 				databaseConnection.commit();
-			}
-			catch(SQLException commitE) {
+			} catch (SQLException commitE) {
 				throw new DatabaseException("Unable to commit initialization transaction", commitE);
 			}
-		}
-		catch(Throwable e) {
+		} catch (Throwable e) {
 			try {
 				databaseConnection.rollback();
-			}
-			catch(SQLException rollbackE) {
+			} catch (SQLException rollbackE) {
 				errorLog.log("Unable to rollback initialization transaction: " + rollbackE);
 				rollbackE.printStackTrace(errorLog.getStream());
 			}
@@ -153,7 +139,7 @@ public class Game {
 	}
 
 	public void loopWithClients() throws InternalException {
-		if(!initialized) {
+		if (!initialized) {
 			throw new IllegalStateException("Tried to run the game without calling initialize() first");
 		}
 		log.log("Looping with clients...");
@@ -164,16 +150,13 @@ public class Game {
 				}
 				try {
 					databaseConnection.commit();
-				}
-				catch(SQLException e) {
+				} catch (SQLException e) {
 					throw new DatabaseException("Unable to commit loop transaction", e);
 				}
-			}
-			catch(Throwable e) {
+			} catch (Throwable e) {
 				try {
 					databaseConnection.rollback();
-				}
-				catch(SQLException rollbackE) {
+				} catch (SQLException rollbackE) {
 					errorLog.log("Unable to rollback loop transaction: " + rollbackE);
 					rollbackE.printStackTrace(errorLog.getStream());
 				}

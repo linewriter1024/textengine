@@ -11,10 +11,8 @@ import net.sourceforge.argparse4j.inf.Namespace;
 
 import java.io.File;
 import java.io.OutputStream;
-import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.time.LocalDateTime;
 
 public class Main {
 	public static void main(String[] args) {

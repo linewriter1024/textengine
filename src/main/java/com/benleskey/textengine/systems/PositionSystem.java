@@ -1,9 +1,9 @@
 package com.benleskey.textengine.systems;
 
-import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.GameSystem;
 import com.benleskey.textengine.exceptions.DatabaseException;
+import com.benleskey.textengine.model.Entity;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -23,12 +23,12 @@ public class PositionSystem extends GameSystem {
 	public void initialize() throws DatabaseException {
 		int v = getSchema().getVersionNumber();
 
-		if(v == 0) {
+		if (v == 0) {
 			try {
 				try (Statement s = game.db().createStatement()) {
 					s.executeUpdate("CREATE TABLE IF NOT EXISTS entity_position_scale(entity_id INTEGER PRIMARY KEY, scale TEXT)");
 				}
-			} catch(SQLException e) {
+			} catch (SQLException e) {
 				throw new DatabaseException("Unable to create entity position scale table", e);
 			}
 			getSchema().setVersionNumber(1);
@@ -37,8 +37,7 @@ public class PositionSystem extends GameSystem {
 		try {
 			getScaleStatement = game.db().prepareStatement("SELECT scale FROM entity_position_scale WHERE entity_id = ?");
 			setScaleStatement = game.db().prepareStatement("INSERT OR REPLACE INTO entity_position_scale (entity_id, scale) VALUES (?, ?)");
-		}
-		catch(SQLException e) {
+		} catch (SQLException e) {
 			throw new DatabaseException("Could not prepare statements for position system", e);
 		}
 	}
@@ -48,8 +47,7 @@ public class PositionSystem extends GameSystem {
 			setScaleStatement.setLong(1, entity.getId());
 			setScaleStatement.setString(2, scale);
 			setScaleStatement.executeUpdate();
-		}
-		catch(SQLException e) {
+		} catch (SQLException e) {
 			throw new DatabaseException("Cannot set scale for entity " + entity, e);
 		}
 	}
@@ -60,12 +58,11 @@ public class PositionSystem extends GameSystem {
 			try (ResultSet rs = getScaleStatement.executeQuery()) {
 				if (rs.next()) {
 					return Optional.of(rs.getString(1));
-				}
-				else {
+				} else {
 					return Optional.empty();
 				}
 			}
-		} catch(SQLException e) {
+		} catch (SQLException e) {
 			throw new DatabaseException("Cannot get scale for entity " + entity, e);
 		}
 	}
