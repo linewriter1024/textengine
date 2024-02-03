@@ -38,9 +38,9 @@ public class EntitySystem extends GameSystem {
 		}
 	}
 
-	public Entity add() throws DatabaseException {
+	public synchronized Entity add() throws DatabaseException {
 		try {
-			long newId = game.getNewId();
+			long newId = game.getNewGlobalId();
 			addStatement.setLong(1, newId);
 			addStatement.executeUpdate();
 			return new Entity(newId, game);

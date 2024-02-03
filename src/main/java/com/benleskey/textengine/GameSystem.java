@@ -18,4 +18,9 @@ public abstract class GameSystem {
 	}
 
 	public abstract void initialize() throws DatabaseException;
+
+	@Override
+	public String toString() {
+		return String.format("%s#%s", this.getClass().getSimpleName(), getId());
+	}
 }

@@ -21,6 +21,6 @@ public class Reference {
 
 	@Override
 	public String toString() {
-		return this.getClass().getSimpleName() + " " + id;
+		return this.getClass().getSimpleName() + "#" + id;
 	}
 }

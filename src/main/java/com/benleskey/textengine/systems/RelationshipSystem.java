@@ -39,9 +39,9 @@ public class RelationshipSystem extends GameSystem {
 		}
 	}
 
-	public Relationship add(Entity provider, Entity receiver, String verb) throws DatabaseException {
+	public synchronized Relationship add(Entity provider, Entity receiver, String verb) throws DatabaseException {
 		try {
-			long newId = game.getNewId();
+			long newId = game.getNewGlobalId();
 			addStatement.setLong(1, newId);
 			addStatement.setLong(2, provider.getId());
 			addStatement.setLong(3, receiver.getId());

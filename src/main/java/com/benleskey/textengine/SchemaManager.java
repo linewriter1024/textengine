@@ -7,7 +7,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 public class SchemaManager {
-	private static final long idMultiplier = 100;
+	public static final long ID_MULTIPLIER = 1000;
 	private final Game game;
 	private PreparedStatement insertNewIdStatement;
 	private PreparedStatement getNewIdStatement;
@@ -36,11 +36,11 @@ public class SchemaManager {
 
 	public synchronized long getNewId() throws DatabaseException {
 		try {
-			if (idCounter % idMultiplier == 0) {
+			if (idCounter % ID_MULTIPLIER == 0) {
 				insertNewIdStatement.execute();
 				getNewIdStatement.execute();
 				long nextFromDb = getNewIdStatement.getResultSet().getLong(1);
-				return (idCounter = nextFromDb * idMultiplier + 1);
+				return (idCounter = nextFromDb * ID_MULTIPLIER + 1);
 			} else {
 				return ++idCounter;
 			}

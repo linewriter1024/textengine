@@ -29,6 +29,6 @@ public abstract class Client {
 
 	@Override
 	public String toString() {
-		return "Client " + id;
+		return "Client#" + id;
 	}
 }

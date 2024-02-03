@@ -4,34 +4,29 @@ import com.benleskey.textengine.commands.Command;
 import com.benleskey.textengine.commands.CommandVariant;
 import com.benleskey.textengine.exceptions.DatabaseException;
 import com.benleskey.textengine.exceptions.InternalException;
-import com.benleskey.textengine.plugins.core.Echo;
-import com.benleskey.textengine.plugins.core.EntityPlugin;
-import com.benleskey.textengine.plugins.core.Quit;
-import com.benleskey.textengine.plugins.core.UnknownCommand;
+import com.benleskey.textengine.plugins.core.*;
 import com.benleskey.textengine.util.Logger;
 import lombok.Builder;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
 
 public class Game {
 	public static final String M_WELCOME = "welcome";
 	public static final String M_VERSION = "version";
 	private final Collection<Client> clients = new ArrayList<>();
-	private final Map<String, Plugin> plugins = new HashMap<>();
-	private final Map<String, Command> commands = new HashMap<>();
-	private final Map<String, GameSystem> systems = new HashMap<>();
+	private final Map<String, Plugin> plugins = new LinkedHashMap<>();
+	private final Map<String, Command> commands = new LinkedHashMap<>();
+	private final Map<String, GameSystem> systems = new LinkedHashMap<>();
 	private final SchemaManager schemaManager;
 	private final Connection databaseConnection;
 	public Logger log;
-	@Builder.Default
 	public Logger errorLog = Logger.builder().stream(System.err).build();
 	private boolean initialized = false;
+	private AtomicLong idCounter = new AtomicLong();
 
 	@Builder
 	public Game(Logger log, Logger errorLog, Connection databaseConnection) {
@@ -48,6 +43,7 @@ public class Game {
 		registerPlugin(new Echo(this));
 
 		registerPlugin(new EntityPlugin(this));
+		registerPlugin(new WorldPlugin(this));
 	}
 
 	public void initialize() throws DatabaseException {
@@ -103,8 +99,12 @@ public class Game {
 		return databaseConnection;
 	}
 
-	public long getNewId() throws DatabaseException {
+	public long getNewGlobalId() throws DatabaseException {
 		return schemaManager.getNewId();
+	}
+
+	public long getNewSessionId() {
+		return idCounter.incrementAndGet();
 	}
 
 	public SchemaManager getSchemaManager() {
@@ -123,15 +123,16 @@ public class Game {
 
 	public void registerClient(Client client) throws InternalException {
 		client.setAlive(true);
-		client.setId(String.valueOf(getNewId()));
+		client.setId(String.valueOf(getNewSessionId()));
 		log.log("Registering client: %s", client);
 		clients.add(client);
 		client.sendOutput(CommandOutput.make(M_WELCOME).put(M_VERSION, Version.toMessage()).textf("Welcome to %s %s <%s>", Version.humanName, Version.versionNumber, Version.url));
 	}
 
-	public void registerSystem(GameSystem system) {
+	public <T extends GameSystem> T registerSystem(T system) {
 		log.log("Registering system: %s", system.getId());
 		systems.put(system.getId(), system);
+		return system;
 	}
 
 	private boolean anyClientAlive() {
@@ -159,6 +160,7 @@ public class Game {
 				} catch (SQLException rollbackE) {
 					errorLog.log("Unable to rollback loop transaction: " + rollbackE);
 					rollbackE.printStackTrace(errorLog.getStream());
+
 				}
 				throw e;
 			}

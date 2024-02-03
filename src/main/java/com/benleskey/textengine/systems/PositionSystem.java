@@ -42,7 +42,7 @@ public class PositionSystem extends GameSystem {
 		}
 	}
 
-	public void setScale(Entity entity, String scale) throws DatabaseException {
+	public synchronized void setScale(Entity entity, String scale) throws DatabaseException {
 		try {
 			setScaleStatement.setLong(1, entity.getId());
 			setScaleStatement.setString(2, scale);
@@ -52,7 +52,7 @@ public class PositionSystem extends GameSystem {
 		}
 	}
 
-	public Optional<String> getScale(Entity entity) throws DatabaseException {
+	public synchronized Optional<String> getScale(Entity entity) throws DatabaseException {
 		try {
 			getScaleStatement.setLong(1, entity.getId());
 			try (ResultSet rs = getScaleStatement.executeQuery()) {
