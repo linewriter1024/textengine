@@ -1,7 +1,7 @@
 package com.benleskey.textengine.systems;
 
 import com.benleskey.textengine.Game;
-import com.benleskey.textengine.GameSystem;
+import com.benleskey.textengine.SingletonGameSystem;
 import com.benleskey.textengine.exceptions.DatabaseException;
 import com.benleskey.textengine.model.Entity;
 
@@ -11,7 +11,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Optional;
 
-public class PositionSystem extends GameSystem {
+public class PositionSystem extends SingletonGameSystem {
 	private PreparedStatement getScaleStatement;
 	private PreparedStatement setScaleStatement;
 
@@ -26,7 +26,7 @@ public class PositionSystem extends GameSystem {
 		if (v == 0) {
 			try {
 				try (Statement s = game.db().createStatement()) {
-					s.executeUpdate("CREATE TABLE IF NOT EXISTS entity_position_scale(entity_id INTEGER PRIMARY KEY, scale TEXT)");
+					s.executeUpdate("CREATE TABLE entity_position_scale(entity_id INTEGER PRIMARY KEY, scale TEXT)");
 				}
 			} catch (SQLException e) {
 				throw new DatabaseException("Unable to create entity position scale table", e);

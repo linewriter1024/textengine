@@ -11,6 +11,9 @@ public class Message<T> {
 
 	public Map<String, Object> values = new HashMap<>();
 
+	protected Message() {
+	}
+
 	public Message(String type) {
 		put(M_TYPE, type);
 	}
@@ -56,7 +59,7 @@ public class Message<T> {
 
 	public static class RawMessage extends Message<RawMessage> {
 		public RawMessage() {
-			super(M_RAW_ID);
+			super();
 		}
 	}
 }

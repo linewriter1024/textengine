@@ -1,7 +1,7 @@
 package com.benleskey.textengine.systems;
 
 import com.benleskey.textengine.Game;
-import com.benleskey.textengine.GameSystem;
+import com.benleskey.textengine.SingletonGameSystem;
 import com.benleskey.textengine.exceptions.DatabaseException;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.Relationship;
@@ -10,7 +10,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-public class RelationshipSystem extends GameSystem {
+public class RelationshipSystem extends SingletonGameSystem {
 	private PreparedStatement addStatement;
 
 	public RelationshipSystem(Game game) {
@@ -24,7 +24,7 @@ public class RelationshipSystem extends GameSystem {
 		if (v == 0) {
 			try {
 				try (Statement s = game.db().createStatement()) {
-					s.executeUpdate("CREATE TABLE IF NOT EXISTS entity_relationship(relationship_id INTEGER PRIMARY KEY, provider_id INTEGER, receiver_id INTEGER, relationship_verb TEXT, start_time INTEGER, end_time INTEGER)");
+					s.executeUpdate("CREATE TABLE entity_relationship(relationship_id INTEGER PRIMARY KEY, provider_id INTEGER, receiver_id INTEGER, relationship_verb TEXT, start_time INTEGER, end_time INTEGER)");
 				}
 			} catch (SQLException e) {
 				throw new DatabaseException("Unable to create entity relationship table", e);

@@ -31,7 +31,9 @@ public class Game {
 	@Builder
 	public Game(Logger log, Logger errorLog, Connection databaseConnection) {
 		this.log = log;
-		this.errorLog = errorLog;
+		if (errorLog != null) {
+			this.errorLog = errorLog;
+		}
 		this.databaseConnection = databaseConnection;
 
 		log.log("%s", Version.toHumanString());
@@ -44,9 +46,22 @@ public class Game {
 
 		registerPlugin(new EntityPlugin(this));
 		registerPlugin(new WorldPlugin(this));
+
+		registerPlugin(new InteractionPlugin(this));
 	}
 
-	public void initialize() throws DatabaseException {
+	@FunctionalInterface
+	public interface PluginRunner {
+		void run(Plugin p) throws InternalException;
+	}
+
+	public void allPlugins(PluginRunner runner) throws InternalException {
+		for (Plugin plugin : plugins.values()) {
+			runner.run(plugin);
+		}
+	}
+
+	public void initialize() throws InternalException {
 		log.log("Initializing...");
 
 		try {
@@ -58,9 +73,11 @@ public class Game {
 		try {
 			schemaManager.initialize();
 
-			for (Plugin plugin : plugins.values()) {
-				plugin.initialize();
-			}
+			log.log("Initializing plugins...");
+
+			allPlugins(Plugin::initialize);
+
+			log.log("Initializing systems...");
 
 			for (GameSystem system : systems.values()) {
 				int previousVersion = system.getSchema().getVersionNumber();
@@ -75,7 +92,12 @@ public class Game {
 				}
 			}
 
+			log.log("Starting game...");
+
+			allPlugins(Plugin::start);
+
 			try {
+				log.log("Committing initialization...");
 				databaseConnection.commit();
 			} catch (SQLException commitE) {
 				throw new DatabaseException("Unable to commit initialization transaction", commitE);
@@ -93,6 +115,14 @@ public class Game {
 		initialized = true;
 
 		log.log("Initialized.");
+	}
+
+	public <T> T getSystem(String name) {
+		return Optional.ofNullable((T) systems.getOrDefault(name, null)).orElseThrow();
+	}
+
+	public <T extends SingletonGameSystem> T getSystem(Class<T> c) {
+		return getSystem(SingletonGameSystem.getSingletonGameSystemId(c));
 	}
 
 	public Connection db() {
@@ -127,6 +157,7 @@ public class Game {
 		log.log("Registering client: %s", client);
 		clients.add(client);
 		client.sendOutput(CommandOutput.make(M_WELCOME).put(M_VERSION, Version.toMessage()).textf("Welcome to %s %s <%s>", Version.humanName, Version.versionNumber, Version.url));
+		allPlugins(p -> p.startClient(client));
 	}
 
 	public <T extends GameSystem> T registerSystem(T system) {
@@ -184,7 +215,7 @@ public class Game {
 		return CommandInput.make(CommandOutput.M_UNKNOWN_COMMAND).put(CommandOutput.M_ORIGINAL_UNKNOWN_COMMAND_LINE, line);
 	}
 
-	public void feedCommand(Client client, CommandInput input) {
+	public void feedCommand(Client client, CommandInput input) throws InternalException {
 		if (commands.containsKey(input.getId())) {
 			commands.get(input.getId()).getFunction().run(client, input);
 		} else {

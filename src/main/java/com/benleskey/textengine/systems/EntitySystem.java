@@ -1,7 +1,7 @@
 package com.benleskey.textengine.systems;
 
 import com.benleskey.textengine.Game;
-import com.benleskey.textengine.GameSystem;
+import com.benleskey.textengine.SingletonGameSystem;
 import com.benleskey.textengine.exceptions.DatabaseException;
 import com.benleskey.textengine.model.Entity;
 
@@ -9,7 +9,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-public class EntitySystem extends GameSystem {
+public class EntitySystem extends SingletonGameSystem {
 	private PreparedStatement addStatement;
 
 	public EntitySystem(Game game) {
@@ -23,7 +23,7 @@ public class EntitySystem extends GameSystem {
 		if (v == 0) {
 			try {
 				try (Statement s = game.db().createStatement()) {
-					s.executeUpdate("CREATE TABLE IF NOT EXISTS entity(entity_id INTEGER PRIMARY KEY)");
+					s.executeUpdate("CREATE TABLE entity(entity_id INTEGER PRIMARY KEY)");
 				}
 			} catch (SQLException e) {
 				throw new DatabaseException("Unable to create entity table", e);
