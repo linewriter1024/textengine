@@ -1,12 +1,15 @@
 package com.benleskey.textengine;
 
 import com.benleskey.textengine.exceptions.DatabaseException;
+import com.benleskey.textengine.util.Logger;
 
 public abstract class GameSystem {
 	protected Game game;
+	protected Logger log;
 
 	public GameSystem(Game game) {
 		this.game = game;
+		this.log = game.log.withPrefix(this.getClass().getSimpleName());
 	}
 
 	public String getId() {

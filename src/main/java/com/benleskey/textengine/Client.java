@@ -38,7 +38,7 @@ public abstract class Client {
 	}
 
 	public void setEntity(Entity newEntity) {
-		this.entity = Optional.of(newEntity);
+		this.entity = Optional.ofNullable(newEntity);
 		this.entity.ifPresentOrElse(entity -> {
 			sendOutput(CommandOutput.make(M_CONTROLLING_ENTITY).put(M_ENTITY, entity.getId()));
 			game.log.log("%s is now controlling %s", this, entity);

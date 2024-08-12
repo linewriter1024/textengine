@@ -34,6 +34,6 @@ public class WorldPlugin extends Plugin {
 		Actor actor = Actor.create(game);
 		client.setEntity(actor);
 
-		rs.add(home, actor, "contains");
+		rs.add(home, actor, RelationshipSystem.R_CONTAINS);
 	}
 }

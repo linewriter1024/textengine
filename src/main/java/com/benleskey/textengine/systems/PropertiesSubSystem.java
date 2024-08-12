@@ -23,6 +23,7 @@ public class PropertiesSubSystem<TGroup, TProperty, TValue> extends GameSystem {
 
 	public PropertiesSubSystem(Game game, String tableName, Handler<TGroup> group, Handler<TProperty> property, Handler<TValue> value) {
 		super(game);
+		this.log = game.log.withPrefix(this.getClass().getSimpleName() + "$" + tableName);
 		this.tableName = tableName;
 		this.groupHandler = group;
 		this.propertyHandler = property;
