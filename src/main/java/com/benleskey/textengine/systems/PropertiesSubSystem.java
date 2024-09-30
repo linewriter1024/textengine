@@ -31,11 +31,11 @@ public class PropertiesSubSystem<TGroup, TProperty, TValue> extends GameSystem {
 	}
 
 	public static Handler<Long> longHandler() {
-		return new Handler<>("INTEGER", (rs, n) -> rs.getLong(n), (s, value, n) -> s.setLong(n, value));
+		return new Handler<>("INTEGER", ResultSet::getLong, (s, value, n) -> s.setLong(n, value));
 	}
 
 	public static Handler<String> stringHandler() {
-		return new Handler<>("TEXT", (rs, n) -> rs.getString(n), (s, value, n) -> s.setString(n, value));
+		return new Handler<>("TEXT", ResultSet::getString, (s, value, n) -> s.setString(n, value));
 	}
 
 	@Override

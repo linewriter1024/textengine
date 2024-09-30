@@ -1,7 +1,9 @@
 package com.benleskey.textengine.model;
 
 import com.benleskey.textengine.Game;
+import lombok.Getter;
 
+@Getter
 public class Reference {
 	private final long id;
 	private final Game game;
@@ -11,16 +13,8 @@ public class Reference {
 		this.game = game;
 	}
 
-	public long getId() {
-		return id;
-	}
-
 	public String getKeyId() {
 		return Long.toString(id);
-	}
-
-	public Game getGame() {
-		return game;
 	}
 
 	@Override
@@ -36,8 +30,7 @@ public class Reference {
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) return true;
-		if (o == null || !(o instanceof Reference)) return false;
-		Reference reference = (Reference) o;
+		if (!(o instanceof Reference reference)) return false;
 		return id == reference.id;
 	}
 }

@@ -9,5 +9,5 @@ public class RelationshipDescriptor {
 	private Relationship relationship;
 	private Entity provider;
 	private Entity receiver;
-	private String verb;
+	private UniqueType verb;
 }

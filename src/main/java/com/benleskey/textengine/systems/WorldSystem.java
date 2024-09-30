@@ -8,13 +8,13 @@ import com.benleskey.textengine.model.DTime;
 public class WorldSystem extends SingletonGameSystem {
 
 	private final static long TIME_NOW = 0;
-	private GrouplessPropertiesSubSystem<String, Long> referencePoints;
-	private GrouplessPropertiesSubSystem<Long, Long> time;
+	private final GrouplessPropertiesSubSystem<String, Long> referencePoints;
+	private final GrouplessPropertiesSubSystem<Long, Long> time;
 	private long currentTime;
 
 	public WorldSystem(Game game) {
 		super(game);
-		referencePoints = game.registerSystem(new GrouplessPropertiesSubSystem<>(game, "world_reference_points", PropertiesSubSystem.stringHandler(), PropertiesSubSystem.longHandler()));
+		referencePoints = game.registerSystem(new GrouplessPropertiesSubSystem<>(game, "world_reference_point", PropertiesSubSystem.stringHandler(), PropertiesSubSystem.longHandler()));
 		time = game.registerSystem(new GrouplessPropertiesSubSystem<>(game, "world_time", PropertiesSubSystem.longHandler(), PropertiesSubSystem.longHandler()));
 	}
 
@@ -30,7 +30,7 @@ public class WorldSystem extends SingletonGameSystem {
 
 	public synchronized DTime setCurrentTime(DTime newTime) throws DatabaseException {
 		// Write-through cache.
-		long newRawTime = newTime.getRaw();
+		long newRawTime = newTime.raw();
 		currentTime = newRawTime;
 		time.set(TIME_NOW, newRawTime);
 		return getCurrentTime();

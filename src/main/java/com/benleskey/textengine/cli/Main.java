@@ -26,8 +26,8 @@ public class Main {
 		boolean showLog = ns.getBoolean("showlog");
 
 		Logger logger = Logger.builder()
-				.stream(showLog ? System.out : OutputStream.nullOutputStream())
-				.build();
+			.stream(showLog ? System.out : OutputStream.nullOutputStream())
+			.build();
 
 		String directory = "/tmp/textengine";
 		String filename = String.format("%d.sqlitedb", System.currentTimeMillis() / 1000L);

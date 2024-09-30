@@ -16,8 +16,13 @@ public abstract class Plugin {
 		return this.getClass().getCanonicalName();
 	}
 
-	public void initialize() {}
-	public void start() throws InternalException {}
-	public void startClient(Client client) throws InternalException {}
+	public void initialize() {
+	}
+
+	public void start() throws InternalException {
+	}
+
+	public void startClient(Client client) throws InternalException {
+	}
 
 }

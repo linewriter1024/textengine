@@ -26,11 +26,13 @@ public class Message<T> {
 		return Objects.requireNonNull(this.get(M_TYPE), "message has no type: " + this);
 	}
 
+	@SuppressWarnings("unchecked")
 	public T put(String key, Object value) {
 		values.put(key, value);
 		return (T) this;
 	}
 
+	@SuppressWarnings("unchecked")
 	public <R> Optional<R> getO(String key) {
 		return values.containsKey(key) ? Optional.of((R) values.get(key)) : Optional.empty();
 	}
@@ -41,10 +43,10 @@ public class Message<T> {
 
 	public String toPrettyString() {
 		StringJoiner s = new StringJoiner(", ");
-		for (String key : values.keySet().stream().sorted().collect(Collectors.toList())) {
+		for (String key : values.keySet().stream().sorted().toList()) {
 			Object value = values.get(key);
 			if (value instanceof Message) {
-				s.add(String.format("%s: %s", key, ((Message) value).toPrettyString()));
+				s.add(String.format("%s: %s", key, ((Message<?>) value).toPrettyString()));
 			} else {
 				s.add(String.format("%s: '%s'", key, value));
 			}
@@ -57,9 +59,4 @@ public class Message<T> {
 		return toPrettyString();
 	}
 
-	public static class RawMessage extends Message<RawMessage> {
-		public RawMessage() {
-			super();
-		}
-	}
 }

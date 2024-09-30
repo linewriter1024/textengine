@@ -12,11 +12,11 @@ public class GrouplessPropertiesSubSystem<TProperty, TValue> extends PropertiesS
 		super(game, tableName, PropertiesSubSystem.longHandler(), property, value);
 	}
 
-	Optional<TValue> get(TProperty property) throws DatabaseException {
+	Optional<TValue> get(TProperty property) {
 		return get(GROUP, property);
 	}
 
-	void set(TProperty property, TValue value) throws DatabaseException {
+	void set(TProperty property, TValue value) {
 		set(GROUP, property, value);
 	}
 }

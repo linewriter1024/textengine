@@ -7,6 +7,7 @@ import com.benleskey.textengine.exceptions.InternalException;
 import com.benleskey.textengine.plugins.core.*;
 import com.benleskey.textengine.util.Logger;
 import lombok.Builder;
+import lombok.Getter;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -21,12 +22,13 @@ public class Game {
 	private final Map<String, Plugin> plugins = new LinkedHashMap<>();
 	private final Map<String, Command> commands = new LinkedHashMap<>();
 	private final Map<String, GameSystem> systems = new LinkedHashMap<>();
+	@Getter
 	private final SchemaManager schemaManager;
 	private final Connection databaseConnection;
 	public Logger log;
 	public Logger errorLog = Logger.builder().stream(System.err).build();
 	private boolean initialized = false;
-	private AtomicLong idCounter = new AtomicLong();
+	private final AtomicLong idCounter = new AtomicLong();
 
 	@Builder
 	public Game(Logger log, Logger errorLog, Connection databaseConnection) {
@@ -40,10 +42,13 @@ public class Game {
 
 		schemaManager = new SchemaManager(this);
 
+		registerPlugin(new CorePlugin(this));
+
 		registerPlugin(new UnknownCommand(this));
 		registerPlugin(new Quit(this));
 		registerPlugin(new Echo(this));
 
+		registerPlugin(new EventPlugin(this));
 		registerPlugin(new EntityPlugin(this));
 		registerPlugin(new WorldPlugin(this));
 
@@ -117,6 +122,7 @@ public class Game {
 		log.log("Initialized.");
 	}
 
+	@SuppressWarnings("unchecked")
 	public <T> T getSystem(String name) {
 		return Optional.ofNullable((T) systems.getOrDefault(name, null)).orElseThrow();
 	}
@@ -137,13 +143,9 @@ public class Game {
 		return idCounter.incrementAndGet();
 	}
 
-	public SchemaManager getSchemaManager() {
-		return schemaManager;
-	}
-
 	public void registerPlugin(Plugin plugin) {
+		log.log("Registering plugin %s", plugin.getId());
 		plugins.put(plugin.getId(), plugin);
-		log.log("Registered plugin %s", plugin.getId());
 	}
 
 	public void registerCommand(Command command) {

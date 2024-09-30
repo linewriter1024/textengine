@@ -1,18 +1,15 @@
 package com.benleskey.textengine.model;
 
-public class DTime {
-	private long raw;
+import lombok.Getter;
 
-	public DTime(long raw) {
-		this.raw = raw;
-	}
+public record DTime(long raw) {
 
 	public static DTime fromSeconds(long seconds) {
 		return new DTime(seconds * 1000);
 	}
 
 	public static DTime fromSeconds(double seconds) {
-		return new DTime((long)(seconds * 1000.0));
+		return new DTime((long) (seconds * 1000.0));
 	}
 
 	public static DTime fromMilliseconds(long milliseconds) {
@@ -29,10 +26,6 @@ public class DTime {
 
 	public long toMilliseconds() {
 		return this.raw;
-	}
-
-	public long getRaw() {
-		return raw;
 	}
 
 	public DTime add(DTime delta) {
