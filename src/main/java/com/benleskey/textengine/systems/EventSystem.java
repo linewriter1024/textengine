@@ -13,7 +13,9 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 public class EventSystem extends SingletonGameSystem {
+	public UniqueType etCancel;
 	private WorldSystem worldSystem;
+	private UniqueTypeSystem uniqueTypeSystem;
 	private PreparedStatement addEventStatement;
 
 	public EventSystem(Game game) {
@@ -43,6 +45,9 @@ public class EventSystem extends SingletonGameSystem {
 		}
 
 		worldSystem = game.getSystem(WorldSystem.class);
+		uniqueTypeSystem = game.getSystem(UniqueTypeSystem.class);
+
+		etCancel = uniqueTypeSystem.getType("event_cancel");
 	}
 
 	public synchronized <T extends Reference> FullEvent<T> addEvent(UniqueType type, DTime time, T reference) throws DatabaseException {
@@ -61,5 +66,26 @@ public class EventSystem extends SingletonGameSystem {
 
 	public synchronized <T extends Reference> FullEvent<T> addEventNow(UniqueType type, T reference) {
 		return addEvent(type, worldSystem.getCurrentTime(), reference);
+	}
+
+	public String getValidEventsSubquery(String reference) {
+		return "(SELECT event.reference FROM event WHERE event.type = ? AND event.time <= ? AND event.reference = " + reference + " AND event.event_id NOT IN (SELECT event_cancel.reference FROM event AS event_cancel WHERE event_cancel.type = ? AND event_cancel.time <= ? AND event_cancel.event_order > event.event_order) ORDER BY event.event_order DESC LIMIT 1)";
+	}
+
+	/**
+	 * @param statement
+	 * @param offset
+	 * @return the parameter number AFTER the last subquery parameter
+	 */
+	public int setValidEventsSubqueryParameters(PreparedStatement statement, int offset, UniqueType eventType, DTime when) {
+		try {
+			statement.setLong(offset++, eventType.type());
+			statement.setLong(offset++, when.raw());
+			statement.setLong(offset++, etCancel.type());
+			statement.setLong(offset++, when.raw());
+		} catch (SQLException e) {
+			throw new DatabaseException(String.format("Could not set valid events subquery parameters for %s; %s", eventType, when), e);
+		}
+		return offset;
 	}
 }

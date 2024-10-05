@@ -1,10 +1,10 @@
 package com.benleskey.textengine.plugins.core;
 
-import com.benleskey.textengine.CommandInput;
-import com.benleskey.textengine.CommandOutput;
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.Plugin;
 import com.benleskey.textengine.commands.Command;
+import com.benleskey.textengine.commands.CommandInput;
+import com.benleskey.textengine.commands.CommandOutput;
 
 public class UnknownCommand extends Plugin {
 	public UnknownCommand(Game game) {

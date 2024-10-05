@@ -1,8 +1,8 @@
 package com.benleskey.textengine.cli;
 
-import com.benleskey.textengine.CommandInput;
-import com.benleskey.textengine.CommandOutput;
 import com.benleskey.textengine.Game;
+import com.benleskey.textengine.commands.CommandInput;
+import com.benleskey.textengine.commands.CommandOutput;
 import lombok.Builder;
 
 import java.util.Scanner;

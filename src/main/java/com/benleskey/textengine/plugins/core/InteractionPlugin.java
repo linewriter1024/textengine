@@ -1,8 +1,11 @@
 package com.benleskey.textengine.plugins.core;
 
-import com.benleskey.textengine.*;
+import com.benleskey.textengine.Client;
+import com.benleskey.textengine.Game;
+import com.benleskey.textengine.Plugin;
 import com.benleskey.textengine.commands.Command;
-import com.benleskey.textengine.commands.CommandFunction;
+import com.benleskey.textengine.commands.CommandInput;
+import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.commands.CommandVariant;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.LookDescriptor;
@@ -10,7 +13,9 @@ import com.benleskey.textengine.systems.LookSystem;
 import com.benleskey.textengine.util.Message;
 import com.benleskey.textengine.util.RawMessage;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.StringJoiner;
 import java.util.stream.Collectors;
 
 public class InteractionPlugin extends Plugin {
@@ -63,7 +68,7 @@ public class InteractionPlugin extends Plugin {
 			Entity entity = client.getEntity().orElse(null);
 			if (entity != null) {
 				LookSystem ls = game.getSystem(LookSystem.class);
-				client.sendOutput(buildLookOutput(ls.getSeenLooks(entity).stream().collect(Collectors.groupingBy(ld -> ld.getEntity()))));
+				client.sendOutput(buildLookOutput(ls.getSeenLooks(entity).stream().collect(Collectors.groupingBy(LookDescriptor::getEntity))));
 			} else {
 				client.sendOutput(Client.NO_ENTITY);
 			}

@@ -13,12 +13,15 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class LookSystem extends SingletonGameSystem {
-	private PreparedStatement addLookStatement;
-	private EventSystem eventSystem;
 	public UniqueType etEntityLook;
-	public UniqueType etEntitySee;
+	private PreparedStatement addLookStatement;
+	private PreparedStatement getCurrentLookStatement;
+	private EventSystem eventSystem;
+	private WorldSystem worldSystem;
+	private RelationshipSystem relationshipSystem;
 
 	public LookSystem(Game game) {
 		super(game);
@@ -40,20 +43,23 @@ public class LookSystem extends SingletonGameSystem {
 			getSchema().setVersionNumber(1);
 		}
 
+		eventSystem = game.getSystem(EventSystem.class);
+
 		try {
 			addLookStatement = game.db().prepareStatement("INSERT INTO entity_look (look_id, entity_id, type, description) VALUES (?, ?, ?, ?)");
+			getCurrentLookStatement = game.db().prepareStatement("SELECT entity_look.look_id, entity_look.entity_id, entity_look.type, entity_look.description FROM entity_look WHERE entity_look.entity_id = ? AND entity_look.look_id IN " + eventSystem.getValidEventsSubquery("entity_look.look_id"));
 		} catch (SQLException e) {
 			throw new DatabaseException("Unable to prepare look statements", e);
 		}
 
-		eventSystem = game.getSystem(EventSystem.class);
+		worldSystem = game.getSystem(WorldSystem.class);
+		relationshipSystem = game.getSystem(RelationshipSystem.class);
 
 		UniqueTypeSystem uniqueTypeSystem = game.getSystem(UniqueTypeSystem.class);
 		etEntityLook = uniqueTypeSystem.getType("event_entity_look");
-		etEntitySee = uniqueTypeSystem.getType("event_entity_see");
 	}
 
-	public synchronized FullEvent<Look> addLook(Entity entity, String type, String description) throws DatabaseException {
+	public synchronized FullEvent<Look> addLook(Entity entity, String type, String description) {
 		try {
 			long id = game.getNewGlobalId();
 			addLookStatement.setLong(1, id);
@@ -67,40 +73,49 @@ public class LookSystem extends SingletonGameSystem {
 		}
 	}
 
-	/*
-	private Set<Entity> getRecursiveContains(Entity contained, DTime until, Set<Entity> seenEntities) throws DatabaseException {
-		Set<Entity> entities = new HashSet<>(Set.of(contained));
-		RelationshipSystem relationshipSystem = game.getSystem(RelationshipSystem.class);
-
-		List<RelationshipDescriptor> containingRelationships = relationshipSystem.getProvidingRelationships(contained, RelationshipSystem.R_CONTAINS, until);
-		for (RelationshipDescriptor rd : containingRelationships) {
-			if (!seenEntities.contains(rd.getProvider())) {
-				seenEntities.add(rd.getProvider());
-				entities.addAll(getRecursiveContains(rd.getProvider(), until, seenEntities));
-			}
-		}
-
-		return entities;
-	}
-	 */
-
-	public synchronized List<LookDescriptor> getSeenLooks(Entity looker) throws DatabaseException {
-			List<LookDescriptor> looks = new ArrayList<>();
-			/*
-			getSeenLooksStatement.setLong(1, looker.getId());
-			getSeenLooksStatement.setLong(2, currentTime.raw());
-			try (ResultSet rs = getSeenLooksStatement.executeQuery()) {
+	public synchronized List<LookDescriptor> getLooksFromEntity(Entity looker, DTime when) {
+		try {
+			getCurrentLookStatement.setLong(1, looker.getId());
+			eventSystem.setValidEventsSubqueryParameters(getCurrentLookStatement, 2, etEntityLook, when);
+			try (ResultSet rs = getCurrentLookStatement.executeQuery()) {
+				List<LookDescriptor> result = new ArrayList<>();
 				while (rs.next()) {
-					LookDescriptor lookDescriptor = LookDescriptor.builder()
+					result.add(LookDescriptor.builder()
 						.look(new Look(rs.getLong(1), game))
 						.entity(new Entity(rs.getLong(2), game))
 						.type(rs.getString(3))
 						.description(rs.getString(4))
-						.build();
-					looks.add(lookDescriptor);
+						.build());
 				}
+				return result;
 			}
-			 */
-			return looks;
+		} catch (SQLException e) {
+			throw new DatabaseException(String.format("Unable to get looks from entity %s at %s", looker, when), e);
+		}
+	}
+
+	public synchronized List<LookDescriptor> getSeenLooks(Entity looker) {
+		DTime when = worldSystem.getCurrentTime();
+
+		// Get everything that currently contains the looker.
+		Set<Entity> containingEntities = relationshipSystem.getProvidingEntitiesRecursive(looker, relationshipSystem.rvContains, when);
+
+		// Get those container's direct current children.
+		Set<Entity> children = containingEntities
+			.stream()
+			.flatMap(entity -> relationshipSystem.getReceivingRelationships(entity, relationshipSystem.rvContains, when).stream())
+			.map(RelationshipDescriptor::getReceiver)
+			.collect(Collectors.toSet());
+
+		// Get containers and children all in one.
+		Set<Entity> allEntities = new HashSet<>();
+		allEntities.addAll(containingEntities);
+		allEntities.addAll(children);
+
+		// Get all looks from all entities.
+		return allEntities
+			.stream()
+			.flatMap(entity -> getLooksFromEntity(entity, when).stream())
+			.toList();
 	}
 }

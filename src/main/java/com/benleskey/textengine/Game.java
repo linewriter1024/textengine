@@ -1,6 +1,8 @@
 package com.benleskey.textengine;
 
 import com.benleskey.textengine.commands.Command;
+import com.benleskey.textengine.commands.CommandInput;
+import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.commands.CommandVariant;
 import com.benleskey.textengine.exceptions.DatabaseException;
 import com.benleskey.textengine.exceptions.InternalException;
@@ -25,10 +27,10 @@ public class Game {
 	@Getter
 	private final SchemaManager schemaManager;
 	private final Connection databaseConnection;
+	private final AtomicLong idCounter = new AtomicLong();
 	public Logger log;
 	public Logger errorLog = Logger.builder().stream(System.err).build();
 	private boolean initialized = false;
-	private final AtomicLong idCounter = new AtomicLong();
 
 	@Builder
 	public Game(Logger log, Logger errorLog, Connection databaseConnection) {
@@ -53,11 +55,6 @@ public class Game {
 		registerPlugin(new WorldPlugin(this));
 
 		registerPlugin(new InteractionPlugin(this));
-	}
-
-	@FunctionalInterface
-	public interface PluginRunner {
-		void run(Plugin p) throws InternalException;
 	}
 
 	public void allPlugins(PluginRunner runner) throws InternalException {
@@ -225,5 +222,10 @@ public class Game {
 			input.getLine().ifPresent(line -> unknown.put(CommandOutput.M_ORIGINAL_UNKNOWN_COMMAND_LINE, line));
 			feedCommand(client, unknown);
 		}
+	}
+
+	@FunctionalInterface
+	public interface PluginRunner {
+		void run(Plugin p) throws InternalException;
 	}
 }

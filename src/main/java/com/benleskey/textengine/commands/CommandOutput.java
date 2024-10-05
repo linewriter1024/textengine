@@ -1,4 +1,4 @@
-package com.benleskey.textengine;
+package com.benleskey.textengine.commands;
 
 import com.benleskey.textengine.util.Message;
 

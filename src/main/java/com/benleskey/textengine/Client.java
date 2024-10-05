@@ -1,5 +1,7 @@
 package com.benleskey.textengine;
 
+import com.benleskey.textengine.commands.CommandInput;
+import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.model.Entity;
 import lombok.Getter;
 import lombok.Setter;

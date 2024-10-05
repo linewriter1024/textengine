@@ -1,7 +1,6 @@
 package com.benleskey.textengine.commands;
 
 import com.benleskey.textengine.Client;
-import com.benleskey.textengine.CommandInput;
 import com.benleskey.textengine.exceptions.InternalException;
 
 public interface CommandFunction {
