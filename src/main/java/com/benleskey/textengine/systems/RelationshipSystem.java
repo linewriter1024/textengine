@@ -70,7 +70,7 @@ public class RelationshipSystem extends SingletonGameSystem {
 		}
 	}
 
-	public synchronized Set<Entity> getProvidingEntitiesRecursive(Entity receiver, UniqueType verb, DTime when, Set<Entity> seenEntities) {
+	private synchronized Set<Entity> getProvidingEntitiesRecursive(Entity receiver, UniqueType verb, DTime when, Set<Entity> seenEntities) {
 		Set<Entity> entities = new HashSet<>(Set.of(receiver));
 
 		List<RelationshipDescriptor> containingRelationships = getProvidingRelationships(receiver, verb, when);
