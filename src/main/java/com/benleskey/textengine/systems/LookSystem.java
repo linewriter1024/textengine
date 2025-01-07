@@ -19,6 +19,7 @@ public class LookSystem extends SingletonGameSystem {
 	public UniqueType etEntityLook;
 	private PreparedStatement addLookStatement;
 	private PreparedStatement getCurrentLookStatement;
+	private EntitySystem entitySystem;
 	private EventSystem eventSystem;
 	private WorldSystem worldSystem;
 	private RelationshipSystem relationshipSystem;
@@ -44,6 +45,7 @@ public class LookSystem extends SingletonGameSystem {
 		}
 
 		eventSystem = game.getSystem(EventSystem.class);
+		entitySystem = game.getSystem(EntitySystem.class);
 
 		try {
 			addLookStatement = game.db().prepareStatement("INSERT INTO entity_look (look_id, entity_id, type, description) VALUES (?, ?, ?, ?)");
@@ -82,7 +84,7 @@ public class LookSystem extends SingletonGameSystem {
 				while (rs.next()) {
 					result.add(LookDescriptor.builder()
 						.look(new Look(rs.getLong(1), game))
-						.entity(new Entity(rs.getLong(2), game))
+						.entity(entitySystem.get(rs.getLong(2)))
 						.type(rs.getString(3))
 						.description(rs.getString(4))
 						.build());

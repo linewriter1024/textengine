@@ -5,8 +5,8 @@ import lombok.Getter;
 
 @Getter
 public class Reference {
-	private final long id;
-	private final Game game;
+	protected final long id;
+	protected final Game game;
 
 	public Reference(long id, Game game) {
 		this.id = id;

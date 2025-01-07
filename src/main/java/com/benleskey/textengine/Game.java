@@ -7,6 +7,8 @@ import com.benleskey.textengine.commands.CommandVariant;
 import com.benleskey.textengine.exceptions.DatabaseException;
 import com.benleskey.textengine.exceptions.InternalException;
 import com.benleskey.textengine.plugins.core.*;
+import com.benleskey.textengine.systems.UniqueTypeSystem;
+import com.benleskey.textengine.util.Interfaces;
 import com.benleskey.textengine.util.Logger;
 import lombok.Builder;
 import lombok.Getter;
@@ -15,6 +17,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 
 public class Game {
@@ -22,10 +25,13 @@ public class Game {
 	public static final String M_VERSION = "version";
 	private final Collection<Client> clients = new ArrayList<>();
 	private final Map<String, Plugin> plugins = new LinkedHashMap<>();
+	private final Map<Class<? extends PluginEvent>, List<Plugin>> pluginEventHandlers = new LinkedHashMap<>();
 	private final Map<String, Command> commands = new LinkedHashMap<>();
 	private final Map<String, GameSystem> systems = new LinkedHashMap<>();
 	@Getter
 	private final SchemaManager schemaManager;
+	@Getter
+	private UniqueTypeSystem uniqueTypeSystem;
 	private final Connection databaseConnection;
 	private final AtomicLong idCounter = new AtomicLong();
 	public Logger log;
@@ -45,21 +51,20 @@ public class Game {
 		schemaManager = new SchemaManager(this);
 
 		registerPlugin(new CorePlugin(this));
-
-		registerPlugin(new UnknownCommand(this));
-		registerPlugin(new Quit(this));
 		registerPlugin(new Echo(this));
-
-		registerPlugin(new EventPlugin(this));
 		registerPlugin(new EntityPlugin(this));
-		registerPlugin(new WorldPlugin(this));
-
+		registerPlugin(new EventPlugin(this));
 		registerPlugin(new InteractionPlugin(this));
+		registerPlugin(new Quit(this));
+		registerPlugin(new UnknownCommand(this));
+		registerPlugin(new WorldPlugin(this));
 	}
 
-	public void allPlugins(PluginRunner runner) throws InternalException {
-		for (Plugin plugin : plugins.values()) {
-			runner.run(plugin);
+	public <T extends PluginEvent> void doPluginEvent(Class<T> pluginEvent, Consumer<T> runner) throws InternalException {
+		for (Plugin plugin : pluginEventHandlers.getOrDefault(pluginEvent, Collections.emptyList())) {
+			@SuppressWarnings("unchecked")
+			T castPlugin = (T) plugin;
+			runner.accept(castPlugin);
 		}
 	}
 
@@ -73,11 +78,23 @@ public class Game {
 		}
 
 		try {
+			log.log("Finishing plugin registration...");
+
+			for(List<Plugin> plugins : pluginEventHandlers.values()) {
+				plugins.sort(Comparator.comparing(Plugin::getEventOrder));
+			}
+
+			doPluginEvent(OnRegister.class, OnRegister::onRegister);
+
+			log.log("Initializing schema...");
+
 			schemaManager.initialize();
 
 			log.log("Initializing plugins...");
 
-			allPlugins(Plugin::initialize);
+			doPluginEvent(OnInitialize.class, OnInitialize::onInitialize);
+
+			uniqueTypeSystem = this.getSystem(UniqueTypeSystem.class);
 
 			log.log("Initializing systems...");
 
@@ -94,9 +111,13 @@ public class Game {
 				}
 			}
 
+			log.log("Systems ready...");
+
+			doPluginEvent(OnCoreSystemsReady.class, OnCoreSystemsReady::onCoreSystemsReady);
+
 			log.log("Starting game...");
 
-			allPlugins(Plugin::start);
+			doPluginEvent(OnStart.class, OnStart::onStart);
 
 			try {
 				log.log("Committing initialization...");
@@ -141,8 +162,26 @@ public class Game {
 	}
 
 	public void registerPlugin(Plugin plugin) {
-		log.log("Registering plugin %s", plugin.getId());
 		plugins.put(plugin.getId(), plugin);
+
+		Set<Class<? extends PluginEvent>> events = new HashSet<>();
+		for(Class<?> event : Interfaces.getAllInterfaces(plugin.getClass())) {
+			if(PluginEvent.class.isAssignableFrom(event)) {
+				@SuppressWarnings("unchecked")
+				Class<? extends PluginEvent> castEvent = (Class<? extends PluginEvent>) event;
+				events.add(castEvent);
+				pluginEventHandlers.compute(castEvent, (k, v) -> {
+					List<Plugin> handlers = v;
+					if(handlers == null) {
+						handlers = new ArrayList<>();
+					}
+					handlers.add(plugin);
+					return handlers;
+				});
+			}
+		}
+
+		log.log("Registered plugin %s with event handlers [%s]", plugin.getId(), String.join(", ", events.stream().map(Class::getSimpleName).sorted().toList()));
 	}
 
 	public void registerCommand(Command command) {
@@ -156,7 +195,7 @@ public class Game {
 		log.log("Registering client: %s", client);
 		clients.add(client);
 		client.sendOutput(CommandOutput.make(M_WELCOME).put(M_VERSION, Version.toMessage()).textf("Welcome to %s %s <%s>", Version.humanName, Version.versionNumber, Version.url));
-		allPlugins(p -> p.startClient(client));
+		doPluginEvent(OnStartClient.class, plugin -> plugin.onStartClient(client));
 	}
 
 	public <T extends GameSystem> T registerSystem(T system) {
@@ -224,8 +263,7 @@ public class Game {
 		}
 	}
 
-	@FunctionalInterface
-	public interface PluginRunner {
-		void run(Plugin p) throws InternalException;
+	public Plugin getPlugin(Class<? extends Plugin> plugin) {
+		return plugins.get(plugin.getCanonicalName());
 	}
 }

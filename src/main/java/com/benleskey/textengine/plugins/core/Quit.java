@@ -7,13 +7,15 @@ import com.benleskey.textengine.commands.Command;
 import com.benleskey.textengine.commands.CommandInput;
 import com.benleskey.textengine.commands.CommandVariant;
 
-public class Quit extends Plugin {
+import java.util.Set;
+
+public class Quit extends Plugin implements OnInitialize {
 	public Quit(Game game) {
 		super(game);
 	}
 
 	@Override
-	public void initialize() {
+	public void onInitialize() {
 		game.registerCommand(new Command(Client.M_QUIT_FROM_CLIENT, (c, i) -> c.quitFromServer(),
 			new CommandVariant(Client.M_QUIT_FROM_CLIENT, "^quit([^\\w]+|$)", args -> CommandInput.makeNone())));
 	}

@@ -1,9 +1,11 @@
 package com.benleskey.textengine;
 
-import com.benleskey.textengine.exceptions.InternalException;
+import com.benleskey.textengine.plugins.core.OnRegister;
 import com.benleskey.textengine.util.Logger;
 
-public abstract class Plugin {
+import java.util.Set;
+
+public abstract class Plugin implements OnRegister {
 	protected Game game;
 	protected Logger log;
 
@@ -16,13 +18,15 @@ public abstract class Plugin {
 		return this.getClass().getCanonicalName();
 	}
 
-	public void initialize() {
+	public Set<Plugin> getDependencies() {
+		return Set.of();
 	}
 
-	public void start() throws InternalException {
+	public void onRegister() {
+		log.log("Event order is " + this.getEventOrder());
 	}
 
-	public void startClient(Client client) throws InternalException {
+	public int getEventOrder() {
+		return 1 + this.getDependencies().stream().mapToInt(Plugin::getEventOrder).sum();
 	}
-
 }

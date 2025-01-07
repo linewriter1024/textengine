@@ -6,13 +6,13 @@ import com.benleskey.textengine.commands.Command;
 import com.benleskey.textengine.commands.CommandInput;
 import com.benleskey.textengine.commands.CommandOutput;
 
-public class UnknownCommand extends Plugin {
+public class UnknownCommand extends Plugin implements OnInitialize {
 	public UnknownCommand(Game game) {
 		super(game);
 	}
 
 	@Override
-	public void initialize() {
+	public void onInitialize() {
 		game.registerCommand(new Command(CommandOutput.M_UNKNOWN_COMMAND, (c, i) -> {
 			CommandOutput output = CommandOutput.make(CommandOutput.M_UNKNOWN_COMMAND);
 			i.<CommandInput>getO(CommandOutput.M_ORIGINAL_UNKNOWN_COMMAND_COMMAND).ifPresent(original -> output.put(CommandOutput.M_ORIGINAL_UNKNOWN_COMMAND_COMMAND, original));

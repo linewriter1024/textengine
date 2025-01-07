@@ -17,6 +17,7 @@ import java.util.Set;
 public class RelationshipSystem extends SingletonGameSystem {
 	public UniqueType etEntityRelationship;
 	public UniqueType rvContains;
+	private EntitySystem entitySystem;
 	private EventSystem eventSystem;
 	private PreparedStatement addStatement;
 	private PreparedStatement getProviderStatement;
@@ -42,6 +43,7 @@ public class RelationshipSystem extends SingletonGameSystem {
 		}
 
 		eventSystem = game.getSystem(EventSystem.class);
+		entitySystem = game.getSystem(EntitySystem.class);
 
 		try {
 			addStatement = game.db().prepareStatement("INSERT INTO entity_relationship (relationship_id, provider_id, receiver_id, relationship_verb) VALUES (?, ?, ?, ?)");
@@ -99,7 +101,7 @@ public class RelationshipSystem extends SingletonGameSystem {
 					rds.add(RelationshipDescriptor.builder()
 						.relationship(new Relationship(rs.getLong(1), game))
 						.receiver(receiver)
-						.provider(new Entity(rs.getLong(2), game))
+						.provider(entitySystem.get(rs.getLong(2)))
 						.verb(verb)
 						.build());
 				}
@@ -121,7 +123,7 @@ public class RelationshipSystem extends SingletonGameSystem {
 					rds.add(RelationshipDescriptor.builder()
 						.relationship(new Relationship(rs.getLong(1), game))
 						.provider(provider)
-						.receiver(new Entity(rs.getLong(2), game))
+						.receiver(entitySystem.get(rs.getLong(2)))
 						.verb(verb)
 						.build());
 				}

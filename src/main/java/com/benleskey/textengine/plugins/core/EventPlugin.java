@@ -4,14 +4,21 @@ import com.benleskey.textengine.Game;
 import com.benleskey.textengine.Plugin;
 import com.benleskey.textengine.systems.*;
 
-public class EventPlugin extends Plugin {
+import java.util.Set;
+
+public class EventPlugin extends Plugin implements OnInitialize {
 
 	public EventPlugin(Game game) {
 		super(game);
 	}
 
 	@Override
-	public void initialize() {
+	public Set<Plugin> getDependencies() {
+		return Set.of(game.getPlugin(CorePlugin.class));
+	}
+
+	@Override
+	public void onInitialize() {
 		game.registerSystem(new EventSystem(game));
 	}
 }

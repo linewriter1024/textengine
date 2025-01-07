@@ -7,14 +7,14 @@ import com.benleskey.textengine.systems.EntitySystem;
 import com.benleskey.textengine.systems.LookSystem;
 
 public class Place extends Entity {
-	public Place(Entity entity) {
-		super(entity.getId(), entity.getGame());
+	public Place(long id, Game game) {
+		super(id, game);
 	}
 
 	public static Place create(Game game) throws InternalException {
 		EntitySystem es = game.getSystem(EntitySystem.class);
 		LookSystem ls = game.getSystem(LookSystem.class);
-		Place place = new Place(es.add());
+		Place place = es.add(Place.class);
 		ls.addLook(place, "basic", "a place");
 		return place;
 	}

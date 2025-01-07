@@ -25,15 +25,19 @@ public class UniqueTypeSystem extends SingletonGameSystem {
 	}
 
 	public synchronized UniqueType getType(String type) throws DatabaseException {
-		return new UniqueType(cachedTypes.computeIfAbsent(type, (_) -> types.get(type).orElseGet(() -> {
+		return getTypeFromRaw(cachedTypes.computeIfAbsent(type, (_) -> types.get(type).orElseGet(() -> {
 			long id = game.getNewGlobalId();
 			types.set(type, id);
 			this.log.log("Type %s given ID %d", type, id);
 			return id;
-		})), this);
+		})));
 	}
 
 	public synchronized Optional<String> getTypeLabel(UniqueType type) {
 		return this.cachedTypes.entrySet().stream().filter(entry -> entry.getValue() == type.type()).findFirst().map(Map.Entry::getKey);
+	}
+
+	public UniqueType getTypeFromRaw(long raw) {
+		return new UniqueType(raw, this);
 	}
 }

@@ -2,6 +2,8 @@ package com.benleskey.textengine.systems;
 
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.SingletonGameSystem;
+import com.benleskey.textengine.entities.Actor;
+import com.benleskey.textengine.entities.Place;
 import com.benleskey.textengine.exceptions.DatabaseException;
 import com.benleskey.textengine.model.DTime;
 

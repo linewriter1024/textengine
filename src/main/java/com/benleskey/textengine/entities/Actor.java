@@ -7,14 +7,15 @@ import com.benleskey.textengine.systems.EntitySystem;
 import com.benleskey.textengine.systems.LookSystem;
 
 public class Actor extends Entity {
-	public Actor(Entity entity) {
-		super(entity.getId(), entity.getGame());
+
+	public Actor(long id, Game game) {
+		super(id, game);
 	}
 
 	public static Actor create(Game game) throws InternalException {
 		EntitySystem es = game.getSystem(EntitySystem.class);
 		LookSystem ls = game.getSystem(LookSystem.class);
-		Actor actor = new Actor(es.add());
+		Actor actor = es.add(Actor.class);
 		ls.addLook(actor, "basic", "an actor");
 		return actor;
 	}

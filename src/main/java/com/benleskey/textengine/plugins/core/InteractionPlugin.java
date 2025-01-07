@@ -15,10 +15,11 @@ import com.benleskey.textengine.util.RawMessage;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.StringJoiner;
 import java.util.stream.Collectors;
 
-public class InteractionPlugin extends Plugin {
+public class InteractionPlugin extends Plugin implements OnInitialize {
 	public static final String LOOK = "look";
 	public static final String LOOK_WITHOUT_ARGUMENTS = "look_without_arguments";
 	public static final String M_LOOK = "look";
@@ -63,7 +64,7 @@ public class InteractionPlugin extends Plugin {
 	}
 
 	@Override
-	public void initialize() {
+	public void onInitialize() {
 		game.registerCommand(new Command(LOOK, (client, input) -> {
 			Entity entity = client.getEntity().orElse(null);
 			if (entity != null) {
