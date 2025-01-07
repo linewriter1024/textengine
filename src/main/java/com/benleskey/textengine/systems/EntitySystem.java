@@ -4,6 +4,7 @@ import com.benleskey.textengine.Game;
 import com.benleskey.textengine.SingletonGameSystem;
 import com.benleskey.textengine.exceptions.DatabaseException;
 import com.benleskey.textengine.exceptions.InternalException;
+import com.benleskey.textengine.hooks.core.OnSystemInitialize;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.UniqueType;
 
@@ -16,7 +17,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-public class EntitySystem extends SingletonGameSystem {
+public class EntitySystem extends SingletonGameSystem implements OnSystemInitialize {
 	private PreparedStatement addStatement;
 	private PreparedStatement getStatement;
 	private final Map<UniqueType, Class<? extends Entity>> entityTypes = new HashMap<>();
@@ -26,7 +27,7 @@ public class EntitySystem extends SingletonGameSystem {
 	}
 
 	@Override
-	public void initialize() throws DatabaseException {
+	public void onSystemInitialize() throws DatabaseException {
 		int v = getSchema().getVersionNumber();
 
 		if (v == 0) {

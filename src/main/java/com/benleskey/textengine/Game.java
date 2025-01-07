@@ -6,10 +6,10 @@ import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.commands.CommandVariant;
 import com.benleskey.textengine.exceptions.DatabaseException;
 import com.benleskey.textengine.exceptions.InternalException;
+import com.benleskey.textengine.hooks.core.*;
 import com.benleskey.textengine.plugins.core.*;
 import com.benleskey.textengine.systems.UniqueTypeSystem;
-import com.benleskey.textengine.util.Interfaces;
-import com.benleskey.textengine.util.Logger;
+import com.benleskey.textengine.util.*;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -17,7 +17,6 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Consumer;
 import java.util.regex.Matcher;
 
 public class Game {
@@ -25,7 +24,7 @@ public class Game {
 	public static final String M_VERSION = "version";
 	private final Collection<Client> clients = new ArrayList<>();
 	private final Map<String, Plugin> plugins = new LinkedHashMap<>();
-	private final Map<Class<? extends PluginEvent>, List<Plugin>> pluginEventHandlers = new LinkedHashMap<>();
+	private final HookManager<HookHandler> hooks = new HookManager<>();
 	private final Map<String, Command> commands = new LinkedHashMap<>();
 	private final Map<String, GameSystem> systems = new LinkedHashMap<>();
 	@Getter
@@ -60,14 +59,6 @@ public class Game {
 		registerPlugin(new WorldPlugin(this));
 	}
 
-	public <T extends PluginEvent> void doPluginEvent(Class<T> pluginEvent, Consumer<T> runner) throws InternalException {
-		for (Plugin plugin : pluginEventHandlers.getOrDefault(pluginEvent, Collections.emptyList())) {
-			@SuppressWarnings("unchecked")
-			T castPlugin = (T) plugin;
-			runner.accept(castPlugin);
-		}
-	}
-
 	public void initialize() throws InternalException {
 		log.log("Initializing...");
 
@@ -78,13 +69,13 @@ public class Game {
 		}
 
 		try {
-			log.log("Finishing plugin registration...");
+			hooks.calculateOrder();
 
-			for(List<Plugin> plugins : pluginEventHandlers.values()) {
-				plugins.sort(Comparator.comparing(Plugin::getEventOrder));
+			for(Plugin plugin : plugins.values().stream().sorted(Comparator.comparing(Plugin::getEventOrder)).toList()) {
+				log.log("Plugin %s event order %d", plugin.getId(), plugin.getEventOrder());
 			}
 
-			doPluginEvent(OnRegister.class, OnRegister::onRegister);
+			hooks.doEvent(OnRegister.class, OnRegister::onRegister);
 
 			log.log("Initializing schema...");
 
@@ -92,32 +83,43 @@ public class Game {
 
 			log.log("Initializing plugins...");
 
-			doPluginEvent(OnInitialize.class, OnInitialize::onInitialize);
+			hooks.doEvent(OnPluginInitialize.class, OnPluginInitialize::onPluginInitialize);
 
 			uniqueTypeSystem = this.getSystem(UniqueTypeSystem.class);
 
 			log.log("Initializing systems...");
 
-			for (GameSystem system : systems.values()) {
-				int previousVersion = system.getSchema().getVersionNumber();
-				system.initialize();
-				int nextVersion = system.getSchema().getVersionNumber();
-				if (previousVersion == nextVersion) {
-					log.log("System %s version %d", system.getId(), nextVersion);
-				} else if (previousVersion == 0) {
-					log.log("System %s initialized to version %d", system.getId(), nextVersion);
-				} else {
-					log.log("System %s upgraded from version %d to version %d", system.getId(), previousVersion, nextVersion);
+			hooks.calculateOrder();
+
+			hooks.doEvent(OnSystemInitialize.class, handler -> {
+				GameSystem system = null;
+				int previousVersion = 0;
+				if(handler instanceof GameSystem) {
+					system = (GameSystem) handler;
+					previousVersion = system.getSchema().getVersionNumber();
 				}
-			}
+
+				handler.onSystemInitialize();
+
+				if(system != null) {
+					int nextVersion = system.getSchema().getVersionNumber();
+					if (previousVersion == nextVersion) {
+						log.log("System %s (order %d) version %d", system.getId(), system.getEventOrder(), nextVersion);
+					} else if (previousVersion == 0) {
+						log.log("System %s (order %d) initialized to version %d", system.getId(), system.getEventOrder(), nextVersion);
+					} else {
+						log.log("System %s (order %d) upgraded from version %d to version %d", system.getId(), system.getEventOrder(), previousVersion, nextVersion);
+					}
+				}
+			});
 
 			log.log("Systems ready...");
 
-			doPluginEvent(OnCoreSystemsReady.class, OnCoreSystemsReady::onCoreSystemsReady);
+			hooks.doEvent(OnCoreSystemsReady.class, OnCoreSystemsReady::onCoreSystemsReady);
 
 			log.log("Starting game...");
 
-			doPluginEvent(OnStart.class, OnStart::onStart);
+			hooks.doEvent(OnStart.class, OnStart::onStart);
 
 			try {
 				log.log("Committing initialization...");
@@ -164,22 +166,7 @@ public class Game {
 	public void registerPlugin(Plugin plugin) {
 		plugins.put(plugin.getId(), plugin);
 
-		Set<Class<? extends PluginEvent>> events = new HashSet<>();
-		for(Class<?> event : Interfaces.getAllInterfaces(plugin.getClass())) {
-			if(PluginEvent.class.isAssignableFrom(event)) {
-				@SuppressWarnings("unchecked")
-				Class<? extends PluginEvent> castEvent = (Class<? extends PluginEvent>) event;
-				events.add(castEvent);
-				pluginEventHandlers.compute(castEvent, (k, v) -> {
-					List<Plugin> handlers = v;
-					if(handlers == null) {
-						handlers = new ArrayList<>();
-					}
-					handlers.add(plugin);
-					return handlers;
-				});
-			}
-		}
+		Set<Class<? extends HookEvent>> events = hooks.registerHookHandler(plugin);
 
 		log.log("Registered plugin %s with event handlers [%s]", plugin.getId(), String.join(", ", events.stream().map(Class::getSimpleName).sorted().toList()));
 	}
@@ -195,12 +182,13 @@ public class Game {
 		log.log("Registering client: %s", client);
 		clients.add(client);
 		client.sendOutput(CommandOutput.make(M_WELCOME).put(M_VERSION, Version.toMessage()).textf("Welcome to %s %s <%s>", Version.humanName, Version.versionNumber, Version.url));
-		doPluginEvent(OnStartClient.class, plugin -> plugin.onStartClient(client));
+		hooks.doEvent(OnStartClient.class, plugin -> plugin.onStartClient(client));
 	}
 
 	public <T extends GameSystem> T registerSystem(T system) {
 		log.log("Registering system: %s", system.getId());
 		systems.put(system.getId(), system);
+		hooks.registerHookHandler(system);
 		return system;
 	}
 

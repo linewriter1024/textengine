@@ -3,6 +3,7 @@ package com.benleskey.textengine.systems;
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.SingletonGameSystem;
 import com.benleskey.textengine.exceptions.DatabaseException;
+import com.benleskey.textengine.hooks.core.OnSystemInitialize;
 import com.benleskey.textengine.model.*;
 
 import java.sql.PreparedStatement;
@@ -15,7 +16,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class LookSystem extends SingletonGameSystem {
+public class LookSystem extends SingletonGameSystem implements OnSystemInitialize {
 	public UniqueType etEntityLook;
 	private PreparedStatement addLookStatement;
 	private PreparedStatement getCurrentLookStatement;
@@ -29,7 +30,7 @@ public class LookSystem extends SingletonGameSystem {
 	}
 
 	@Override
-	public void initialize() {
+	public void onSystemInitialize() {
 		int v = getSchema().getVersionNumber();
 
 		if (v == 0) {

@@ -6,16 +6,15 @@ import com.benleskey.textengine.Plugin;
 import com.benleskey.textengine.commands.Command;
 import com.benleskey.textengine.commands.CommandInput;
 import com.benleskey.textengine.commands.CommandVariant;
+import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 
-import java.util.Set;
-
-public class Quit extends Plugin implements OnInitialize {
+public class Quit extends Plugin implements OnPluginInitialize {
 	public Quit(Game game) {
 		super(game);
 	}
 
 	@Override
-	public void onInitialize() {
+	public void onPluginInitialize() {
 		game.registerCommand(new Command(Client.M_QUIT_FROM_CLIENT, (c, i) -> c.quitFromServer(),
 			new CommandVariant(Client.M_QUIT_FROM_CLIENT, "^quit([^\\w]+|$)", args -> CommandInput.makeNone())));
 	}

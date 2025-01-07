@@ -3,6 +3,7 @@ package com.benleskey.textengine.systems;
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.SingletonGameSystem;
 import com.benleskey.textengine.exceptions.DatabaseException;
+import com.benleskey.textengine.hooks.core.OnSystemInitialize;
 import com.benleskey.textengine.model.*;
 
 import java.sql.PreparedStatement;
@@ -14,7 +15,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public class RelationshipSystem extends SingletonGameSystem {
+public class RelationshipSystem extends SingletonGameSystem implements OnSystemInitialize {
 	public UniqueType etEntityRelationship;
 	public UniqueType rvContains;
 	private EntitySystem entitySystem;
@@ -28,7 +29,7 @@ public class RelationshipSystem extends SingletonGameSystem {
 	}
 
 	@Override
-	public void initialize() throws DatabaseException {
+	public void onSystemInitialize() throws DatabaseException {
 		int v = getSchema().getVersionNumber();
 
 		if (v == 0) {

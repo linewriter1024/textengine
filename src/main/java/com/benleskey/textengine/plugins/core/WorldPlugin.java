@@ -6,11 +6,15 @@ import com.benleskey.textengine.Plugin;
 import com.benleskey.textengine.entities.Actor;
 import com.benleskey.textengine.entities.Place;
 import com.benleskey.textengine.exceptions.InternalException;
+import com.benleskey.textengine.hooks.core.OnCoreSystemsReady;
+import com.benleskey.textengine.hooks.core.OnPluginInitialize;
+import com.benleskey.textengine.hooks.core.OnStart;
+import com.benleskey.textengine.hooks.core.OnStartClient;
 import com.benleskey.textengine.systems.EntitySystem;
 import com.benleskey.textengine.systems.RelationshipSystem;
 import com.benleskey.textengine.systems.WorldSystem;
 
-public class WorldPlugin extends Plugin implements OnInitialize, OnCoreSystemsReady, OnStart, OnStartClient {
+public class WorldPlugin extends Plugin implements OnPluginInitialize, OnCoreSystemsReady, OnStart, OnStartClient {
 	private Place home;
 
 	public WorldPlugin(Game game) {
@@ -18,7 +22,7 @@ public class WorldPlugin extends Plugin implements OnInitialize, OnCoreSystemsRe
 	}
 
 	@Override
-	public void onInitialize() {
+	public void onPluginInitialize() {
 		game.registerSystem(new WorldSystem(game));
 	}
 

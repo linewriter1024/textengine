@@ -7,6 +7,7 @@ import com.benleskey.textengine.commands.Command;
 import com.benleskey.textengine.commands.CommandInput;
 import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.commands.CommandVariant;
+import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.LookDescriptor;
 import com.benleskey.textengine.systems.LookSystem;
@@ -15,11 +16,10 @@ import com.benleskey.textengine.util.RawMessage;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.StringJoiner;
 import java.util.stream.Collectors;
 
-public class InteractionPlugin extends Plugin implements OnInitialize {
+public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 	public static final String LOOK = "look";
 	public static final String LOOK_WITHOUT_ARGUMENTS = "look_without_arguments";
 	public static final String M_LOOK = "look";
@@ -64,7 +64,7 @@ public class InteractionPlugin extends Plugin implements OnInitialize {
 	}
 
 	@Override
-	public void onInitialize() {
+	public void onPluginInitialize() {
 		game.registerCommand(new Command(LOOK, (client, input) -> {
 			Entity entity = client.getEntity().orElse(null);
 			if (entity != null) {

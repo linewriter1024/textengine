@@ -2,11 +2,12 @@ package com.benleskey.textengine.plugins.core;
 
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.Plugin;
+import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.systems.*;
 
 import java.util.Set;
 
-public class EventPlugin extends Plugin implements OnInitialize {
+public class EventPlugin extends Plugin implements OnPluginInitialize {
 
 	public EventPlugin(Game game) {
 		super(game);
@@ -18,7 +19,7 @@ public class EventPlugin extends Plugin implements OnInitialize {
 	}
 
 	@Override
-	public void onInitialize() {
+	public void onPluginInitialize() {
 		game.registerSystem(new EventSystem(game));
 	}
 }

@@ -1,9 +1,12 @@
 package com.benleskey.textengine;
 
 import com.benleskey.textengine.exceptions.DatabaseException;
+import com.benleskey.textengine.util.HookHandler;
 import com.benleskey.textengine.util.Logger;
 
-public abstract class GameSystem {
+import java.util.Set;
+
+public abstract class GameSystem implements HookHandler {
 	protected Game game;
 	protected Logger log;
 
@@ -20,10 +23,17 @@ public abstract class GameSystem {
 		return game.getSchemaManager().getSchema(getId());
 	}
 
-	public abstract void initialize() throws DatabaseException;
-
 	@Override
 	public String toString() {
 		return String.format("%s#%s", this.getClass().getSimpleName(), getId());
+	}
+
+	public Set<GameSystem> getDependencies() {
+		return Set.of();
+	}
+
+	@Override
+	public int getEventOrder() {
+		return 1 + this.getDependencies().stream().mapToInt(GameSystem::getEventOrder).sum();
 	}
 }

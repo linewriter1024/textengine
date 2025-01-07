@@ -3,6 +3,7 @@ package com.benleskey.textengine.systems;
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.SingletonGameSystem;
 import com.benleskey.textengine.exceptions.DatabaseException;
+import com.benleskey.textengine.hooks.core.OnSystemInitialize;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.FullEvent;
 import com.benleskey.textengine.model.Reference;
@@ -12,7 +13,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-public class EventSystem extends SingletonGameSystem {
+public class EventSystem extends SingletonGameSystem implements OnSystemInitialize {
 	public UniqueType etCancel;
 	private WorldSystem worldSystem;
 	private UniqueTypeSystem uniqueTypeSystem;
@@ -23,7 +24,7 @@ public class EventSystem extends SingletonGameSystem {
 	}
 
 	@Override
-	public void initialize() throws DatabaseException {
+	public void onSystemInitialize() throws DatabaseException {
 		int v = getSchema().getVersionNumber();
 
 		if (v == 0) {

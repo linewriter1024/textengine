@@ -1,11 +1,11 @@
 package com.benleskey.textengine;
 
-import com.benleskey.textengine.plugins.core.OnRegister;
+import com.benleskey.textengine.util.HookHandler;
 import com.benleskey.textengine.util.Logger;
 
 import java.util.Set;
 
-public abstract class Plugin implements OnRegister {
+public abstract class Plugin implements HookHandler {
 	protected Game game;
 	protected Logger log;
 
@@ -22,10 +22,7 @@ public abstract class Plugin implements OnRegister {
 		return Set.of();
 	}
 
-	public void onRegister() {
-		log.log("Event order is " + this.getEventOrder());
-	}
-
+	@Override
 	public int getEventOrder() {
 		return 1 + this.getDependencies().stream().mapToInt(Plugin::getEventOrder).sum();
 	}

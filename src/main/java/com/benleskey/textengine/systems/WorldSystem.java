@@ -5,9 +5,10 @@ import com.benleskey.textengine.SingletonGameSystem;
 import com.benleskey.textengine.entities.Actor;
 import com.benleskey.textengine.entities.Place;
 import com.benleskey.textengine.exceptions.DatabaseException;
+import com.benleskey.textengine.hooks.core.OnSystemInitialize;
 import com.benleskey.textengine.model.DTime;
 
-public class WorldSystem extends SingletonGameSystem {
+public class WorldSystem extends SingletonGameSystem implements OnSystemInitialize {
 
 	private final static long TIME_NOW = 0;
 	private final GrouplessPropertiesSubSystem<String, Long> referencePoints;
@@ -21,7 +22,7 @@ public class WorldSystem extends SingletonGameSystem {
 	}
 
 	@Override
-	public void initialize() throws DatabaseException {
+	public void onSystemInitialize() throws DatabaseException {
 		currentTime = time.get(TIME_NOW).orElse(0L);
 		log.log("The current world time is " + getCurrentTime());
 	}

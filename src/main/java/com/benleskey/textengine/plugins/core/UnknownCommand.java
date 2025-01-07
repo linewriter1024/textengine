@@ -5,14 +5,15 @@ import com.benleskey.textengine.Plugin;
 import com.benleskey.textengine.commands.Command;
 import com.benleskey.textengine.commands.CommandInput;
 import com.benleskey.textengine.commands.CommandOutput;
+import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 
-public class UnknownCommand extends Plugin implements OnInitialize {
+public class UnknownCommand extends Plugin implements OnPluginInitialize {
 	public UnknownCommand(Game game) {
 		super(game);
 	}
 
 	@Override
-	public void onInitialize() {
+	public void onPluginInitialize() {
 		game.registerCommand(new Command(CommandOutput.M_UNKNOWN_COMMAND, (c, i) -> {
 			CommandOutput output = CommandOutput.make(CommandOutput.M_UNKNOWN_COMMAND);
 			i.<CommandInput>getO(CommandOutput.M_ORIGINAL_UNKNOWN_COMMAND_COMMAND).ifPresent(original -> output.put(CommandOutput.M_ORIGINAL_UNKNOWN_COMMAND_COMMAND, original));

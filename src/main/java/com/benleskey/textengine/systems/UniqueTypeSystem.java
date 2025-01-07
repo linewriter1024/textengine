@@ -3,13 +3,14 @@ package com.benleskey.textengine.systems;
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.SingletonGameSystem;
 import com.benleskey.textengine.exceptions.DatabaseException;
+import com.benleskey.textengine.hooks.core.OnSystemInitialize;
 import com.benleskey.textengine.model.UniqueType;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-public class UniqueTypeSystem extends SingletonGameSystem {
+public class UniqueTypeSystem extends SingletonGameSystem implements OnSystemInitialize {
 	private final GrouplessPropertiesSubSystem<String, Long> types;
 	private final Map<String, Long> cachedTypes = new HashMap<>();
 
@@ -20,7 +21,7 @@ public class UniqueTypeSystem extends SingletonGameSystem {
 	}
 
 	@Override
-	public void initialize() throws DatabaseException {
+	public void onSystemInitialize() throws DatabaseException {
 
 	}
 
