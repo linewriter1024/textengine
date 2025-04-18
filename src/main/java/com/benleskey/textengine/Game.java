@@ -91,25 +91,19 @@ public class Game {
 
 			hooks.calculateOrder();
 
-			hooks.doEvent(OnSystemInitialize.class, handler -> {
-				GameSystem system = null;
-				int previousVersion = 0;
-				if(handler instanceof GameSystem) {
-					system = (GameSystem) handler;
-					previousVersion = system.getSchema().getVersionNumber();
-				}
+			hooks.doEvent(OnSystemInitialize.class, system -> {
+				int previousVersion = system.getSchema().getVersionNumber();
 
-				handler.onSystemInitialize();
+				system.onSystemInitialize();
 
-				if(system != null) {
-					int nextVersion = system.getSchema().getVersionNumber();
-					if (previousVersion == nextVersion) {
-						log.log("System %s (order %d) version %d", system.getId(), system.getEventOrder(), nextVersion);
-					} else if (previousVersion == 0) {
-						log.log("System %s (order %d) initialized to version %d", system.getId(), system.getEventOrder(), nextVersion);
-					} else {
-						log.log("System %s (order %d) upgraded from version %d to version %d", system.getId(), system.getEventOrder(), previousVersion, nextVersion);
-					}
+				int nextVersion = system.getSchema().getVersionNumber();
+
+				if (previousVersion == nextVersion) {
+					log.log("System %s (order %d) version %d", system.getId(), system.getEventOrder(), nextVersion);
+				} else if (previousVersion == 0) {
+					log.log("System %s (order %d) initialized to version %d", system.getId(), system.getEventOrder(), nextVersion);
+				} else {
+					log.log("System %s (order %d) upgraded from version %d to version %d", system.getId(), system.getEventOrder(), previousVersion, nextVersion);
 				}
 			});
 
@@ -186,9 +180,9 @@ public class Game {
 	}
 
 	public <T extends GameSystem> T registerSystem(T system) {
-		log.log("Registering system: %s", system.getId());
 		systems.put(system.getId(), system);
-		hooks.registerHookHandler(system);
+		Set<Class<? extends HookEvent>> events = hooks.registerHookHandler(system);
+		log.log("Registered system %s with event handlers [%s]", system.getId(), String.join(", ", events.stream().map(Class::getSimpleName).sorted().toList()));
 		return system;
 	}
 

@@ -1,12 +1,10 @@
 package com.benleskey.textengine;
 
-import com.benleskey.textengine.exceptions.DatabaseException;
-import com.benleskey.textengine.util.HookHandler;
 import com.benleskey.textengine.util.Logger;
 
 import java.util.Set;
 
-public abstract class GameSystem implements HookHandler {
+public abstract class GameSystem implements IGameSystem {
 	protected Game game;
 	protected Logger log;
 
