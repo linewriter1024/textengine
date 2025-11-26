@@ -88,16 +88,10 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 
 		Entity currentLocation = containers.get(0).getProvider();
 
-		// Find the exit
-		Optional<Entity> destination = cs.findExit(currentLocation, exitName, ws.getCurrentTime());
-		
-		if (destination.isEmpty()) {
-			client.sendOutput(CommandOutput.make(M_GO_FAIL)
-				.put(M_GO_ERROR, "no_exit")
-				.put(M_GO_EXIT, exitName)
-				.textf("There is no exit '%s' from here.", exitName));
-			return;
-		}
+		// Always use ProceduralWorldPlugin to handle navigation
+		// It will either find existing place or generate new one, and ensure neighbors exist
+		ProceduralWorldPlugin worldGen = (ProceduralWorldPlugin) game.getPlugin(ProceduralWorldPlugin.class);
+		Entity destination = worldGen.generatePlaceForExit(currentLocation, exitName);
 
 		// Move the actor: remove from current location, add to new location
 		// We cancel the old containment and create a new one
@@ -108,12 +102,12 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 			.cancelEvent(oldContainment);
 		
 		// Create new relationship
-		rs.add(destination.get(), actor, rs.rvContains);
+		rs.add(destination, actor, rs.rvContains);
 
 		// Get destination description for movement message
 		LookSystem ls = game.getSystem(LookSystem.class);
 		List<com.benleskey.textengine.model.LookDescriptor> destLooks = 
-			ls.getLooksFromEntity(destination.get(), ws.getCurrentTime());
+			ls.getLooksFromEntity(destination, ws.getCurrentTime());
 		
 		String destDescription = destLooks.isEmpty() 
 			? "somewhere" 
@@ -129,7 +123,7 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		);
 
 		client.sendOutput(CommandOutput.make(M_GO_SUCCESS)
-			.put(M_GO_DESTINATION, destination.get().getKeyId())
+			.put(M_GO_DESTINATION, destination.getKeyId())
 			.put(M_GO_EXIT, exitName)
 			.text(message));
 		

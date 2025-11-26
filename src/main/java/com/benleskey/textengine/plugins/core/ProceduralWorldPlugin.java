@@ -27,8 +27,6 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	}
 	
 	// Generation parameters
-	private static final int INITIAL_PLACE_COUNT = 7;
-	private static final double CONNECTION_PROBABILITY = 0.4;
 	private final Random random;
 	private final long seed;
 	
@@ -37,6 +35,11 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	
 	// Track starting location for new clients
 	private Entity startingPlace;
+	
+	// Systems cached for lazy generation
+	private EntitySystem entitySystem;
+	private LookSystem lookSystem;
+	private ConnectionSystem connectionSystem;
 	
 	public ProceduralWorldPlugin(Game game) {
 		this(game, System.currentTimeMillis());
@@ -63,22 +66,21 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	public void onCoreSystemsReady() {
 		log.log("Generating procedural world with seed %d...", seed);
 		
-		EntitySystem es = game.getSystem(EntitySystem.class);
-		LookSystem ls = game.getSystem(LookSystem.class);
+		// Cache systems for lazy generation
+		entitySystem = game.getSystem(EntitySystem.class);
+		lookSystem = game.getSystem(LookSystem.class);
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
-		ConnectionSystem cs = game.getSystem(ConnectionSystem.class);
+		connectionSystem = game.getSystem(ConnectionSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		
 		// Register entity types
-		es.registerEntityType(Place.class);
-		es.registerEntityType(Actor.class);
+		entitySystem.registerEntityType(Place.class);
+		entitySystem.registerEntityType(Actor.class);
 		
-		// Generate initial world
-		startingPlace = generateInitialWorld(es, ls, rs, cs, ws);
+		// Generate initial world (just starting place + planned exits)
+		startingPlace = generateInitialWorld(entitySystem, lookSystem, rs, connectionSystem, ws);
 		
-		log.log("Procedural world generated: %d places across %d biomes", 
-			placesByBiome.values().stream().mapToInt(List::size).sum(),
-			placesByBiome.size());
+		log.log("Procedural world initialized with starting place. Places will generate on exploration.");
 	}
 	
 	@Override
@@ -96,7 +98,8 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	}
 	
 	/**
-	 * Generate the initial world state based on procedural rules.
+	 * Generate the initial world state: create starting place only.
+	 * All other places generate on-demand as player explores.
 	 */
 	private Entity generateInitialWorld(EntitySystem es, LookSystem ls, 
 			RelationshipSystem rs, ConnectionSystem cs, WorldSystem ws) {
@@ -106,20 +109,16 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 			placesByBiome.put(biome, new ArrayList<>());
 		}
 		
-		// Generate initial set of places
-		List<Entity> allPlaces = new ArrayList<>();
-		for (int i = 0; i < INITIAL_PLACE_COUNT; i++) {
-			Biome biome = randomBiome();
-			Entity place = generatePlace(es, ls, biome);
-			allPlaces.add(place);
-			placesByBiome.get(biome).add(place);
-		}
+		// Generate only the starting place
+		Biome startingBiome = randomBiome();
+		Entity starting = generatePlace(es, ls, startingBiome);
+		placesByBiome.get(startingBiome).add(starting);
 		
-		// Generate connections between places based on spatial rules
-		generateConnections(allPlaces, cs);
+		// Generate neighbors for the starting place so player has choices
+		// Pass null for excludeDirection since there's no direction we came from
+		generateNeighborsForPlace(starting, null);
 		
-		// Return first place as starting location
-		return allPlaces.get(0);
+		return starting;
 	}
 	
 	/**
@@ -132,9 +131,7 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		String description = generatePlaceDescription(biome);
 		ls.addLook(place, "basic", description);
 		
-		// TODO: Tag with biome for later reference (needs UniqueType)
-		// EntityTagSystem ts = game.getSystem(EntityTagSystem.class);
-		// ts.addTag(place, biome tag);
+		log.log("Generated new place: %s (%s)", description, biome);
 		
 		return place;
 	}
@@ -180,30 +177,113 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	}
 	
 	/**
-	 * Generate connections between places based on spatial rules.
+	 * Generate a place for an exit if it doesn't exist yet.
+	 * Called by NavigationPlugin when player tries to use an exit.
+	 * 
+	 * @param from The place the player is exiting from
+	 * @param exitName The name of the exit being used (e.g., "north", "south")
+	 * @return The destination place (newly generated or existing)
 	 */
-	private void generateConnections(List<Entity> places, ConnectionSystem cs) {
-		// Create a connected graph - ensure every place is reachable
-		for (int i = 0; i < places.size() - 1; i++) {
-			// Connect each place to the next to ensure connectivity
-			Entity from = places.get(i);
-			Entity to = places.get(i + 1);
-			String direction = randomCardinalDirection();
-			String reverse = oppositeDirection(direction);
-			cs.connectBidirectional(from, to, direction, reverse);
+	public synchronized Entity generatePlaceForExit(Entity from, String exitName) {
+		WorldSystem ws = game.getSystem(WorldSystem.class);
+		
+		// Check if this exit already has a connection to a real place
+		Optional<Entity> existing = connectionSystem.findExit(from, exitName, ws.getCurrentTime());
+		if (existing.isPresent()) {
+			// Place exists, but check if it needs neighbors generated
+			Entity destination = existing.get();
+			log.log("Navigating to existing place %s, checking for neighbors...", destination.getId());
+			ensurePlaceHasNeighbors(destination);
+			return destination;
 		}
 		
-		// Add additional random connections for interesting topology
-		for (int i = 0; i < places.size(); i++) {
-			for (int j = i + 2; j < places.size(); j++) {
-				if (random.nextDouble() < CONNECTION_PROBABILITY) {
-					Entity from = places.get(i);
-					Entity to = places.get(j);
-					String direction = randomCardinalDirection();
-					String reverse = oppositeDirection(direction);
-					cs.connectBidirectional(from, to, direction, reverse);
-				}
-			}
+		log.log("No existing exit '%s' from place %s, generating new place...", exitName, from.getId());
+		
+		// Generate a new place with random biome
+		Biome biome = randomBiome();
+		Entity newPlace = generatePlace(entitySystem, lookSystem, biome);
+		placesByBiome.get(biome).add(newPlace);
+		
+		// Create bidirectional connection
+		String reverseDirection = oppositeDirection(exitName);
+		connectionSystem.connectBidirectional(from, newPlace, exitName, reverseDirection);
+		
+		// Generate neighboring places and exits from the new place
+		// (but don't generate THEIR exits - that happens when player visits them)
+		generateNeighborsForPlace(newPlace, reverseDirection);
+		
+		return newPlace;
+	}
+	
+	/**
+	 * Ensure a place has neighboring places generated.
+	 * If the place only has one exit (the one we came from), generate more neighbors.
+	 */
+	private void ensurePlaceHasNeighbors(Entity place) {
+		WorldSystem ws = game.getSystem(WorldSystem.class);
+		List<com.benleskey.textengine.model.ConnectionDescriptor> existingExits = 
+			connectionSystem.getConnections(place, ws.getCurrentTime());
+		
+		// If place has 2 or more exits, it's already been explored
+		if (existingExits.size() >= 2) {
+			log.log("Place %s already has %d exits, skipping neighbor generation", 
+				place.getId(), existingExits.size());
+			return;
+		}
+		
+		log.log("Place %s only has %d exit(s), generating neighbors...", 
+			place.getId(), existingExits.size());
+		
+		// This place was created as a neighbor but never visited - generate its neighbors now
+		String excludeDirection = existingExits.isEmpty() ? null : existingExits.get(0).getExitName();
+		generateNeighborsForPlace(place, excludeDirection);
+	}
+	
+	/**
+	 * Generate 2-4 neighboring places for a location and create connections to them.
+	 * The neighboring places are created but their own exits are NOT generated yet.
+	 * 
+	 * @param place The place to generate neighbors for
+	 * @param excludeDirection Direction to exclude (typically the direction we came from)
+	 */
+	private void generateNeighborsForPlace(Entity place, String excludeDirection) {
+		WorldSystem ws = game.getSystem(WorldSystem.class);
+		
+		// Get existing exits to avoid duplicates
+		List<com.benleskey.textengine.model.ConnectionDescriptor> existingExits = 
+			connectionSystem.getConnections(place, ws.getCurrentTime());
+		Set<String> usedDirections = existingExits.stream()
+			.map(com.benleskey.textengine.model.ConnectionDescriptor::getExitName)
+			.collect(java.util.stream.Collectors.toSet());
+		
+		// All possible cardinal directions
+		List<String> availableDirections = new java.util.ArrayList<>(
+			java.util.Arrays.asList("north", "south", "east", "west")
+		);
+		
+		// Remove already used directions
+		availableDirections.removeAll(usedDirections);
+		
+		// Shuffle for randomness
+		java.util.Collections.shuffle(availableDirections, random);
+		
+		// Generate 2-4 neighboring places (or fewer if we don't have enough available directions)
+		int neighborCount = 2 + random.nextInt(3); // 2-4 neighbors
+		neighborCount = Math.min(neighborCount, availableDirections.size());
+		
+		for (int i = 0; i < neighborCount; i++) {
+			String direction = availableDirections.get(i);
+			
+			// Generate a neighboring place
+			Biome neighborBiome = randomBiome();
+			Entity neighbor = generatePlace(entitySystem, lookSystem, neighborBiome);
+			placesByBiome.get(neighborBiome).add(neighbor);
+			
+			// Create bidirectional connection
+			String reverse = oppositeDirection(direction);
+			connectionSystem.connectBidirectional(place, neighbor, direction, reverse);
+			
+			// DON'T generate neighbors for this neighbor - that happens when player visits it
 		}
 	}
 	

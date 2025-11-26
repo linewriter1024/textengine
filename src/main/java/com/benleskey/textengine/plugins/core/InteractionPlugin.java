@@ -208,7 +208,7 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 		// Get current location description
 		List<LookDescriptor> locationLooks = ls.getLooksFromEntity(currentLocation, ws.getCurrentTime());
 		
-		// Get exits
+		// Get exits (connections to generated places)
 		List<ConnectionDescriptor> exits = cs.getConnections(currentLocation, ws.getCurrentTime());
 		
 		// Get visible entities
@@ -265,6 +265,7 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 		// Build visible places from exits - integrate into natural description
 		if (!exits.isEmpty()) {
 			RawMessage exitMessage = Message.make();
+			java.util.List<Markup.Safe> visiblePlaces = new java.util.ArrayList<>();
 			
 			// Group exits by destination
 			Map<String, List<String>> destinationToDirections = new java.util.HashMap<>();
@@ -285,26 +286,24 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 				exitMessage.put(exit.getExitName(), exit.getTo().getKeyId());
 			}
 			
-			// Build natural language description with safe escaping
-			if (!destinationToDirections.isEmpty()) {
-				java.util.List<Markup.Safe> visiblePlaces = new java.util.ArrayList<>();
+			// Build descriptions for real connections
+			for (Map.Entry<String, List<String>> entry : destinationToDirections.entrySet()) {
+				String description = entry.getKey();
+				List<String> directions = entry.getValue();
 				
-				for (Map.Entry<String, List<String>> entry : destinationToDirections.entrySet()) {
-					String description = entry.getKey();
-					List<String> directions = entry.getValue();
-					
-					// Build individual phrases - just description followed by exit name
-					// The exit name should be grammatically correct on its own
-					for (String direction : directions) {
-						visiblePlaces.add(Markup.concat(
-							Markup.escape(description),
-							Markup.raw(" ("),
-							Markup.em(direction),
-							Markup.raw(")")
-						));
-					}
+				// Build individual phrases - just description followed by exit name
+				for (String direction : directions) {
+					visiblePlaces.add(Markup.concat(
+						Markup.escape(description),
+						Markup.raw(" ("),
+						Markup.em(direction),
+						Markup.raw(")")
+					));
 				}
-				
+			}
+			
+			// Build natural language description with safe escaping
+			if (!visiblePlaces.isEmpty()) {
 				// Join with commas and "and"
 				java.util.List<Markup.Safe> joinedPlaces = new java.util.ArrayList<>();
 				for (int i = 0; i < visiblePlaces.size(); i++) {
