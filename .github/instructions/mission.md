@@ -1,3 +1,7 @@
+---
+applyTo: "**"
+---
+
 # Text Engine Mission
 
 ## Core Philosophy
