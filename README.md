@@ -66,8 +66,9 @@ The central orchestrator that manages:
 - **CorePlugin**: Provides `UniqueTypeSystem` for type management
 - **EventPlugin**: Manages temporal event system
 - **EntityPlugin**: Handles entities, relationships, looks, and positions
-- **WorldPlugin**: Creates and manages the game world
-- **InteractionPlugin**: Implements player commands like `look`
+- **ProceduralWorldPlugin**: Generates infinite procedural worlds with spatial coherence
+- **NavigationPlugin**: Handles movement between locations with fuzzy matching
+- **InteractionPlugin**: Implements player commands like `look` with markup support
 - **Echo**: Debug command and LLM chat integration
 
 Plugins can declare dependencies on other plugins, ensuring correct initialization order.
@@ -84,6 +85,8 @@ Plugins can declare dependencies on other plugins, ensuring correct initializati
 - **PositionSystem**: Spatial relationships and scales
 - **EntityTagSystem**: Flexible entity categorization
 - **WorldSystem**: Time management and world state
+- **ConnectionSystem**: Manages connections between places for navigation
+- **VisibilitySystem**: Handles what entities can see and perceive
 - **PropertiesSubSystem**: Generic key-value storage for game data
 
 Systems can declare dependencies on other systems for proper initialization sequencing.
@@ -197,13 +200,18 @@ SQLite provides persistent storage with transactional integrity:
 - [x] Schema management and versioning
 - [x] LLM integration via Ollama
 - [x] Streaming chat responses
-- [x] Basic world creation (home location)
+- [x] **Procedural world generation with spatial coherence**
+- [x] **Navigation system with landmark-based movement**
+- [x] **Dynamic place generation with loop formation**
+- [x] **Deterministic world generation via seed parameter**
+- [x] **Fuzzy matching for navigation and look commands**
+- [x] **Markup system for formatted terminal output**
 - [x] Client-entity association
 
 ### 🚧 Partially Implemented
 
-- [ ] Entity types (only Actor and Place currently)
-- [ ] Spatial positioning (system exists but limited usage)
+- [x] Entity types (Actor and Place fully implemented)
+- [x] Spatial positioning (grid-based coordinates with adjacency)
 - [ ] Entity tags (system exists but limited usage)
 - [ ] LLM dialogue generation (prototype only)
 
@@ -218,8 +226,7 @@ SQLite provides persistent storage with transactional integrity:
 - [ ] Economic simulation
 - [ ] Political systems
 - [ ] Multi-scale simulation (micro/macro)
-- [ ] Dynamic entity generation
-- [ ] Movement and navigation
+- [ ] Dynamic entity generation beyond places
 - [ ] Senses beyond vision
 - [ ] Time progression and day/night cycles
 - [ ] Weather and environmental systems
@@ -248,23 +255,54 @@ mvn clean compile
 # Basic execution
 mvn exec:java -Dexec.mainClass="com.benleskey.textengine.cli.Main"
 
+# With deterministic world generation
+mvn exec:java -Dexec.mainClass="com.benleskey.textengine.cli.Main" -Dexec.args="--seed 12345"
+
 # With game log visible
 mvn exec:java -Dexec.mainClass="com.benleskey.textengine.cli.Main" -Dexec.args="--showlog"
+
+# Combined: seed and logging
+mvn exec:java -Dexec.mainClass="com.benleskey.textengine.cli.Main" -Dexec.args="--seed 42 --showlog"
 
 # With API debug output
 mvn exec:java -Dexec.mainClass="com.benleskey.textengine.cli.Main" -Dexec.args="--apidebug"
 
 # Build standalone JAR
 mvn assembly:assembly
-java -jar target/textengine-1.0-SNAPSHOT-jar-with-dependencies.jar
+java -jar target/textengine-1.0-SNAPSHOT-jar-with-dependencies.jar --seed 42
 ```
 
 ### Basic Commands
 
-- `look` - View your surroundings
+- `look` - View your surroundings and available exits
+- `look <landmark>` - Look at a specific visible location (e.g., `look forest`, `look slope`)
+- `go <landmark>` - Move to a visible location (e.g., `go forest`, `go clearing`)
 - `echo <text>` - Echo text back (debug command)
 - `chat <message>` - Chat with LLM (requires Ollama)
 - `quit` - Exit the game
+
+### Procedural World Features
+
+The game generates an infinite procedural world with the following features:
+
+- **Deterministic Generation**: Use `--seed <number>` to create repeatable worlds
+- **Spatial Coherence**: Places are arranged on a 2D grid with logical adjacency
+- **Loop Formation**: World automatically connects existing nearby places, creating multiple paths
+- **Landmark Navigation**: Move using visible landmarks instead of compass directions
+- **Fuzzy Matching**: Commands match partial words (e.g., "go forest" matches "dense forest with towering trees")
+- **Highlighted Keywords**: Important navigation keywords are **bold** in terminal output
+- **Biome Variety**: Five biome types (forest, meadow, river, hills, ruins) with weighted distribution
+
+Example session:
+```bash
+# Start with a specific seed
+mvn exec:java -Dexec.mainClass="com.benleskey.textengine.cli.Main" -Dexec.args="--seed 42"
+
+# You see: "You can see gentle slope overlooking the valley, and dense forest with towering trees"
+> go gentle      # Navigate using keyword
+> look forest    # Look ahead at another location before going
+> go forest      # Move there
+```
 
 ### Project Structure
 
@@ -322,7 +360,8 @@ src/main/java/com/benleskey/textengine/
 - ✅ LLM integration
 
 ### Phase 2: Core Gameplay
-- [ ] Movement and navigation system
+- [x] Movement and navigation system with spatial coherence
+- [x] Procedural world generation with landmarks
 - [ ] Expanded entity types (items, containers, NPCs)
 - [ ] Inventory and item manipulation
 - [ ] Basic interaction commands
