@@ -4,6 +4,7 @@ import com.benleskey.textengine.commands.Command;
 import com.benleskey.textengine.commands.CommandInput;
 import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.model.Entity;
+import com.benleskey.textengine.util.Markup;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -24,7 +25,7 @@ public abstract class Client {
 
 	public static final String M_NO_ENTITY = "no_entity";
 
-	public static CommandOutput NO_ENTITY = CommandOutput.make(M_NO_ENTITY).text("You are not connected to an in-world entity");
+	public static CommandOutput NO_ENTITY = CommandOutput.make(M_NO_ENTITY).text(Markup.escape("You are not connected to an in-world entity"));
 
 	protected Game game;
 	protected Optional<Entity> entity;
@@ -40,7 +41,7 @@ public abstract class Client {
 	public void quitFromServer() {
 		if (alive) {
 			alive = false;
-			sendOutput(CommandOutput.make(M_QUIT_FROM_SERVER).text("Goodbye."));
+			sendOutput(CommandOutput.make(M_QUIT_FROM_SERVER).text(Markup.escape("Goodbye.")));
 			game.log.log("Disconnected %s", this);
 		}
 	}

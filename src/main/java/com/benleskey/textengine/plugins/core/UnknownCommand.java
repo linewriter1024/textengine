@@ -6,6 +6,7 @@ import com.benleskey.textengine.commands.Command;
 import com.benleskey.textengine.commands.CommandInput;
 import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
+import com.benleskey.textengine.util.Markup;
 
 public class UnknownCommand extends Plugin implements OnPluginInitialize {
 	public UnknownCommand(Game game) {
@@ -20,7 +21,7 @@ public class UnknownCommand extends Plugin implements OnPluginInitialize {
 			i.<String>getO(CommandOutput.M_ORIGINAL_UNKNOWN_COMMAND_LINE).ifPresentOrElse(line -> {
 				output.textf("Unknown command: %s", line);
 				output.put(CommandOutput.M_ORIGINAL_UNKNOWN_COMMAND_LINE, line);
-			}, () -> output.text("Unknown command"));
+			}, () -> output.text(Markup.escape("Unknown command")));
 			c.sendOutput(output);
 		}));
 	}

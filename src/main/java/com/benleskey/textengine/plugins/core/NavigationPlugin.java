@@ -9,10 +9,14 @@ import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.commands.CommandVariant;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.model.Entity;
+import com.benleskey.textengine.model.LookDescriptor;
 import com.benleskey.textengine.systems.ConnectionSystem;
+import com.benleskey.textengine.systems.LookSystem;
 import com.benleskey.textengine.systems.RelationshipSystem;
 import com.benleskey.textengine.systems.WorldSystem;
+import com.benleskey.textengine.util.Markup;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
 
@@ -60,7 +64,7 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		if (exitOptional.isEmpty()) {
 			client.sendOutput(CommandOutput.make(M_GO_FAIL)
 				.put(M_GO_ERROR, "no_direction")
-				.text("Where do you want to go?"));
+				.text(Markup.escape("Where do you want to go?")));
 			return;
 		}
 		
@@ -78,7 +82,7 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		if (containers.isEmpty()) {
 			client.sendOutput(CommandOutput.make(M_GO_FAIL)
 				.put(M_GO_ERROR, "nowhere")
-				.text("You are nowhere. This should not happen."));
+				.text(Markup.escape("You are nowhere. This should not happen.")));
 			return;
 		}
 
@@ -106,10 +110,28 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		// Create new relationship
 		rs.add(destination.get(), actor, rs.rvContains);
 
+		// Get destination description for movement message
+		LookSystem ls = game.getSystem(LookSystem.class);
+		List<com.benleskey.textengine.model.LookDescriptor> destLooks = 
+			ls.getLooksFromEntity(destination.get(), ws.getCurrentTime());
+		
+		String destDescription = destLooks.isEmpty() 
+			? "somewhere" 
+			: destLooks.get(0).getDescription();
+
+		// Build safe markup message with escaped descriptions
+		Markup.Safe message = Markup.concat(
+			Markup.raw("You go "),
+			Markup.em(exitName),
+			Markup.raw(" to "),
+			Markup.escape(destDescription),
+			Markup.raw(".")
+		);
+
 		client.sendOutput(CommandOutput.make(M_GO_SUCCESS)
 			.put(M_GO_DESTINATION, destination.get().getKeyId())
 			.put(M_GO_EXIT, exitName)
-			.textf("You go %s.", exitName));
+			.text(message));
 		
 		// Automatically look around the new location
 		game.feedCommand(client, CommandInput.make(LOOK));

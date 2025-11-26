@@ -8,6 +8,7 @@ import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.commands.CommandVariant;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.llm.LlmProvider;
+import com.benleskey.textengine.util.Markup;
 import dev.langchain4j.model.chat.StreamingChatLanguageModel;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
@@ -26,7 +27,7 @@ public class Echo extends Plugin implements OnPluginInitialize {
 
 	@Override
 	public void onPluginInitialize() {
-		game.registerCommand(new Command(ECHO, (c, i) -> c.sendOutput(CommandOutput.make(ECHO).text(i.get(M_ECHO_TEXT))),
+		game.registerCommand(new Command(ECHO, (c, i) -> c.sendOutput(CommandOutput.make(ECHO).text(Markup.escape(i.get(M_ECHO_TEXT)))),
 			new CommandVariant(ECHO, "^echo[^\\w]*(.*)$", args -> CommandInput.makeNone().put(M_ECHO_TEXT, args.group(1)))));
 
 		game.registerCommand(new Command(CHAT, (c, i) -> {
@@ -54,7 +55,7 @@ public class Echo extends Plugin implements OnPluginInitialize {
 					}
 				});
 
-				c.sendStreamedOutput(CommandOutput.make(CHAT).text(""), publisher, future);
+				c.sendStreamedOutput(CommandOutput.make(CHAT).text(Markup.escape("")), publisher, future);
 			},
 			new CommandVariant(CHAT, "^chat[^\\w]*(.*)$", args -> CommandInput.makeNone().put(M_ECHO_TEXT, args.group(1)))));
 	}

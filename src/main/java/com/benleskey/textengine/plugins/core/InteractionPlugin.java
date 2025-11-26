@@ -17,6 +17,7 @@ import com.benleskey.textengine.systems.VisibilitySystem;
 import com.benleskey.textengine.systems.ConnectionSystem;
 import com.benleskey.textengine.systems.RelationshipSystem;
 import com.benleskey.textengine.systems.WorldSystem;
+import com.benleskey.textengine.util.Markup;
 import com.benleskey.textengine.util.Message;
 import com.benleskey.textengine.util.RawMessage;
 
@@ -66,7 +67,7 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 			entities.put(entity.getKeyId(), entityMessage);
 		}
 
-		output.text(overallText.toString());
+		output.text(Markup.escape(overallText.toString()));
 		output.put(M_LOOK_ENTITIES, entities);
 
 		return output;
@@ -139,20 +140,89 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 		Map<Entity, List<LookDescriptor>> distantLooks
 	) {
 		CommandOutput output = CommandOutput.make(M_LOOK);
-		StringJoiner overallText = new StringJoiner("\n\n");
+		java.util.List<Markup.Safe> parts = new java.util.ArrayList<>();
 
 		// Show current location description
 		if (!locationLooks.isEmpty()) {
-			StringJoiner locationText = new StringJoiner(", ");
+			java.util.List<Markup.Safe> locationParts = new java.util.ArrayList<>();
 			for (LookDescriptor look : locationLooks) {
-				locationText.add(look.getDescription());
+				locationParts.add(Markup.escape(look.getDescription()));
 			}
-			overallText.add("You are in " + locationText + ".");
+			parts.add(Markup.concat(
+				Markup.raw("You are in "),
+				Markup.concat(locationParts.toArray(new Markup.Safe[0])),
+				Markup.raw(".")
+			));
+		}
+
+		// Build visible places from exits - integrate into natural description
+		if (!exits.isEmpty()) {
+			RawMessage exitMessage = Message.make();
+			
+			// Group exits by destination
+			Map<String, List<String>> destinationToDirections = new java.util.HashMap<>();
+			
+			for (ConnectionDescriptor exit : exits) {
+				// Get the looks for the destination
+				Entity destination = exit.getTo();
+				List<LookDescriptor> destLooks = game.getSystem(LookSystem.class)
+					.getLooksFromEntity(destination, game.getSystem(WorldSystem.class).getCurrentTime());
+				
+				if (!destLooks.isEmpty()) {
+					String destDescription = destLooks.get(0).getDescription();
+					destinationToDirections
+						.computeIfAbsent(destDescription, k -> new java.util.ArrayList<>())
+						.add(exit.getExitName());
+				}
+				
+				exitMessage.put(exit.getExitName(), exit.getTo().getKeyId());
+			}
+			
+			// Build natural language description with safe escaping
+			if (!destinationToDirections.isEmpty()) {
+				java.util.List<Markup.Safe> visiblePlaces = new java.util.ArrayList<>();
+				
+				for (Map.Entry<String, List<String>> entry : destinationToDirections.entrySet()) {
+					String description = entry.getKey();
+					List<String> directions = entry.getValue();
+					
+					// Build direction list with emphasis
+					java.util.List<Markup.Safe> dirParts = new java.util.ArrayList<>();
+					for (int i = 0; i < directions.size(); i++) {
+						if (i > 0) {
+							dirParts.add(Markup.raw(" or "));
+						}
+						dirParts.add(Markup.em(directions.get(i)));
+					}
+					
+					visiblePlaces.add(Markup.concat(
+						Markup.escape(description),
+						Markup.raw(" to the "),
+						Markup.concat(dirParts.toArray(new Markup.Safe[0]))
+					));
+				}
+				
+				// Join with semicolons
+				java.util.List<Markup.Safe> joinedPlaces = new java.util.ArrayList<>();
+				for (int i = 0; i < visiblePlaces.size(); i++) {
+					if (i > 0) {
+						joinedPlaces.add(Markup.raw("; "));
+					}
+					joinedPlaces.add(visiblePlaces.get(i));
+				}
+				
+				parts.add(Markup.concat(
+					Markup.raw(" You can see "),
+					Markup.concat(joinedPlaces.toArray(new Markup.Safe[0])),
+					Markup.raw(".")
+				));
+			}
+			output.put(M_LOOK_EXITS, exitMessage);
 		}
 
 		// Build nearby section
 		if (!nearbyLooks.isEmpty()) {
-			StringJoiner nearbyText = new StringJoiner(", ");
+			java.util.List<Markup.Safe> nearbyParts = new java.util.ArrayList<>();
 			RawMessage nearbyEntities = Message.make();
 			
 			for (Map.Entry<Entity, List<LookDescriptor>> entry : nearbyLooks.entrySet()) {
@@ -161,74 +231,75 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 				
 				RawMessage entityMessage = Message.make();
 				RawMessage entityLooks = Message.make();
-				StringJoiner entityText = new StringJoiner(", ");
+				java.util.List<Markup.Safe> entityParts = new java.util.ArrayList<>();
 
 				for (LookDescriptor lookDescriptor : looks) {
 					RawMessage lookMessage = Message.make()
 						.put(M_LOOK_TYPE, lookDescriptor.getType())
 						.put(M_LOOK_DESCRIPTION, lookDescriptor.getDescription());
 					entityLooks.put(lookDescriptor.getLook().getKeyId(), lookMessage);
-					entityText.add(lookDescriptor.getDescription());
+					entityParts.add(Markup.escape(lookDescriptor.getDescription()));
 				}
 
 				entityMessage.put(M_LOOK_ENTITY_LOOKS, entityLooks);
-				nearbyText.add(entityText.toString());
+				
+				// Join entity looks with commas
+				java.util.List<Markup.Safe> joinedEntity = new java.util.ArrayList<>();
+				for (int i = 0; i < entityParts.size(); i++) {
+					if (i > 0) joinedEntity.add(Markup.raw(", "));
+					joinedEntity.add(entityParts.get(i));
+				}
+				nearbyParts.add(Markup.concat(joinedEntity.toArray(new Markup.Safe[0])));
 				nearbyEntities.put(entity.getKeyId(), entityMessage);
 			}
 			
-			if (nearbyText.length() > 0) {
-				overallText.add("Nearby: " + nearbyText);
+			if (!nearbyParts.isEmpty()) {
+				java.util.List<Markup.Safe> joined = new java.util.ArrayList<>();
+				for (int i = 0; i < nearbyParts.size(); i++) {
+					if (i > 0) joined.add(Markup.raw(", "));
+					joined.add(nearbyParts.get(i));
+				}
+				
+				parts.add(Markup.concat(
+					Markup.raw(" Nearby: "),
+					Markup.concat(joined.toArray(new Markup.Safe[0])),
+					Markup.raw(".")
+				));
 			}
 			output.put(M_LOOK_NEARBY, nearbyEntities);
 		}
 
 		// Build distant section  
 		if (!distantLooks.isEmpty()) {
-			StringJoiner distantText = new StringJoiner(", ");
+			java.util.List<Markup.Safe> distantParts = new java.util.ArrayList<>();
 			RawMessage distantEntities = Message.make();
 			
 			for (Map.Entry<Entity, List<LookDescriptor>> entry : distantLooks.entrySet()) {
-				Entity entity = entry.getKey();
 				List<LookDescriptor> looks = entry.getValue();
 				
-				StringJoiner entityText = new StringJoiner(", ");
 				for (LookDescriptor lookDescriptor : looks) {
-					entityText.add(lookDescriptor.getDescription());
+					distantParts.add(Markup.em(lookDescriptor.getDescription()));
 				}
-				
-				distantText.add(entityText.toString());
 			}
 			
-			if (distantText.length() > 0) {
-				overallText.add("In the distance: " + distantText);
+			if (!distantParts.isEmpty()) {
+				java.util.List<Markup.Safe> joined = new java.util.ArrayList<>();
+				for (int i = 0; i < distantParts.size(); i++) {
+					if (i > 0) joined.add(Markup.raw(", "));
+					joined.add(distantParts.get(i));
+				}
+				
+				parts.add(Markup.concat(
+					Markup.raw(" In the distance you can see "),
+					Markup.concat(joined.toArray(new Markup.Safe[0])),
+					Markup.raw(".")
+				));
 			}
 			output.put(M_LOOK_DISTANT, distantEntities);
 		}
 
-		// Build exits section
-		if (!exits.isEmpty()) {
-			StringJoiner exitText = new StringJoiner("\n");
-			RawMessage exitMessage = Message.make();
-			
-			for (ConnectionDescriptor exit : exits) {
-				// Get the looks for the destination
-				Entity destination = exit.getTo();
-				List<LookDescriptor> destLooks = game.getSystem(LookSystem.class)
-					.getLooksFromEntity(destination, game.getSystem(WorldSystem.class).getCurrentTime());
-				
-				String destDescription = destLooks.isEmpty() 
-					? exit.getExitName() 
-					: destLooks.get(0).getDescription();
-				
-				exitText.add(String.format("  %s: %s", exit.getExitName(), destDescription));
-				exitMessage.put(exit.getExitName(), exit.getTo().getKeyId());
-			}
-			
-			overallText.add("Exits:\n" + exitText);
-			output.put(M_LOOK_EXITS, exitMessage);
-		}
-
-		output.text(overallText.toString());
+		// Combine all parts and set as text
+		output.text(Markup.concat(parts.toArray(new Markup.Safe[0])));
 		return output;
 	}
 }

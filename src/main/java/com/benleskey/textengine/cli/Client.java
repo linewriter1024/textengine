@@ -3,6 +3,7 @@ package com.benleskey.textengine.cli;
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.commands.CommandInput;
 import com.benleskey.textengine.commands.CommandOutput;
+import com.benleskey.textengine.util.Markup;
 import lombok.Builder;
 
 import java.util.Scanner;
@@ -48,7 +49,11 @@ public class Client extends com.benleskey.textengine.Client {
 			System.out.printf("< %s\n", output.toPrettyString());
 		}
 		output.getError().ifPresent(error -> System.out.printf("! %s\n", error));
-		output.getText().ifPresent(System.out::println);
+		output.getText().ifPresent(text -> {
+			// Convert markup to terminal output
+			String rendered = Markup.toTerminal(Markup.raw(text));
+			System.out.println(rendered);
+		});
 	}
 
 	@Override
