@@ -12,6 +12,7 @@ import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.systems.ConnectionSystem;
 import com.benleskey.textengine.systems.DisambiguationSystem;
 import com.benleskey.textengine.systems.RelationshipSystem;
+import com.benleskey.textengine.systems.VisibilitySystem;
 import com.benleskey.textengine.systems.WorldSystem;
 import com.benleskey.textengine.util.Markup;
 
@@ -96,16 +97,35 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 			.map(com.benleskey.textengine.model.ConnectionDescriptor::getTo)
 			.toList();
 		
-		// Resolve the user input to an exit destination
+		// Also get distant landmarks that might be visible
+		VisibilitySystem vs = game.getSystem(VisibilitySystem.class);
+		List<Entity> distantLandmarks = vs.getVisibleEntities(actor).stream()
+			.filter(vd -> vd.getDistanceLevel() == VisibilitySystem.VisibilityLevel.DISTANT)
+			.map(vd -> vd.getEntity())
+			.toList();
+		
+		// Combine exits and landmarks for matching
+		List<Entity> allDestinations = new java.util.ArrayList<>(exitDestinations);
+		allDestinations.addAll(distantLandmarks);
+		
+		// Resolve the user input to a destination (exit or landmark)
 		Entity matchedDestination = ds.resolveEntity(
 			client,
 			userInput,
-			exitDestinations,
-			exit -> {
-				// Find the exit descriptor for this destination
+			allDestinations,
+			destination -> {
+				// For exits, return the exit name
 				for (com.benleskey.textengine.model.ConnectionDescriptor desc : exits) {
-					if (desc.getTo().equals(exit)) {
+					if (desc.getTo().equals(destination)) {
 						return desc.getExitName();
+					}
+				}
+				// For distant landmarks, return their description
+				if (distantLandmarks.contains(destination)) {
+					var looks = game.getSystem(com.benleskey.textengine.systems.LookSystem.class)
+						.getLooksFromEntity(destination, ws.getCurrentTime());
+					if (!looks.isEmpty()) {
+						return looks.get(0).getDescription();
 					}
 				}
 				return null;
@@ -120,8 +140,31 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 			return;
 		}
 		
-		// Find the exit descriptor for the matched destination
+		// Check if the matched destination is a landmark (not a direct exit)
+		boolean isLandmark = distantLandmarks.contains(matchedDestination);
+		
 		com.benleskey.textengine.model.ConnectionDescriptor matchedExit = null;
+		
+		if (isLandmark) {
+			// User is trying to go to a distant landmark
+			// For now, we'll tell them they need to travel toward it
+			// Future: implement pathfinding to find the best exit
+			var looks = game.getSystem(com.benleskey.textengine.systems.LookSystem.class)
+				.getLooksFromEntity(matchedDestination, ws.getCurrentTime());
+			String landmarkName = !looks.isEmpty() ? looks.get(0).getDescription() : "there";
+			
+			client.sendOutput(CommandOutput.make(M_GO_FAIL)
+				.put(M_GO_ERROR, "too_far")
+				.put("landmark", matchedDestination.getKeyId())
+				.text(Markup.concat(
+					Markup.raw("You can see "),
+					Markup.em(landmarkName),
+					Markup.raw(" in the distance, but it's too far to reach directly. You'll need to travel closer first.")
+				)));
+			return;
+		}
+		
+		// Find the exit descriptor for the matched destination
 		for (com.benleskey.textengine.model.ConnectionDescriptor desc : exits) {
 			if (desc.getTo().equals(matchedDestination)) {
 				matchedExit = desc;

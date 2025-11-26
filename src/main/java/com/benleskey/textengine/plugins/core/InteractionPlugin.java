@@ -343,7 +343,80 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 			output.put(M_LOOK_EXITS, exitMessage);
 		}
 		
-		// Build items section with numeric IDs (continuing from exits)
+		// Build distant landmarks section with numeric IDs (continuing from exits)
+		if (!distantLooks.isEmpty()) {
+			RawMessage distantEntities = Message.make();
+			
+			// Extract landmarks and their descriptions
+			List<Entity> landmarks = new java.util.ArrayList<>(distantLooks.keySet());
+			
+			// Build disambiguated list
+			DisambiguationSystem.DisambiguatedList landmarkDisambiguated = ds.buildDisambiguatedList(
+				landmarks,
+				landmark -> {
+					List<LookDescriptor> looks = distantLooks.get(landmark);
+					return (looks != null && !looks.isEmpty()) ? looks.get(0).getDescription() : null;
+				}
+			);
+			
+			// Add landmark IDs to combined map (renumber to continue from exits)
+			List<Markup.Safe> correctedLandmarkParts = new java.util.ArrayList<>();
+			int currentLandmarkId = nextId;
+			for (Entity landmark : landmarks) {
+				combinedIdMap.put(currentLandmarkId, landmark);
+				List<LookDescriptor> looks = distantLooks.get(landmark);
+				if (looks != null && !looks.isEmpty()) {
+					String description = looks.get(0).getDescription();
+					correctedLandmarkParts.add(Markup.concat(
+						Markup.em(description),
+						Markup.raw(" [" + currentLandmarkId + "]")
+					));
+				}
+				currentLandmarkId++;
+			}
+			nextId = currentLandmarkId;
+			
+			// Build machine-readable landmark data
+			for (Entity landmark : landmarks) {
+				List<LookDescriptor> looks = distantLooks.get(landmark);
+				RawMessage entityMessage = Message.make();
+				RawMessage entityLooks = Message.make();
+				
+				for (LookDescriptor lookDescriptor : looks) {
+					RawMessage lookMessage = Message.make()
+						.put(M_LOOK_TYPE, lookDescriptor.getType())
+						.put(M_LOOK_DESCRIPTION, lookDescriptor.getDescription());
+					entityLooks.put(lookDescriptor.getLook().getKeyId(), lookMessage);
+				}
+				
+				entityMessage.put(M_LOOK_ENTITY_LOOKS, entityLooks);
+				distantEntities.put(landmark.getKeyId(), entityMessage);
+			}
+			
+			// Format the list for display
+			if (!correctedLandmarkParts.isEmpty()) {
+				java.util.List<Markup.Safe> joined = new java.util.ArrayList<>();
+				for (int i = 0; i < correctedLandmarkParts.size(); i++) {
+					if (i > 0) {
+						if (i == correctedLandmarkParts.size() - 1 && correctedLandmarkParts.size() > 1) {
+							joined.add(Markup.raw(", and "));
+						} else {
+							joined.add(Markup.raw(", "));
+						}
+					}
+					joined.add(correctedLandmarkParts.get(i));
+				}
+				
+				parts.add(Markup.concat(
+					Markup.raw(" In the distance you can see "),
+					Markup.concat(joined.toArray(new Markup.Safe[0])),
+					Markup.raw(".")
+				));
+			}
+			output.put(M_LOOK_DISTANT, distantEntities);
+		}
+		
+		// Build items section with numeric IDs (continuing from exits and landmarks)
 		DisambiguationSystem.DisambiguatedList itemDisambiguated = null;
 		if (!itemLooks.isEmpty()) {
 			RawMessage itemEntities = Message.make();
@@ -466,35 +539,6 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 				));
 			}
 			output.put(M_LOOK_NEARBY, nearbyEntities);
-		}
-
-		// Build distant section  
-		if (!distantLooks.isEmpty()) {
-			java.util.List<Markup.Safe> distantParts = new java.util.ArrayList<>();
-			RawMessage distantEntities = Message.make();
-			
-			for (Map.Entry<Entity, List<LookDescriptor>> entry : distantLooks.entrySet()) {
-				List<LookDescriptor> looks = entry.getValue();
-				
-				for (LookDescriptor lookDescriptor : looks) {
-					distantParts.add(Markup.em(lookDescriptor.getDescription()));
-				}
-			}
-			
-			if (!distantParts.isEmpty()) {
-				java.util.List<Markup.Safe> joined = new java.util.ArrayList<>();
-				for (int i = 0; i < distantParts.size(); i++) {
-					if (i > 0) joined.add(Markup.raw(", "));
-					joined.add(distantParts.get(i));
-				}
-				
-				parts.add(Markup.concat(
-					Markup.raw(" In the distance you can see "),
-					Markup.concat(joined.toArray(new Markup.Safe[0])),
-					Markup.raw(".")
-				));
-			}
-			output.put(M_LOOK_DISTANT, distantEntities);
 		}
 
 		// Combine all parts and set as text

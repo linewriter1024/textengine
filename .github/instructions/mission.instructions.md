@@ -11,6 +11,7 @@ applyTo: "**"
 This engine simulates worlds through **emergent entity relationships**, not scripted content. It combines:
 - **Entity-Relationship Architecture**: Everything (cities, people, objects, locations, abstract concepts) is an entity in relationships with other entities
 - **LLM-Enhanced Consistency**: AI generates descriptions/dialogue while the engine enforces systematic consistency
+- **Genre Agnostic**: The engine supports any setting or style—high fantasy adventure, space opera, ocean-going voyage, cyberpunk intrigue, historical drama, horror survival, or any other genre you can imagine
 
 ## Non-Negotiable Principles
 
@@ -19,6 +20,7 @@ This engine simulates worlds through **emergent entity relationships**, not scri
 - Example: Player says "hide under wagon" → system generates "underneath_wagon" entity if it doesn't exist
 - **No hardcoded rooms, items, or NPCs** beyond bootstrap/example code
 - World content emerges from simulation rules, not authored scenarios
+- **Genre flexibility**: The same entity system can represent a medieval castle, a universe of spaceships and planets, or a bay filled with pirate vessels and ports across the ocean.
 
 ### 2. Relationship-Driven Simulation  
 - **All interactions through entity relationships**, not object properties
