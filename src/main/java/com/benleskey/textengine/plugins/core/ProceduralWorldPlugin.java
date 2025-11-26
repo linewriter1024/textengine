@@ -343,7 +343,11 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	 * Ensure a place has neighboring places generated.
 	 * If the place only has one exit (the one we came from), generate more neighbors.
 	 */
-	private void ensurePlaceHasNeighbors(Entity place) {
+	/**
+	 * Ensure a place has neighboring places generated.
+	 * Creates 2-4 random exits if the place has fewer than 2 connections.
+	 */
+	public synchronized void ensurePlaceHasNeighbors(Entity place) {
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		List<com.benleskey.textengine.model.ConnectionDescriptor> existingExits = 
 			connectionSystem.getConnections(place, ws.getCurrentTime());

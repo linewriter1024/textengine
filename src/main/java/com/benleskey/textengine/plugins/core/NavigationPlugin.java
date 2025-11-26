@@ -147,28 +147,28 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		
 		if (isLandmark) {
 			// User is trying to go to a distant landmark
-			// For now, we'll tell them they need to travel toward it
-			// Future: implement pathfinding to find the best exit
-			var looks = game.getSystem(com.benleskey.textengine.systems.LookSystem.class)
-				.getLooksFromEntity(matchedDestination, ws.getCurrentTime());
-			String landmarkName = !looks.isEmpty() ? looks.get(0).getDescription() : "there";
+			// Find the closest adjacent exit that moves toward the landmark
+			// For now, we'll just pick the first available exit as a reasonable choice
+			// Future: implement proper pathfinding based on spatial distance
 			
-			client.sendOutput(CommandOutput.make(M_GO_FAIL)
-				.put(M_GO_ERROR, "too_far")
-				.put("landmark", matchedDestination.getKeyId())
-				.text(Markup.concat(
-					Markup.raw("You can see "),
-					Markup.em(landmarkName),
-					Markup.raw(" in the distance, but it's too far to reach directly. You'll need to travel closer first.")
-				)));
-			return;
-		}
-		
-		// Find the exit descriptor for the matched destination
-		for (com.benleskey.textengine.model.ConnectionDescriptor desc : exits) {
-			if (desc.getTo().equals(matchedDestination)) {
-				matchedExit = desc;
-				break;
+			if (exits.isEmpty()) {
+				client.sendOutput(CommandOutput.make(M_GO_FAIL)
+					.put(M_GO_ERROR, "no_exits")
+					.text(Markup.escape("You can't move from here.")));
+				return;
+			}
+			
+			// Pick first exit as the direction toward the landmark
+			matchedExit = exits.get(0);
+			
+			// (We'll get landmark and destination names later when building the message)
+		} else {
+			// Find the exit descriptor for the matched destination
+			for (com.benleskey.textengine.model.ConnectionDescriptor desc : exits) {
+				if (desc.getTo().equals(matchedDestination)) {
+					matchedExit = desc;
+					break;
+				}
 			}
 		}
 		
@@ -183,7 +183,11 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		// Always use ProceduralWorldPlugin to handle navigation
 		// It will either find existing place or generate new one, and ensure neighbors exist
 		ProceduralWorldPlugin worldGen = (ProceduralWorldPlugin) game.getPlugin(ProceduralWorldPlugin.class);
-		Entity destination = worldGen.generatePlaceForExit(currentLocation, matchedExit.getExitName());
+		
+		// The matched destination is the place we're navigating to
+		// (For landmarks, matchedExit points to a place that moves us toward the landmark)
+		Entity destination = matchedExit.getTo();
+		worldGen.ensurePlaceHasNeighbors(destination);
 
 		// Move the actor: remove from current location, add to new location
 		// We cancel the old containment and create a new one
@@ -196,14 +200,38 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		// Create new relationship
 		rs.add(destination, actor, rs.rvContains);
 
-		// Build safe markup message - show the landmark description
-		// Convert markup to plain text for the message
-		String landmarkText = Markup.toPlainText(Markup.raw(matchedExit.getExitName()));
-		Markup.Safe message = Markup.concat(
-			Markup.raw("You go to "),
-			Markup.escape(landmarkText),
-			Markup.raw(".")
-		);
+		// Build the navigation message
+		Markup.Safe message;
+		
+		if (isLandmark) {
+			// Navigating toward a distant landmark - show the actual destination and the landmark
+			var destinationLooks = game.getSystem(com.benleskey.textengine.systems.LookSystem.class)
+				.getLooksFromEntity(destination, ws.getCurrentTime());
+			String destinationDesc = !destinationLooks.isEmpty() ? destinationLooks.get(0).getDescription() : "there";
+			
+			var landmarkLooks = game.getSystem(com.benleskey.textengine.systems.LookSystem.class)
+				.getLooksFromEntity(matchedDestination, ws.getCurrentTime());
+			String landmarkDesc = !landmarkLooks.isEmpty() ? landmarkLooks.get(0).getDescription() : "the landmark";
+			
+			message = Markup.concat(
+				Markup.raw("You head toward "),
+				Markup.em(destinationDesc),
+				Markup.raw(", moving closer to "),
+				Markup.em(landmarkDesc),
+				Markup.raw(".")
+			);
+		} else {
+			// Normal navigation - show the destination
+			var destinationLooks = game.getSystem(com.benleskey.textengine.systems.LookSystem.class)
+				.getLooksFromEntity(destination, ws.getCurrentTime());
+			String destinationDesc = !destinationLooks.isEmpty() ? destinationLooks.get(0).getDescription() : "there";
+			
+			message = Markup.concat(
+				Markup.raw("You go to "),
+				Markup.em(destinationDesc),
+				Markup.raw(".")
+			);
+		}
 
 		client.sendOutput(CommandOutput.make(M_GO_SUCCESS)
 			.put(M_GO_DESTINATION, destination.getKeyId())
