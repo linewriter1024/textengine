@@ -186,27 +186,27 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 					String description = entry.getKey();
 					List<String> directions = entry.getValue();
 					
-					// Build direction list with emphasis
-					java.util.List<Markup.Safe> dirParts = new java.util.ArrayList<>();
-					for (int i = 0; i < directions.size(); i++) {
-						if (i > 0) {
-							dirParts.add(Markup.raw(" or "));
-						}
-						dirParts.add(Markup.em(directions.get(i)));
+					// Build individual phrases - just description followed by exit name
+					// The exit name should be grammatically correct on its own
+					for (String direction : directions) {
+						visiblePlaces.add(Markup.concat(
+							Markup.escape(description),
+							Markup.raw(" ("),
+							Markup.em(direction),
+							Markup.raw(")")
+						));
 					}
-					
-					visiblePlaces.add(Markup.concat(
-						Markup.escape(description),
-						Markup.raw(" to the "),
-						Markup.concat(dirParts.toArray(new Markup.Safe[0]))
-					));
 				}
 				
-				// Join with semicolons
+				// Join with commas and "and"
 				java.util.List<Markup.Safe> joinedPlaces = new java.util.ArrayList<>();
 				for (int i = 0; i < visiblePlaces.size(); i++) {
 					if (i > 0) {
-						joinedPlaces.add(Markup.raw("; "));
+						if (i == visiblePlaces.size() - 1) {
+							joinedPlaces.add(Markup.raw(", and "));
+						} else {
+							joinedPlaces.add(Markup.raw(", "));
+						}
 					}
 					joinedPlaces.add(visiblePlaces.get(i));
 				}

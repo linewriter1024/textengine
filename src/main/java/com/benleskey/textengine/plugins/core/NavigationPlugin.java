@@ -119,13 +119,13 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 			? "somewhere" 
 			: destLooks.get(0).getDescription();
 
-		// Build safe markup message with escaped descriptions
+		// Build safe markup message with proper article handling
 		Markup.Safe message = Markup.concat(
 			Markup.raw("You go "),
 			Markup.em(exitName),
-			Markup.raw(" to "),
+			Markup.raw(destDescription.isEmpty() ? "." : " to "),
 			Markup.escape(destDescription),
-			Markup.raw(".")
+			Markup.raw(destDescription.isEmpty() ? "" : ".")
 		);
 
 		client.sendOutput(CommandOutput.make(M_GO_SUCCESS)
