@@ -58,12 +58,9 @@ public class Game {
 		registerPlugin(new Quit(this));
 		registerPlugin(new UnknownCommand(this));
 		
-		// Pass seed to ProceduralWorldPlugin if provided, otherwise use default
-		if (seed != null) {
-			registerPlugin(new ProceduralWorldPlugin(this, seed));
-		} else {
-			registerPlugin(new ProceduralWorldPlugin(this));
-		}
+		// Pass seed to ProceduralWorldPlugin (use timestamp if not provided)
+		long worldSeed = (seed != null) ? seed : System.currentTimeMillis();
+		registerPlugin(new ProceduralWorldPlugin(this, worldSeed));
 	}
 
 	public void initialize() throws InternalException {

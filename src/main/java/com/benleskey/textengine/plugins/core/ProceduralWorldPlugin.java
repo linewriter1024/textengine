@@ -26,12 +26,48 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		FOREST, MEADOW, RIVER, HILLS, RUINS
 	}
 	
+	// Simple 2D coordinate for spatial tracking
+	private static class Coord {
+		final int x, y;
+		
+		Coord(int x, int y) {
+			this.x = x;
+			this.y = y;
+		}
+		
+		double distanceTo(Coord other) {
+			int dx = this.x - other.x;
+			int dy = this.y - other.y;
+			return Math.sqrt(dx * dx + dy * dy);
+		}
+		
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) return true;
+			if (o == null || getClass() != o.getClass()) return false;
+			Coord coord = (Coord) o;
+			return x == coord.x && y == coord.y;
+		}
+		
+		@Override
+		public int hashCode() {
+			return Objects.hash(x, y);
+		}
+	}
+	
 	// Generation parameters
 	private final Random random;
 	private final long seed;
 	
 	// Track generated places by biome for spatial coherence
 	private Map<Biome, List<Entity>> placesByBiome = new HashMap<>();
+	
+	// Track spatial positions of places
+	private Map<Entity, Coord> placePositions = new HashMap<>();
+	private Map<Coord, Entity> positionToPlace = new HashMap<>();
+	
+	// Track all generated places for connection opportunities
+	private List<Entity> allPlaces = new ArrayList<>();
 	
 	// Track starting location for new clients
 	private Entity startingPlace;
@@ -40,10 +76,6 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	private EntitySystem entitySystem;
 	private LookSystem lookSystem;
 	private ConnectionSystem connectionSystem;
-	
-	public ProceduralWorldPlugin(Game game) {
-		this(game, System.currentTimeMillis());
-	}
 	
 	public ProceduralWorldPlugin(Game game, long seed) {
 		super(game);
@@ -109,10 +141,11 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 			placesByBiome.put(biome, new ArrayList<>());
 		}
 		
-		// Generate only the starting place
+		// Generate only the starting place at origin (0, 0)
 		Biome startingBiome = randomBiome();
-		Entity starting = generatePlace(es, ls, startingBiome);
+		Entity starting = generatePlaceAtPosition(es, ls, startingBiome, new Coord(0, 0));
 		placesByBiome.get(startingBiome).add(starting);
+		allPlaces.add(starting);
 		
 		// Generate neighbors for the starting place so player has choices
 		// Pass null for excludeDirection since there's no direction we came from
@@ -122,16 +155,20 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	}
 	
 	/**
-	 * Generate a single place based on biome type.
+	 * Generate a single place based on biome type at a specific position.
 	 */
-	private Entity generatePlace(EntitySystem es, LookSystem ls, Biome biome) {
+	private Entity generatePlaceAtPosition(EntitySystem es, LookSystem ls, Biome biome, Coord position) {
 		Place place = es.add(Place.class);
 		
 		// Generate description based on biome
 		String description = generatePlaceDescription(biome);
 		ls.addLook(place, "basic", description);
 		
-		log.log("Generated new place: %s (%s)", description, biome);
+		// Track spatial position
+		placePositions.put(place, position);
+		positionToPlace.put(position, place);
+		
+		log.log("Generated new place: %s (%s) at (%d, %d)", description, biome, position.x, position.y);
 		
 		return place;
 	}
@@ -212,13 +249,42 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 			return destination;
 		}
 		
-		log.log("No existing exit '%s' from place %s, generating new place...", exitName, from.getId());
+		log.log("No existing exit '%s' from place %s, this shouldn't happen with spatial generation!", exitName, from.getId());
 		
-		// Generate a new place - the exitName should describe what kind of place it is
-		// For now, use a random biome, but later we can parse the exitName to determine biome
+		// This shouldn't happen with our spatial system, but handle it gracefully
+		// Find an empty adjacent position
+		Coord fromPos = placePositions.get(from);
+		if (fromPos == null) {
+			log.log("ERROR: Source place has no position!");
+			return from; // Fallback
+		}
+		
+		// Try to find an empty adjacent spot
+		List<Coord> adjacentPositions = Arrays.asList(
+			new Coord(fromPos.x + 1, fromPos.y),
+			new Coord(fromPos.x - 1, fromPos.y),
+			new Coord(fromPos.x, fromPos.y + 1),
+			new Coord(fromPos.x, fromPos.y - 1)
+		);
+		
+		Coord newPos = null;
+		for (Coord pos : adjacentPositions) {
+			if (!positionToPlace.containsKey(pos)) {
+				newPos = pos;
+				break;
+			}
+		}
+		
+		if (newPos == null) {
+			// All adjacent spots taken, spiral outward
+			newPos = new Coord(fromPos.x + random.nextInt(3) - 1, fromPos.y + random.nextInt(3) - 1);
+		}
+		
+		// Generate a new place at the found position
 		Biome biome = randomBiome();
-		Entity newPlace = generatePlace(entitySystem, lookSystem, biome);
+		Entity newPlace = generatePlaceAtPosition(entitySystem, lookSystem, biome, newPos);
 		placesByBiome.get(biome).add(newPlace);
+		allPlaces.add(newPlace);
 		
 		// Create connection from source to new place
 		connectionSystem.connect(from, newPlace, exitName);
@@ -263,13 +329,20 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	
 	/**
 	 * Generate 2-4 neighboring places for a location and create connections to them.
-	 * The neighboring places are created but their own exits are NOT generated yet.
+	 * Uses spatial logic to sometimes connect to existing nearby places, creating loops.
 	 * 
 	 * @param place The place to generate neighbors for
 	 * @param excludeDirection Direction to exclude (typically the direction we came from)
 	 */
 	private void generateNeighborsForPlace(Entity place, String excludeDirection) {
 		WorldSystem ws = game.getSystem(WorldSystem.class);
+		
+		// Get current position
+		Coord currentPos = placePositions.get(place);
+		if (currentPos == null) {
+			log.log("Warning: place %s has no position, cannot generate neighbors", place.getId());
+			return;
+		}
 		
 		// Get existing exits to avoid duplicates
 		List<com.benleskey.textengine.model.ConnectionDescriptor> existingExits = 
@@ -278,14 +351,51 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 			.map(com.benleskey.textengine.model.ConnectionDescriptor::getExitName)
 			.collect(java.util.stream.Collectors.toSet());
 		
-		// Generate 2-4 neighboring places
-		int neighborCount = 2 + random.nextInt(3); // 2-4 neighbors
+		// Get already connected places (don't reconnect to them)
+		Set<Entity> alreadyConnected = existingExits.stream()
+			.map(com.benleskey.textengine.model.ConnectionDescriptor::getTo)
+			.collect(java.util.stream.Collectors.toSet());
 		
-		for (int i = 0; i < neighborCount; i++) {
-			// Generate a neighboring place
-			Biome neighborBiome = randomBiome();
-			Entity neighbor = generatePlace(entitySystem, lookSystem, neighborBiome);
-			placesByBiome.get(neighborBiome).add(neighbor);
+		// Find potential adjacent positions (4 cardinal directions)
+		List<Coord> adjacentPositions = Arrays.asList(
+			new Coord(currentPos.x + 1, currentPos.y),  // east
+			new Coord(currentPos.x - 1, currentPos.y),  // west
+			new Coord(currentPos.x, currentPos.y + 1),  // north
+			new Coord(currentPos.x, currentPos.y - 1)   // south
+		);
+		
+		// Shuffle for variety
+		Collections.shuffle(adjacentPositions, random);
+		
+		// Generate 2-4 neighbors
+		int targetNeighborCount = 2 + random.nextInt(3); // 2-4 neighbors
+		int generatedCount = 0;
+		
+		for (Coord adjacentPos : adjacentPositions) {
+			if (generatedCount >= targetNeighborCount) break;
+			
+			// Check if there's already a place at this position
+			Entity existingPlace = positionToPlace.get(adjacentPos);
+			
+			Entity neighbor;
+			boolean isNewPlace;
+			
+			if (existingPlace != null && !alreadyConnected.contains(existingPlace)) {
+				// Found an existing place - connect to it (creates a loop!)
+				neighbor = existingPlace;
+				isNewPlace = false;
+				log.log("Connecting to existing place at (%d, %d) - creating loop!", adjacentPos.x, adjacentPos.y);
+			} else if (existingPlace == null) {
+				// Empty position - generate new place
+				Biome neighborBiome = randomBiome();
+				neighbor = generatePlaceAtPosition(entitySystem, lookSystem, neighborBiome, adjacentPos);
+				placesByBiome.get(neighborBiome).add(neighbor);
+				allPlaces.add(neighbor);
+				isNewPlace = true;
+			} else {
+				// Position occupied by already-connected place, skip
+				continue;
+			}
 			
 			// Get the neighbor's description to use as the landmark name
 			List<com.benleskey.textengine.model.LookDescriptor> neighborLooks = 
@@ -314,8 +424,12 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 			usedLandmarks.add(landmarkName);
 			
 			// Create one-way connection FROM current place TO neighbor
-			// (The reverse connection is added when player visits the neighbor)
 			connectionSystem.connect(place, neighbor, landmarkName);
+			generatedCount++;
+			
+			if (isNewPlace) {
+				log.log("Created new neighbor at (%d, %d)", adjacentPos.x, adjacentPos.y);
+			}
 		}
 	}
 	
