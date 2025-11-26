@@ -124,11 +124,12 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	
 	@Override
 	public void onStartClient(Client client) throws InternalException {
+		EntitySystem es = game.getSystem(EntitySystem.class);
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		LookSystem ls = game.getSystem(LookSystem.class);
 		
 		// Create player actor
-		Actor actor = Actor.create(game);
+		Actor actor = es.add(Actor.class);
 		ls.addLook(actor, "basic", "yourself");
 		client.setEntity(actor);
 		
@@ -580,7 +581,10 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		}
 		
 		// Create the item
-		Item item = Item.create(game, itemDescription);
+		EntitySystem es = game.getSystem(EntitySystem.class);
+		LookSystem ls = game.getSystem(LookSystem.class);
+		Item item = es.add(Item.class);
+		ls.addLook(item, "basic", itemDescription);
 		
 		// Set item properties
 		itemSystem.setItemType(item, itemType);
