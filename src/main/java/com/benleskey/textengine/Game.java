@@ -38,7 +38,7 @@ public class Game {
 	private boolean initialized = false;
 
 	@Builder
-	public Game(Logger log, Logger errorLog, Connection databaseConnection) {
+	public Game(Logger log, Logger errorLog, Connection databaseConnection, Long seed) {
 		this.log = log;
 		if (errorLog != null) {
 			this.errorLog = errorLog;
@@ -57,7 +57,13 @@ public class Game {
 		registerPlugin(new NavigationPlugin(this));
 		registerPlugin(new Quit(this));
 		registerPlugin(new UnknownCommand(this));
-		registerPlugin(new ProceduralWorldPlugin(this));
+		
+		// Pass seed to ProceduralWorldPlugin if provided, otherwise use default
+		if (seed != null) {
+			registerPlugin(new ProceduralWorldPlugin(this, seed));
+		} else {
+			registerPlugin(new ProceduralWorldPlugin(this));
+		}
 	}
 
 	public void initialize() throws InternalException {

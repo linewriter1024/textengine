@@ -9,9 +9,7 @@ import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.commands.CommandVariant;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.model.Entity;
-import com.benleskey.textengine.model.LookDescriptor;
 import com.benleskey.textengine.systems.ConnectionSystem;
-import com.benleskey.textengine.systems.LookSystem;
 import com.benleskey.textengine.systems.RelationshipSystem;
 import com.benleskey.textengine.systems.WorldSystem;
 import com.benleskey.textengine.util.Markup;
@@ -68,10 +66,7 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 			return;
 		}
 		
-		String exitName = exitOptional.get().toString();
-		
-		// Normalize common abbreviations
-		exitName = normalizeDirection(exitName);
+		String userInput = exitOptional.get().toString();
 
 		ConnectionSystem cs = game.getSystem(ConnectionSystem.class);
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
@@ -87,11 +82,24 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		}
 
 		Entity currentLocation = containers.get(0).getProvider();
+		
+		// Get available exits and match user input
+		List<com.benleskey.textengine.model.ConnectionDescriptor> exits = 
+			cs.getConnections(currentLocation, ws.getCurrentTime());
+		
+		String matchedExit = matchExitName(userInput, exits);
+		if (matchedExit == null) {
+			// Ambiguous or no match
+			client.sendOutput(CommandOutput.make(M_GO_FAIL)
+				.put(M_GO_ERROR, "no_exit")
+				.text(Markup.escape("You can't go that way.")));
+			return;
+		}
 
 		// Always use ProceduralWorldPlugin to handle navigation
 		// It will either find existing place or generate new one, and ensure neighbors exist
 		ProceduralWorldPlugin worldGen = (ProceduralWorldPlugin) game.getPlugin(ProceduralWorldPlugin.class);
-		Entity destination = worldGen.generatePlaceForExit(currentLocation, exitName);
+		Entity destination = worldGen.generatePlaceForExit(currentLocation, matchedExit);
 
 		// Move the actor: remove from current location, add to new location
 		// We cancel the old containment and create a new one
@@ -104,27 +112,18 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		// Create new relationship
 		rs.add(destination, actor, rs.rvContains);
 
-		// Get destination description for movement message
-		LookSystem ls = game.getSystem(LookSystem.class);
-		List<com.benleskey.textengine.model.LookDescriptor> destLooks = 
-			ls.getLooksFromEntity(destination, ws.getCurrentTime());
-		
-		String destDescription = destLooks.isEmpty() 
-			? "somewhere" 
-			: destLooks.get(0).getDescription();
-
-		// Build safe markup message with proper article handling
+		// Build safe markup message - show the landmark description
+		// Strip the markup tags for the message
+		String landmarkText = stripMarkup(matchedExit);
 		Markup.Safe message = Markup.concat(
-			Markup.raw("You go "),
-			Markup.em(exitName),
-			Markup.raw(destDescription.isEmpty() ? "." : " to "),
-			Markup.escape(destDescription),
-			Markup.raw(destDescription.isEmpty() ? "" : ".")
+			Markup.raw("You go to "),
+			Markup.escape(landmarkText),
+			Markup.raw(".")
 		);
 
 		client.sendOutput(CommandOutput.make(M_GO_SUCCESS)
 			.put(M_GO_DESTINATION, destination.getKeyId())
-			.put(M_GO_EXIT, exitName)
+			.put(M_GO_EXIT, matchedExit)
 			.text(message));
 		
 		// Automatically look around the new location
@@ -132,21 +131,57 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 	}
 
 	/**
-	 * Normalize common direction abbreviations.
+	 * Match user input against available exit names.
+	 * Returns the matched exit name, or null if no match or ambiguous.
+	 * 
+	 * Matching rules:
+	 * 1. Exact match (case-insensitive, ignoring markup)
+	 * 2. Substring match (case-insensitive, ignoring markup)
+	 * 
+	 * If multiple exits match, returns null (ambiguous).
 	 */
-	private String normalizeDirection(String direction) {
-		return switch (direction) {
-			case "n" -> "north";
-			case "s" -> "south";
-			case "e" -> "east";
-			case "w" -> "west";
-			case "ne" -> "northeast";
-			case "nw" -> "northwest";
-			case "se" -> "southeast";
-			case "sw" -> "southwest";
-			case "u" -> "up";
-			case "d" -> "down";
-			default -> direction;
-		};
+	private String matchExitName(String userInput, List<com.benleskey.textengine.model.ConnectionDescriptor> exits) {
+		if (exits.isEmpty()) {
+			return null;
+		}
+		
+		String lowerInput = userInput.toLowerCase().trim();
+		String matchedExit = null;
+		int matchCount = 0;
+		
+		// First pass: try exact match
+		for (var exit : exits) {
+			String exitName = exit.getExitName();
+			String exitNameStripped = stripMarkup(exitName).toLowerCase();
+			
+			if (exitNameStripped.equals(lowerInput)) {
+				return exitName; // Exact match, use it immediately
+			}
+		}
+		
+		// Second pass: try substring match
+		for (var exit : exits) {
+			String exitName = exit.getExitName();
+			String exitNameStripped = stripMarkup(exitName).toLowerCase();
+			
+			if (exitNameStripped.contains(lowerInput)) {
+				matchedExit = exitName;
+				matchCount++;
+			}
+		}
+		
+		// Return matched exit only if unambiguous
+		return matchCount == 1 ? matchedExit : null;
+	}
+	
+	/**
+	 * Strip markup tags from a string (simple implementation).
+	 */
+	private String stripMarkup(String text) {
+		if (text == null) {
+			return "";
+		}
+		// Remove <em> tags and other markup
+		return text.replaceAll("<[^>]+>", "");
 	}
 }

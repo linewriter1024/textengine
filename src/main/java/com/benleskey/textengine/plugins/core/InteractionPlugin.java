@@ -124,68 +124,68 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 		// Get available exits from current location
 		List<ConnectionDescriptor> exits = cs.getConnections(currentLocation, ws.getCurrentTime());
 		
-		// Find exit matching the target
-		ConnectionDescriptor matchingExit = null;
-		for (ConnectionDescriptor exit : exits) {
-			if (exit.getExitName().equalsIgnoreCase(target)) {
-				matchingExit = exit;
-				break;
-			}
-		}
+		// Use fuzzy matching to find the exit (same as navigation)
+		String matchedExitName = matchExitName(target, exits);
 		
-		if (matchingExit != null) {
-			// Found an exit, show description of destination
-			Entity destination = matchingExit.getTo();
-			List<LookDescriptor> destLooks = ls.getLooksFromEntity(destination, ws.getCurrentTime());
+		if (matchedExitName != null) {
+			// Find the actual exit descriptor with the matched name
+			ConnectionDescriptor matchingExit = exits.stream()
+				.filter(e -> e.getExitName().equals(matchedExitName))
+				.findFirst()
+				.orElse(null);
 			
-			if (!destLooks.isEmpty()) {
-				String description = destLooks.get(0).getDescription();
+			if (matchingExit != null) {
+				// Found an exit, show description of destination
+				Entity destination = matchingExit.getTo();
+				List<LookDescriptor> destLooks = ls.getLooksFromEntity(destination, ws.getCurrentTime());
 				
-				// Get exits from the destination (look ahead)
-				List<ConnectionDescriptor> destExits = cs.getConnections(destination, ws.getCurrentTime());
-				
-				// Build the message
-				java.util.List<Markup.Safe> parts = new java.util.ArrayList<>();
-				
-				// Main description
-				parts.add(Markup.concat(
-					Markup.raw("To the "),
-					Markup.em(target),
-					Markup.raw(", you see "),
-					Markup.escape(description),
-					Markup.raw(".")
-				));
-				
-				// Show exits from destination (if any)
-				if (!destExits.isEmpty()) {
-					java.util.List<Markup.Safe> exitNames = new java.util.ArrayList<>();
-					for (ConnectionDescriptor destExit : destExits) {
-						exitNames.add(Markup.em(destExit.getExitName()));
-					}
+				if (!destLooks.isEmpty()) {
+					String description = destLooks.get(0).getDescription();
 					
-					// Join exit names with commas and "and"
-					java.util.List<Markup.Safe> joinedExits = new java.util.ArrayList<>();
-					for (int i = 0; i < exitNames.size(); i++) {
-						if (i > 0) {
-							if (i == exitNames.size() - 1) {
-								joinedExits.add(Markup.raw(", and "));
-							} else {
-								joinedExits.add(Markup.raw(", "));
-							}
+					// Get exits from the destination (look ahead)
+					List<ConnectionDescriptor> destExits = cs.getConnections(destination, ws.getCurrentTime());
+					
+					// Build the message
+					java.util.List<Markup.Safe> parts = new java.util.ArrayList<>();
+					
+					// Main description - just show what we see there
+					parts.add(Markup.concat(
+						Markup.raw("You see "),
+						Markup.escape(description),
+						Markup.raw(".")
+					));
+					
+					// Show what's visible from there (landmarks)
+					if (!destExits.isEmpty()) {
+						java.util.List<Markup.Safe> landmarkNames = new java.util.ArrayList<>();
+						for (ConnectionDescriptor destExit : destExits) {
+							landmarkNames.add(Markup.raw(destExit.getExitName()));
 						}
-						joinedExits.add(exitNames.get(i));
+						
+						// Join landmark names with commas and "and"
+						java.util.List<Markup.Safe> joinedLandmarks = new java.util.ArrayList<>();
+						for (int i = 0; i < landmarkNames.size(); i++) {
+							if (i > 0) {
+								if (i == landmarkNames.size() - 1) {
+									joinedLandmarks.add(Markup.raw(", and "));
+								} else {
+									joinedLandmarks.add(Markup.raw(", "));
+								}
+							}
+							joinedLandmarks.add(landmarkNames.get(i));
+						}
+						
+						parts.add(Markup.raw(" From there you can see "));
+						parts.add(Markup.concat(joinedLandmarks.toArray(new Markup.Safe[0])));
+						parts.add(Markup.raw("."));
 					}
-					
-					parts.add(Markup.raw(" From there you can go "));
-					parts.add(Markup.concat(joinedExits.toArray(new Markup.Safe[0])));
-					parts.add(Markup.raw("."));
-				}
 				
-				client.sendOutput(CommandOutput.make(M_LOOK)
-					.text(Markup.concat(parts.toArray(new Markup.Safe[0]))));
-			} else {
-				client.sendOutput(CommandOutput.make(M_LOOK)
-					.text(Markup.escape("You see nothing notable in that direction.")));
+					client.sendOutput(CommandOutput.make(M_LOOK)
+						.text(Markup.concat(parts.toArray(new Markup.Safe[0]))));
+				} else {
+					client.sendOutput(CommandOutput.make(M_LOOK)
+						.text(Markup.escape("You see nothing notable in that direction.")));
+				}
 			}
 		} else {
 			// No matching exit
@@ -262,64 +262,36 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 			));
 		}
 
-		// Build visible places from exits - integrate into natural description
+		// Build visible places from exits - show landmarks
 		if (!exits.isEmpty()) {
 			RawMessage exitMessage = Message.make();
-			java.util.List<Markup.Safe> visiblePlaces = new java.util.ArrayList<>();
-			
-			// Group exits by destination
-			Map<String, List<String>> destinationToDirections = new java.util.HashMap<>();
+			java.util.List<Markup.Safe> landmarkNames = new java.util.ArrayList<>();
 			
 			for (ConnectionDescriptor exit : exits) {
-				// Get the looks for the destination
-				Entity destination = exit.getTo();
-				List<LookDescriptor> destLooks = game.getSystem(LookSystem.class)
-					.getLooksFromEntity(destination, game.getSystem(WorldSystem.class).getCurrentTime());
-				
-				if (!destLooks.isEmpty()) {
-					String destDescription = destLooks.get(0).getDescription();
-					destinationToDirections
-						.computeIfAbsent(destDescription, k -> new java.util.ArrayList<>())
-						.add(exit.getExitName());
-				}
-				
+				// The exit name IS the landmark/description
+				String landmarkName = exit.getExitName();
+				landmarkNames.add(Markup.raw(landmarkName));
 				exitMessage.put(exit.getExitName(), exit.getTo().getKeyId());
 			}
 			
-			// Build descriptions for real connections
-			for (Map.Entry<String, List<String>> entry : destinationToDirections.entrySet()) {
-				String description = entry.getKey();
-				List<String> directions = entry.getValue();
-				
-				// Build individual phrases - just description followed by exit name
-				for (String direction : directions) {
-					visiblePlaces.add(Markup.concat(
-						Markup.escape(description),
-						Markup.raw(" ("),
-						Markup.em(direction),
-						Markup.raw(")")
-					));
-				}
-			}
-			
-			// Build natural language description with safe escaping
-			if (!visiblePlaces.isEmpty()) {
+			// Build natural language description
+			if (!landmarkNames.isEmpty()) {
 				// Join with commas and "and"
-				java.util.List<Markup.Safe> joinedPlaces = new java.util.ArrayList<>();
-				for (int i = 0; i < visiblePlaces.size(); i++) {
+				java.util.List<Markup.Safe> joinedLandmarks = new java.util.ArrayList<>();
+				for (int i = 0; i < landmarkNames.size(); i++) {
 					if (i > 0) {
-						if (i == visiblePlaces.size() - 1) {
-							joinedPlaces.add(Markup.raw(", and "));
+						if (i == landmarkNames.size() - 1) {
+							joinedLandmarks.add(Markup.raw(", and "));
 						} else {
-							joinedPlaces.add(Markup.raw(", "));
+							joinedLandmarks.add(Markup.raw(", "));
 						}
 					}
-					joinedPlaces.add(visiblePlaces.get(i));
+					joinedLandmarks.add(landmarkNames.get(i));
 				}
 				
 				parts.add(Markup.concat(
 					Markup.raw(" You can see "),
-					Markup.concat(joinedPlaces.toArray(new Markup.Safe[0])),
+					Markup.concat(joinedLandmarks.toArray(new Markup.Safe[0])),
 					Markup.raw(".")
 				));
 			}
@@ -407,5 +379,60 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 		// Combine all parts and set as text
 		output.text(Markup.concat(parts.toArray(new Markup.Safe[0])));
 		return output;
+	}
+	
+	/**
+	 * Match user input against available exit names.
+	 * Returns the matched exit name, or null if no match or ambiguous.
+	 * 
+	 * Matching rules:
+	 * 1. Exact match (case-insensitive, ignoring markup)
+	 * 2. Substring match (case-insensitive, ignoring markup)
+	 * 
+	 * If multiple exits match, returns null (ambiguous).
+	 */
+	private String matchExitName(String userInput, List<ConnectionDescriptor> exits) {
+		if (exits.isEmpty()) {
+			return null;
+		}
+		
+		String lowerInput = userInput.toLowerCase().trim();
+		String matchedExit = null;
+		int matchCount = 0;
+		
+		// First pass: try exact match
+		for (var exit : exits) {
+			String exitName = exit.getExitName();
+			String exitNameStripped = stripMarkup(exitName).toLowerCase();
+			
+			if (exitNameStripped.equals(lowerInput)) {
+				return exitName; // Exact match, use it immediately
+			}
+		}
+		
+		// Second pass: try substring match
+		for (var exit : exits) {
+			String exitName = exit.getExitName();
+			String exitNameStripped = stripMarkup(exitName).toLowerCase();
+			
+			if (exitNameStripped.contains(lowerInput)) {
+				matchedExit = exitName;
+				matchCount++;
+			}
+		}
+		
+		// Return matched exit only if unambiguous
+		return matchCount == 1 ? matchedExit : null;
+	}
+	
+	/**
+	 * Strip markup tags from a string (simple implementation).
+	 */
+	private String stripMarkup(String text) {
+		if (text == null) {
+			return "";
+		}
+		// Remove <em> tags and other markup
+		return text.replaceAll("<[^>]+>", "");
 	}
 }

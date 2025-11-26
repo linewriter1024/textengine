@@ -194,23 +194,45 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 			Entity destination = existing.get();
 			log.log("Navigating to existing place %s, checking for neighbors...", destination.getId());
 			ensurePlaceHasNeighbors(destination);
+			
+			// Add reverse connection if it doesn't exist
+			// The reverse landmark is the source place's description
+			List<com.benleskey.textengine.model.LookDescriptor> sourceLooks = 
+				lookSystem.getLooksFromEntity(from, ws.getCurrentTime());
+			String sourceDescription = sourceLooks.isEmpty() ? "back" : sourceLooks.get(0).getDescription();
+			String keyword = extractKeyword(sourceDescription);
+			String reverseLandmark = highlightKeywordInDescription(sourceDescription, keyword);
+			
+			// Check if reverse connection exists
+			Optional<Entity> reverseExists = connectionSystem.findExit(destination, reverseLandmark, ws.getCurrentTime());
+			if (reverseExists.isEmpty()) {
+				connectionSystem.connect(destination, from, reverseLandmark);
+			}
+			
 			return destination;
 		}
 		
 		log.log("No existing exit '%s' from place %s, generating new place...", exitName, from.getId());
 		
-		// Generate a new place with random biome
+		// Generate a new place - the exitName should describe what kind of place it is
+		// For now, use a random biome, but later we can parse the exitName to determine biome
 		Biome biome = randomBiome();
 		Entity newPlace = generatePlace(entitySystem, lookSystem, biome);
 		placesByBiome.get(biome).add(newPlace);
 		
-		// Create bidirectional connection
-		String reverseDirection = oppositeDirection(exitName);
-		connectionSystem.connectBidirectional(from, newPlace, exitName, reverseDirection);
+		// Create connection from source to new place
+		connectionSystem.connect(from, newPlace, exitName);
+		
+		// Create reverse connection
+		List<com.benleskey.textengine.model.LookDescriptor> sourceLooks = 
+			lookSystem.getLooksFromEntity(from, ws.getCurrentTime());
+		String sourceDescription = sourceLooks.isEmpty() ? "back" : sourceLooks.get(0).getDescription();
+		String keyword = extractKeyword(sourceDescription);
+		String reverseLandmark = highlightKeywordInDescription(sourceDescription, keyword);
+		connectionSystem.connect(newPlace, from, reverseLandmark);
 		
 		// Generate neighboring places and exits from the new place
-		// (but don't generate THEIR exits - that happens when player visits them)
-		generateNeighborsForPlace(newPlace, reverseDirection);
+		generateNeighborsForPlace(newPlace, reverseLandmark);
 		
 		return newPlace;
 	}
@@ -252,38 +274,48 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		// Get existing exits to avoid duplicates
 		List<com.benleskey.textengine.model.ConnectionDescriptor> existingExits = 
 			connectionSystem.getConnections(place, ws.getCurrentTime());
-		Set<String> usedDirections = existingExits.stream()
+		Set<String> usedLandmarks = existingExits.stream()
 			.map(com.benleskey.textengine.model.ConnectionDescriptor::getExitName)
 			.collect(java.util.stream.Collectors.toSet());
 		
-		// All possible cardinal directions
-		List<String> availableDirections = new java.util.ArrayList<>(
-			java.util.Arrays.asList("north", "south", "east", "west")
-		);
-		
-		// Remove already used directions
-		availableDirections.removeAll(usedDirections);
-		
-		// Shuffle for randomness
-		java.util.Collections.shuffle(availableDirections, random);
-		
-		// Generate 2-4 neighboring places (or fewer if we don't have enough available directions)
+		// Generate 2-4 neighboring places
 		int neighborCount = 2 + random.nextInt(3); // 2-4 neighbors
-		neighborCount = Math.min(neighborCount, availableDirections.size());
 		
 		for (int i = 0; i < neighborCount; i++) {
-			String direction = availableDirections.get(i);
-			
 			// Generate a neighboring place
 			Biome neighborBiome = randomBiome();
 			Entity neighbor = generatePlace(entitySystem, lookSystem, neighborBiome);
 			placesByBiome.get(neighborBiome).add(neighbor);
 			
-			// Create bidirectional connection
-			String reverse = oppositeDirection(direction);
-			connectionSystem.connectBidirectional(place, neighbor, direction, reverse);
+			// Get the neighbor's description to use as the landmark name
+			List<com.benleskey.textengine.model.LookDescriptor> neighborLooks = 
+				lookSystem.getLooksFromEntity(neighbor, ws.getCurrentTime());
+			String fullDescription = neighborLooks.isEmpty() ? "somewhere" : neighborLooks.get(0).getDescription();
 			
-			// DON'T generate neighbors for this neighbor - that happens when player visits it
+			// Extract keyword and create highlighted landmark name
+			String keyword = extractKeyword(fullDescription);
+			String landmarkName = highlightKeywordInDescription(fullDescription, keyword);
+			
+			// Ensure uniqueness - if we already have a connection to this landmark, skip
+			if (usedLandmarks.contains(landmarkName)) {
+				// Try adding a number to make it unique
+				int suffix = 2;
+				String uniqueName = landmarkName;
+				while (usedLandmarks.contains(uniqueName) && suffix < 10) {
+					uniqueName = highlightKeywordInDescription(fullDescription, keyword + suffix);
+					suffix++;
+				}
+				if (!usedLandmarks.contains(uniqueName)) {
+					landmarkName = uniqueName;
+				} else {
+					continue; // Skip this one if we can't make it unique
+				}
+			}
+			usedLandmarks.add(landmarkName);
+			
+			// Create one-way connection FROM current place TO neighbor
+			// (The reverse connection is added when player visits the neighbor)
+			connectionSystem.connect(place, neighbor, landmarkName);
 		}
 	}
 	
@@ -301,33 +333,60 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	}
 	
 	/**
-	 * Random cardinal direction.
-	 */
-	private String randomCardinalDirection() {
-		String[] directions = {"north", "south", "east", "west"};
-		return directions[random.nextInt(directions.length)];
-	}
-	
-	/**
-	 * Get opposite direction for bidirectional connections.
-	 */
-	private String oppositeDirection(String direction) {
-		return switch (direction) {
-			case "north" -> "south";
-			case "south" -> "north";
-			case "east" -> "west";
-			case "west" -> "east";
-			case "up" -> "down";
-			case "down" -> "up";
-			default -> direction; // For non-standard directions, use same
-		};
-	}
-	
-	/**
 	 * Helper to randomly choose from options.
 	 */
 	@SafeVarargs
 	private final <T> T randomChoice(T... options) {
 		return options[random.nextInt(options.length)];
+	}
+	
+	/**
+	 * Extract a single-word keyword from a place description.
+	 * Uses heuristics to find the most meaningful noun in the description.
+	 */
+	private String extractKeyword(String description) {
+		if (description == null || description.isEmpty()) {
+			return "place";
+		}
+		
+		String[] words = description.split("\\s+");
+		
+		// Skip common articles and adjectives, look for the key noun
+		Set<String> skipWords = Set.of("a", "an", "the", "with", "in", "of", "under", "over", "beside", "near");
+		
+		for (String word : words) {
+			String cleaned = word.toLowerCase().replaceAll("[^a-z]", "");
+			if (!cleaned.isEmpty() && !skipWords.contains(cleaned)) {
+				return cleaned;
+			}
+		}
+		
+		// Fallback: use the first word
+		return words.length > 0 ? words[0].toLowerCase().replaceAll("[^a-z]", "") : "place";
+	}
+	
+	/**
+	 * Highlight a keyword within a description using markup.
+	 * Creates a string like "dense <em>forest</em> with towering trees"
+	 */
+	private String highlightKeywordInDescription(String description, String keyword) {
+		if (description == null || description.isEmpty() || keyword == null || keyword.isEmpty()) {
+			return description;
+		}
+		
+		// Case-insensitive search for the keyword within the description
+		String lowerDescription = description.toLowerCase();
+		String lowerKeyword = keyword.toLowerCase();
+		
+		int index = lowerDescription.indexOf(lowerKeyword);
+		if (index == -1) {
+			// Keyword not found, just return description
+			return description;
+		}
+		
+		// Build highlighted version
+		return description.substring(0, index) + 
+		       "<em>" + description.substring(index, index + keyword.length()) + "</em>" +
+		       description.substring(index + keyword.length());
 	}
 }

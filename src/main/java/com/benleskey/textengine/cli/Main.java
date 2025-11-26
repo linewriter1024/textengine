@@ -19,11 +19,13 @@ public class Main {
 		ArgumentParser parser = ArgumentParsers.newFor(Version.toHumanString()).build();
 		parser.addArgument("--apidebug").help("Print API debug information with each command").action(new StoreTrueArgumentAction());
 		parser.addArgument("--showlog").help("Print game log to standard output").action(new StoreTrueArgumentAction());
+		parser.addArgument("--seed").help("World generation seed for deterministic procedural generation").type(Long.class);
 
 		Namespace ns = parser.parseArgsOrFail(args);
 
 		boolean apiDebug = ns.getBoolean("apidebug");
 		boolean showLog = ns.getBoolean("showlog");
+		Long seed = ns.getLong("seed");
 
 		Logger logger = Logger.builder()
 			.stream(showLog ? System.out : OutputStream.nullOutputStream())
@@ -36,7 +38,11 @@ public class Main {
 
 		try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + directory + "/" + filename)) {
 			try {
-				Game game = Game.builder().log(logger).databaseConnection(connection).build();
+				Game.GameBuilder builder = Game.builder().log(logger).databaseConnection(connection);
+				if (seed != null) {
+					builder.seed(seed);
+				}
+				Game game = builder.build();
 
 				game.initialize();
 

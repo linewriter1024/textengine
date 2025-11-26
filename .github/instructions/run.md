@@ -8,22 +8,46 @@ applyTo: "**"
 
 When running the text engine game for testing or demonstration, always use pre-determined commands via `printf` to ensure consistent and reproducible output.
 
+### Procedural World Generation with Seeds
+
+The game uses procedural generation for creating the world dynamically. You can specify a seed for deterministic, repeatable world layouts:
+
+```bash
+# Use a specific seed for repeatable testing
+printf "look\ngo forest\nlook\ngo meadow\nlook\nquit\n" | mvn -q exec:java -Dexec.mainClass="com.benleskey.textengine.cli.Main" -Dexec.args="--seed 12345"
+```
+
+```bash
+# Same seed with logging to observe generation
+printf "look\ngo forest\nlook\ngo meadow\nlook\nquit\n" | mvn -q exec:java -Dexec.mainClass="com.benleskey.textengine.cli.Main" -Dexec.args="--seed 12345 --showlog"
+```
+
+The seed ensures that:
+- The same world layout is generated each time
+- Biome distributions are deterministic
+- Exit connections remain consistent
+- Useful for debugging specific world configurations
+
+If no seed is provided, the game uses the current timestamp as a seed, creating a different world each run.
+
 ### Basic Test Sequence
 
 ```bash
-printf "look\ngo north\nlook\ngo south\nlook\nquit\n" | mvn -q exec:java -Dexec.mainClass="com.benleskey.textengine.cli.Main"
+printf "look\ngo forest\nlook\ngo clearing\nlook\nquit\n" | mvn -q exec:java -Dexec.mainClass="com.benleskey.textengine.cli.Main"
 ```
 
 ### With Logging Enabled
 
 ```bash
-printf "look\ngo north\nlook\ngo south\nlook\nquit\n" | mvn -q exec:java -Dexec.mainClass="com.benleskey.textengine.cli.Main" -Dexec.args="--showlog"
+printf "look\ngo forest\nlook\ngo clearing\nlook\nquit\n" | mvn -q exec:java -Dexec.mainClass="com.benleskey.textengine.cli.Main" -Dexec.args="--showlog"
 ```
 
-### Extended Test Sequence (River Navigation)
+### Extended Test Sequence (Procedural Exploration)
+
+Navigation uses single-word landmarks visible from your current location:
 
 ```bash
-printf "look\ngo east\nlook\ngo upstream\nlook\ngo downstream\nlook\ngo cross\nlook\nquit\n" | mvn -q exec:java -Dexec.mainClass="com.benleskey.textengine.cli.Main"
+printf "look\ngo forest\nlook\ngo river\nlook\ngo meadow\nlook\ngo hills\nlook\nquit\n" | mvn -q exec:java -Dexec.mainClass="com.benleskey.textengine.cli.Main"
 ```
 
 ### Custom Command Sequence
