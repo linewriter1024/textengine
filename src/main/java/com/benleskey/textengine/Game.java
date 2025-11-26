@@ -57,7 +57,7 @@ public class Game {
 		registerPlugin(new NavigationPlugin(this));
 		registerPlugin(new Quit(this));
 		registerPlugin(new UnknownCommand(this));
-		registerPlugin(new WorldPlugin(this));
+		registerPlugin(new ProceduralWorldPlugin(this));
 	}
 
 	public void initialize() throws InternalException {
