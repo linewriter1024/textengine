@@ -4,13 +4,12 @@ import lombok.Builder;
 import lombok.Getter;
 
 /**
- * Describes a connection between two places via a named exit.
+ * Describes a connection between two places.
  */
 @Builder
 @Getter
 public class ConnectionDescriptor {
 	private final Entity from;
 	private final Entity to;
-	private final String exitName;
 	private final Relationship relationship;
 }

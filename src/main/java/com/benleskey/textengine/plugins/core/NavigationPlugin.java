@@ -114,21 +114,10 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 			userInput,
 			allDestinations,
 			destination -> {
-				// For exits, return the exit name
-				for (com.benleskey.textengine.model.ConnectionDescriptor desc : exits) {
-					if (desc.getTo().equals(destination)) {
-						return desc.getExitName();
-					}
-				}
-				// For distant landmarks, return their description
-				if (distantLandmarks.contains(destination)) {
-					var looks = game.getSystem(com.benleskey.textengine.systems.LookSystem.class)
-						.getLooksFromEntity(destination, ws.getCurrentTime());
-					if (!looks.isEmpty()) {
-						return looks.get(0).getDescription();
-					}
-				}
-				return null;
+				// Get the description of the destination place
+				var looks = game.getSystem(com.benleskey.textengine.systems.LookSystem.class)
+					.getLooksFromEntity(destination, ws.getCurrentTime());
+				return !looks.isEmpty() ? looks.get(0).getDescription() : null;
 			}
 		);
 		
@@ -233,9 +222,14 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 			);
 		}
 
+		// Get the destination description for the output message
+		var destinationLooks = game.getSystem(com.benleskey.textengine.systems.LookSystem.class)
+			.getLooksFromEntity(destination, ws.getCurrentTime());
+		String exitDescription = !destinationLooks.isEmpty() ? destinationLooks.get(0).getDescription() : "unknown";
+
 		client.sendOutput(CommandOutput.make(M_GO_SUCCESS)
 			.put(M_GO_DESTINATION, destination.getKeyId())
-			.put(M_GO_EXIT, matchedExit.getExitName())
+			.put(M_GO_EXIT, exitDescription)
 			.text(message));
 		
 		// Automatically look around the new location

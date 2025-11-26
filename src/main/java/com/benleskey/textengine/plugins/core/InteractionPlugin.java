@@ -128,41 +128,63 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 		// Get available exits from current location
 		List<ConnectionDescriptor> exits = cs.getConnections(currentLocation, ws.getCurrentTime());
 		
-		// Use fuzzy matching to find the exit (same as navigation)
-		ConnectionDescriptor matchingExit = FuzzyMatcher.match(target, exits, 
-			exit -> exit.getExitName());
+		// Extract destination descriptions for fuzzy matching
+		List<String> exitDescriptions = new java.util.ArrayList<>();
+		for (ConnectionDescriptor exit : exits) {
+			List<LookDescriptor> looks = ls.getLooksFromEntity(exit.getTo(), ws.getCurrentTime());
+			if (!looks.isEmpty()) {
+				exitDescriptions.add(looks.get(0).getDescription());
+			}
+		}
 		
-		if (matchingExit != null) {
-			// Found an exit, show description of destination
-			Entity destination = matchingExit.getTo();
-			List<LookDescriptor> destLooks = ls.getLooksFromEntity(destination, ws.getCurrentTime());
-				
-			if (!destLooks.isEmpty()) {
-				String description = destLooks.get(0).getDescription();
-				
-				// Get exits from the destination (look ahead)
-				List<ConnectionDescriptor> destExits = cs.getConnections(destination, ws.getCurrentTime());
-				
-				// Build the message
-				java.util.List<Markup.Safe> parts = new java.util.ArrayList<>();
-				
-				// Main description - just show what we see there
-				parts.add(Markup.concat(
-					Markup.raw("You see "),
-					Markup.escape(description),
-					Markup.raw(".")
-				));
-				
-				// Show what's visible from there (landmarks)
-				if (!destExits.isEmpty()) {
-					java.util.List<Markup.Safe> landmarkNames = new java.util.ArrayList<>();
-					for (ConnectionDescriptor destExit : destExits) {
-						landmarkNames.add(Markup.raw(destExit.getExitName()));
-					}
+		// Use fuzzy matching to find the exit description
+		String matchedDescription = FuzzyMatcher.match(target, exitDescriptions);
+		
+		if (matchedDescription != null) {
+			// Find the corresponding exit
+			ConnectionDescriptor matchingExit = null;
+			for (ConnectionDescriptor exit : exits) {
+				List<LookDescriptor> looks = ls.getLooksFromEntity(exit.getTo(), ws.getCurrentTime());
+				if (!looks.isEmpty() && looks.get(0).getDescription().equals(matchedDescription)) {
+					matchingExit = exit;
+					break;
+				}
+			}
+			
+			if (matchingExit != null) {
+				// Found an exit, show description of destination
+				Entity destination = matchingExit.getTo();
+				List<LookDescriptor> destLooks = ls.getLooksFromEntity(destination, ws.getCurrentTime());
 					
-					// Join landmark names with commas and "and"
-					java.util.List<Markup.Safe> joinedLandmarks = new java.util.ArrayList<>();
-					for (int i = 0; i < landmarkNames.size(); i++) {
+				if (!destLooks.isEmpty()) {
+					String description = destLooks.get(0).getDescription();
+					
+					// Get exits from the destination (look ahead)
+					List<ConnectionDescriptor> destExits = cs.getConnections(destination, ws.getCurrentTime());
+					
+					// Build the message
+					java.util.List<Markup.Safe> parts = new java.util.ArrayList<>();
+					
+					// Main description - just show what we see there
+					parts.add(Markup.concat(
+						Markup.raw("You see "),
+						Markup.escape(description),
+						Markup.raw(".")
+					));
+					
+					// Show what's visible from there (exits to other places)
+					if (!destExits.isEmpty()) {
+						java.util.List<Markup.Safe> landmarkNames = new java.util.ArrayList<>();
+						for (ConnectionDescriptor destExit : destExits) {
+							List<LookDescriptor> destExitLooks = ls.getLooksFromEntity(destExit.getTo(), ws.getCurrentTime());
+							if (!destExitLooks.isEmpty()) {
+								landmarkNames.add(Markup.raw(destExitLooks.get(0).getDescription()));
+							}
+						}
+						
+						// Join landmark names with commas and "and"
+						java.util.List<Markup.Safe> joinedLandmarks = new java.util.ArrayList<>();
+						for (int i = 0; i < landmarkNames.size(); i++) {
 						if (i > 0) {
 							if (i == landmarkNames.size() - 1) {
 								joinedLandmarks.add(Markup.raw(", and "));
@@ -180,9 +202,10 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 			
 				client.sendOutput(CommandOutput.make(M_LOOK)
 					.text(Markup.concat(parts.toArray(new Markup.Safe[0]))));
-			} else {
-				client.sendOutput(CommandOutput.make(M_LOOK)
-					.text(Markup.escape("You see nothing notable in that direction.")));
+				} else {
+					client.sendOutput(CommandOutput.make(M_LOOK)
+						.text(Markup.escape("You see nothing notable in that direction.")));
+				}
 			}
 		} else {
 			// No matching exit
@@ -259,7 +282,7 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 				e -> ls.getLooksFromEntity(e, ws.getCurrentTime())
 			));
 		
-		client.sendOutput(buildEnhancedLookOutput(client, locationLooks, exits, nearbyLooks, itemLooks, distantLooks));
+		client.sendOutput(buildEnhancedLookOutput(client, locationLooks, exits, nearbyLooks, itemLooks, distantLooks, ls, ws));
 	}
 
 	private CommandOutput buildEnhancedLookOutput(
@@ -268,7 +291,9 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 		List<ConnectionDescriptor> exits,
 		Map<Entity, List<LookDescriptor>> nearbyLooks,
 		Map<Entity, List<LookDescriptor>> itemLooks,
-		Map<Entity, List<LookDescriptor>> distantLooks
+		Map<Entity, List<LookDescriptor>> distantLooks,
+		LookSystem ls,
+		WorldSystem ws
 	) {
 		CommandOutput output = CommandOutput.make(M_LOOK);
 		java.util.List<Markup.Safe> parts = new java.util.ArrayList<>();
@@ -300,13 +325,9 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 			exitDisambiguated = ds.buildDisambiguatedList(
 				exits.stream().map(ConnectionDescriptor::getTo).collect(Collectors.toList()),
 				exit -> {
-					// Find the exit descriptor for this place
-					for (ConnectionDescriptor desc : exits) {
-						if (desc.getTo().equals(exit)) {
-							return desc.getExitName();
-						}
-					}
-					return null;
+					// Get the description of the destination place
+					List<LookDescriptor> looks = ls.getLooksFromEntity(exit, ws.getCurrentTime());
+					return !looks.isEmpty() ? looks.get(0).getDescription() : null;
 				}
 			);
 			
@@ -316,7 +337,9 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 			
 			// Build machine-readable exit data
 			for (ConnectionDescriptor exit : exits) {
-				exitMessage.put(exit.getExitName(), exit.getTo().getKeyId());
+				List<LookDescriptor> looks = ls.getLooksFromEntity(exit.getTo(), ws.getCurrentTime());
+				String description = !looks.isEmpty() ? looks.get(0).getDescription() : "unknown";
+				exitMessage.put(description, exit.getTo().getKeyId());
 			}
 			
 			// Format the list for display

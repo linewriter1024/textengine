@@ -172,8 +172,7 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		allPlaces.add(starting);
 		
 		// Generate neighbors for the starting place so player has choices
-		// Pass null for excludeDirection since there's no direction we came from
-		generateNeighborsForPlace(starting, null);
+		generateNeighborsForPlace(starting);
 		
 		// Generate 2-3 distant landmarks at strategic positions
 		generateLandmarks(es, ls, rs);
@@ -252,98 +251,6 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	}
 	
 	/**
-	 * Generate a place for an exit if it doesn't exist yet.
-	 * Called by NavigationPlugin when player tries to use an exit.
-	 * 
-	 * @param from The place the player is exiting from
-	 * @param exitName The name of the exit being used (e.g., "north", "south")
-	 * @return The destination place (newly generated or existing)
-	 */
-	public synchronized Entity generatePlaceForExit(Entity from, String exitName) {
-		WorldSystem ws = game.getSystem(WorldSystem.class);
-		
-		// Check if this exit already has a connection to a real place
-		Optional<Entity> existing = connectionSystem.findExit(from, exitName, ws.getCurrentTime());
-		if (existing.isPresent()) {
-			// Place exists, but check if it needs neighbors generated
-			Entity destination = existing.get();
-			log.log("Navigating to existing place %s, checking for neighbors...", destination.getId());
-			ensurePlaceHasNeighbors(destination);
-			
-			// Add reverse connection if it doesn't exist
-			// The reverse landmark is the source place's description
-			List<com.benleskey.textengine.model.LookDescriptor> sourceLooks = 
-				lookSystem.getLooksFromEntity(from, ws.getCurrentTime());
-			String sourceDescription = sourceLooks.isEmpty() ? "back" : sourceLooks.get(0).getDescription();
-			String reverseLandmark = sourceDescription; // Plain description, highlighting happens in DisambiguationSystem
-			
-			// Check if reverse connection exists
-			Optional<Entity> reverseExists = connectionSystem.findExit(destination, reverseLandmark, ws.getCurrentTime());
-			if (reverseExists.isEmpty()) {
-				connectionSystem.connect(destination, from, reverseLandmark);
-			}
-			
-			return destination;
-		}
-		
-		log.log("No existing exit '%s' from place %s, this shouldn't happen with spatial generation!", exitName, from.getId());
-		
-		// This shouldn't happen with our spatial system, but handle it gracefully
-		// Find an empty adjacent position
-		Coord fromPos = placePositions.get(from);
-		if (fromPos == null) {
-			log.log("ERROR: Source place has no position!");
-			return from; // Fallback
-		}
-		
-		// Try to find an empty adjacent spot
-		List<Coord> adjacentPositions = Arrays.asList(
-			new Coord(fromPos.x + 1, fromPos.y),
-			new Coord(fromPos.x - 1, fromPos.y),
-			new Coord(fromPos.x, fromPos.y + 1),
-			new Coord(fromPos.x, fromPos.y - 1)
-		);
-		
-		Coord newPos = null;
-		for (Coord pos : adjacentPositions) {
-			if (!positionToPlace.containsKey(pos)) {
-				newPos = pos;
-				break;
-			}
-		}
-		
-		if (newPos == null) {
-			// All adjacent spots taken, spiral outward
-			newPos = new Coord(fromPos.x + random.nextInt(3) - 1, fromPos.y + random.nextInt(3) - 1);
-		}
-		
-		// Generate a new place at the found position
-		Biome biome = randomBiome();
-		Entity newPlace = generatePlaceAtPosition(entitySystem, lookSystem, biome, newPos);
-		placesByBiome.get(biome).add(newPlace);
-		allPlaces.add(newPlace);
-		
-		// Create connection from source to new place
-		connectionSystem.connect(from, newPlace, exitName);
-		
-		// Create reverse connection
-		List<com.benleskey.textengine.model.LookDescriptor> sourceLooks = 
-			lookSystem.getLooksFromEntity(from, ws.getCurrentTime());
-		String sourceDescription = sourceLooks.isEmpty() ? "back" : sourceLooks.get(0).getDescription();
-		String reverseLandmark = sourceDescription; // Plain description, highlighting happens in DisambiguationSystem
-		connectionSystem.connect(newPlace, from, reverseLandmark);
-		
-		// Generate neighboring places and exits from the new place
-		generateNeighborsForPlace(newPlace, reverseLandmark);
-		
-		return newPlace;
-	}
-	
-	/**
-	 * Ensure a place has neighboring places generated.
-	 * If the place only has one exit (the one we came from), generate more neighbors.
-	 */
-	/**
 	 * Ensure a place has neighboring places generated.
 	 * Creates 2-4 random exits if the place has fewer than 2 connections.
 	 */
@@ -363,8 +270,7 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 			place.getId(), existingExits.size());
 		
 		// This place was created as a neighbor but never visited - generate its neighbors now
-		String excludeDirection = existingExits.isEmpty() ? null : existingExits.get(0).getExitName();
-		generateNeighborsForPlace(place, excludeDirection);
+		generateNeighborsForPlace(place);
 	}
 	
 	/**
@@ -372,9 +278,8 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	 * Uses spatial logic to sometimes connect to existing nearby places, creating loops.
 	 * 
 	 * @param place The place to generate neighbors for
-	 * @param excludeDirection Direction to exclude (typically the direction we came from)
 	 */
-	private void generateNeighborsForPlace(Entity place, String excludeDirection) {
+	private void generateNeighborsForPlace(Entity place) {
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		
 		// Get current position
@@ -387,9 +292,6 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		// Get existing exits to avoid duplicates
 		List<com.benleskey.textengine.model.ConnectionDescriptor> existingExits = 
 			connectionSystem.getConnections(place, ws.getCurrentTime());
-		Set<String> usedLandmarks = existingExits.stream()
-			.map(com.benleskey.textengine.model.ConnectionDescriptor::getExitName)
-			.collect(java.util.stream.Collectors.toSet());
 		
 		// Get already connected places (don't reconnect to them)
 		Set<Entity> alreadyConnected = existingExits.stream()
@@ -437,24 +339,8 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 				continue;
 			}
 			
-			// Get the neighbor's description to use as the landmark name
-			List<com.benleskey.textengine.model.LookDescriptor> neighborLooks = 
-				lookSystem.getLooksFromEntity(neighbor, ws.getCurrentTime());
-			String fullDescription = neighborLooks.isEmpty() ? "somewhere" : neighborLooks.get(0).getDescription();
-			
-			// Use plain description as landmark name (highlighting happens in DisambiguationSystem)
-			// Numeric IDs handle disambiguation, so we don't need to make landmark names unique
-			String landmarkName = fullDescription;
-			
-			// Skip if we already have a connection with this landmark name
-			if (usedLandmarks.contains(landmarkName)) {
-				continue;
-			}
-			
-			usedLandmarks.add(landmarkName);
-			
 			// Create one-way connection FROM current place TO neighbor
-			connectionSystem.connect(place, neighbor, landmarkName);
+			connectionSystem.connect(place, neighbor);
 			generatedCount++;
 			
 			if (isNewPlace) {
