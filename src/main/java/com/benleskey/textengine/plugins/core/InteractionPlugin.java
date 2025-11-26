@@ -29,7 +29,9 @@ import java.util.stream.Collectors;
 public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 	public static final String LOOK = "look";
 	public static final String LOOK_WITHOUT_ARGUMENTS = "look_without_arguments";
+	public static final String LOOK_AT_TARGET = "look_at_target";
 	public static final String M_LOOK = "look";
+	public static final String M_LOOK_TARGET = "look_target";
 	public static final String M_LOOK_ENTITIES = "look_entities";
 	public static final String M_LOOK_ENTITY_LOOKS = "look_entity_looks";
 	public static final String M_LOOK_TYPE = "look_type";
@@ -90,39 +92,16 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 				if (!containers.isEmpty()) {
 					Entity currentLocation = containers.get(0).getProvider();
 					
-					// Get current location description
-					List<LookDescriptor> locationLooks = ls.getLooksFromEntity(currentLocation, ws.getCurrentTime());
-					
-					// Get exits
-					List<ConnectionDescriptor> exits = cs.getConnections(currentLocation, ws.getCurrentTime());
-					
-					// Get visible entities
-					List<VisibilityDescriptor> visible = vs.getVisibleEntities(entity);
-					
-					// Group visible entities by distance
-					Map<VisibilitySystem.VisibilityLevel, List<VisibilityDescriptor>> byDistance = 
-						visible.stream().collect(Collectors.groupingBy(VisibilityDescriptor::getDistanceLevel));
-					
-					// Get looks for all visible entities
-					Map<Entity, List<LookDescriptor>> nearbyLooks = byDistance
-						.getOrDefault(VisibilitySystem.VisibilityLevel.NEARBY, List.of())
-						.stream()
-						.map(VisibilityDescriptor::getEntity)
-						.collect(Collectors.toMap(
-							e -> e,
-							e -> ls.getLooksFromEntity(e, ws.getCurrentTime())
-						));
-					
-					Map<Entity, List<LookDescriptor>> distantLooks = byDistance
-						.getOrDefault(VisibilitySystem.VisibilityLevel.DISTANT, List.of())
-						.stream()
-						.map(VisibilityDescriptor::getEntity)
-						.collect(Collectors.toMap(
-							e -> e,
-							e -> ls.getLooksFromEntity(e, ws.getCurrentTime())
-						));
-					
-					client.sendOutput(buildEnhancedLookOutput(locationLooks, exits, nearbyLooks, distantLooks));
+					// Check if looking at a specific target
+					java.util.Optional<Object> targetOpt = input.getO(M_LOOK_TARGET);
+					if (targetOpt.isPresent()) {
+						// Look at specific direction/place
+						String target = targetOpt.get().toString().toLowerCase();
+						lookAtTarget(client, currentLocation, target, ls, cs, ws);
+					} else {
+						// Look at current location (normal look)
+						performNormalLook(client, entity, currentLocation, ls, vs, cs, rs, ws);
+					}
 				} else {
 					client.sendOutput(buildLookOutput(ls.getSeenLooks(entity).stream()
 						.collect(Collectors.groupingBy(LookDescriptor::getEntity))));
@@ -130,7 +109,135 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 			} else {
 				client.sendOutput(Client.NO_ENTITY);
 			}
-		}, new CommandVariant(LOOK_WITHOUT_ARGUMENTS, "^look([^\\w]+|$)", args -> CommandInput.makeNone())));
+		}, 
+		new CommandVariant(LOOK_AT_TARGET, "^look\\s+(?:at\\s+)?(.+?)\\s*$", args -> 
+			CommandInput.makeNone().put(M_LOOK_TARGET, args.group(1))),
+		new CommandVariant(LOOK_WITHOUT_ARGUMENTS, "^look([^\\w]+|$)", args -> CommandInput.makeNone())));
+	}
+	
+	/**
+	 * Look at a specific target (direction or place name).
+	 */
+	private void lookAtTarget(Client client, Entity currentLocation, String target, 
+			LookSystem ls, ConnectionSystem cs, WorldSystem ws) {
+		
+		// Get available exits from current location
+		List<ConnectionDescriptor> exits = cs.getConnections(currentLocation, ws.getCurrentTime());
+		
+		// Find exit matching the target
+		ConnectionDescriptor matchingExit = null;
+		for (ConnectionDescriptor exit : exits) {
+			if (exit.getExitName().equalsIgnoreCase(target)) {
+				matchingExit = exit;
+				break;
+			}
+		}
+		
+		if (matchingExit != null) {
+			// Found an exit, show description of destination
+			Entity destination = matchingExit.getTo();
+			List<LookDescriptor> destLooks = ls.getLooksFromEntity(destination, ws.getCurrentTime());
+			
+			if (!destLooks.isEmpty()) {
+				String description = destLooks.get(0).getDescription();
+				
+				// Get exits from the destination (look ahead)
+				List<ConnectionDescriptor> destExits = cs.getConnections(destination, ws.getCurrentTime());
+				
+				// Build the message
+				java.util.List<Markup.Safe> parts = new java.util.ArrayList<>();
+				
+				// Main description
+				parts.add(Markup.concat(
+					Markup.raw("To the "),
+					Markup.em(target),
+					Markup.raw(", you see "),
+					Markup.escape(description),
+					Markup.raw(".")
+				));
+				
+				// Show exits from destination (if any)
+				if (!destExits.isEmpty()) {
+					java.util.List<Markup.Safe> exitNames = new java.util.ArrayList<>();
+					for (ConnectionDescriptor destExit : destExits) {
+						exitNames.add(Markup.em(destExit.getExitName()));
+					}
+					
+					// Join exit names with commas and "and"
+					java.util.List<Markup.Safe> joinedExits = new java.util.ArrayList<>();
+					for (int i = 0; i < exitNames.size(); i++) {
+						if (i > 0) {
+							if (i == exitNames.size() - 1) {
+								joinedExits.add(Markup.raw(", and "));
+							} else {
+								joinedExits.add(Markup.raw(", "));
+							}
+						}
+						joinedExits.add(exitNames.get(i));
+					}
+					
+					parts.add(Markup.raw(" From there you can go "));
+					parts.add(Markup.concat(joinedExits.toArray(new Markup.Safe[0])));
+					parts.add(Markup.raw("."));
+				}
+				
+				client.sendOutput(CommandOutput.make(M_LOOK)
+					.text(Markup.concat(parts.toArray(new Markup.Safe[0]))));
+			} else {
+				client.sendOutput(CommandOutput.make(M_LOOK)
+					.text(Markup.escape("You see nothing notable in that direction.")));
+			}
+		} else {
+			// No matching exit
+			client.sendOutput(CommandOutput.make(M_LOOK).text(
+				Markup.concat(
+					Markup.raw("You don't see anything called "),
+					Markup.em(target),
+					Markup.raw(" from here.")
+				)));
+		}
+	}
+	
+	/**
+	 * Perform normal look (at current location).
+	 */
+	private void performNormalLook(Client client, Entity entity, Entity currentLocation,
+			LookSystem ls, VisibilitySystem vs, ConnectionSystem cs, 
+			RelationshipSystem rs, WorldSystem ws) {
+		
+		// Get current location description
+		List<LookDescriptor> locationLooks = ls.getLooksFromEntity(currentLocation, ws.getCurrentTime());
+		
+		// Get exits
+		List<ConnectionDescriptor> exits = cs.getConnections(currentLocation, ws.getCurrentTime());
+		
+		// Get visible entities
+		List<VisibilityDescriptor> visible = vs.getVisibleEntities(entity);
+		
+		// Group visible entities by distance
+		Map<VisibilitySystem.VisibilityLevel, List<VisibilityDescriptor>> byDistance = 
+			visible.stream().collect(Collectors.groupingBy(VisibilityDescriptor::getDistanceLevel));
+		
+		// Get looks for all visible entities
+		Map<Entity, List<LookDescriptor>> nearbyLooks = byDistance
+			.getOrDefault(VisibilitySystem.VisibilityLevel.NEARBY, List.of())
+			.stream()
+			.map(VisibilityDescriptor::getEntity)
+			.collect(Collectors.toMap(
+				e -> e,
+				e -> ls.getLooksFromEntity(e, ws.getCurrentTime())
+			));
+		
+		Map<Entity, List<LookDescriptor>> distantLooks = byDistance
+			.getOrDefault(VisibilitySystem.VisibilityLevel.DISTANT, List.of())
+			.stream()
+			.map(VisibilityDescriptor::getEntity)
+			.collect(Collectors.toMap(
+				e -> e,
+				e -> ls.getLooksFromEntity(e, ws.getCurrentTime())
+			));
+		
+		client.sendOutput(buildEnhancedLookOutput(locationLooks, exits, nearbyLooks, distantLooks));
 	}
 
 	private CommandOutput buildEnhancedLookOutput(
