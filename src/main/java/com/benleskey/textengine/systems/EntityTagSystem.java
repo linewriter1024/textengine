@@ -62,6 +62,8 @@ public class EntityTagSystem extends SingletonGameSystem implements OnSystemInit
 			addStatement.setLong(2, entity.getId());
 			addStatement.setLong(3, tagType.type());
 			addStatement.executeUpdate();
+			// Create an event so the tag is visible at the current time
+			eventSystem.addEventNow(etEntityTag, new Reference(newId, game));
 			return new Reference(newId, game);
 		} catch (SQLException e) {
 			throw new DatabaseException("Unable to add entity tag", e);

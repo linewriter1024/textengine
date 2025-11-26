@@ -28,6 +28,11 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		FOREST, MEADOW, RIVER, HILLS, RUINS
 	}
 	
+	// Landmark types for distant visibility
+	private enum LandmarkType {
+		GREAT_TREE, RUINED_TOWER
+	}
+	
 	// Simple 2D coordinate for spatial tracking
 	private static class Coord {
 		final int x, y;
@@ -71,6 +76,9 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	// Track all generated places for connection opportunities
 	private List<Entity> allPlaces = new ArrayList<>();
 	
+	// Track landmarks for distant visibility
+	private List<Entity> landmarks = new ArrayList<>();
+	
 	// Track starting location for new clients
 	private Entity startingPlace;
 	
@@ -80,6 +88,8 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	private ConnectionSystem connectionSystem;
 	private ItemSystem itemSystem;
 	private RelationshipSystem relationshipSystem;
+	private VisibilitySystem visibilitySystem;
+	private EntityTagSystem entityTagSystem;
 	
 	public ProceduralWorldPlugin(Game game, long seed) {
 		super(game);
@@ -110,6 +120,8 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		connectionSystem = game.getSystem(ConnectionSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		itemSystem = game.getSystem(ItemSystem.class);
+		visibilitySystem = game.getSystem(VisibilitySystem.class);
+		entityTagSystem = game.getSystem(EntityTagSystem.class);
 		
 		// Register entity types
 		entitySystem.registerEntityType(Place.class);
@@ -163,6 +175,14 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		// Pass null for excludeDirection since there's no direction we came from
 		generateNeighborsForPlace(starting, null);
 		
+		// Generate 2-3 distant landmarks at strategic positions
+		generateLandmarks(es, ls, rs);
+		
+		// Update visibility for all existing places now that landmarks exist
+		for (Entity place : allPlaces) {
+			updateDistantVisibility(place);
+		}
+		
 		return starting;
 	}
 	
@@ -182,6 +202,9 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		
 		// Generate items for this place based on biome
 		generateItemsForPlace(place, biome);
+		
+		// Update distant visibility for landmarks
+		updateDistantVisibility(place);
 		
 		log.log("Generated new place: %s (%s) at (%d, %d)", description, biome, position.x, position.y);
 		
@@ -596,4 +619,87 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		
 		log.log("Generated item '%s' in place %d (qty: %d)", itemDescription, place.getId(), quantity);
 	}
+	
+	/**
+	 * Generate 2-3 distant landmarks (great trees, ruined towers) at strategic positions.
+	 * These landmarks will be visible from multiple places.
+	 */
+	private void generateLandmarks(EntitySystem es, LookSystem ls, RelationshipSystem rs) {
+		int landmarkCount = 2 + random.nextInt(2); // 2-3 landmarks
+		
+		for (int i = 0; i < landmarkCount; i++) {
+			// Choose landmark type
+			LandmarkType type = random.nextBoolean() ? LandmarkType.GREAT_TREE : LandmarkType.RUINED_TOWER;
+			
+			// Pick a random position offset from origin (between 3-6 units away)
+			int distance = 3 + random.nextInt(4);
+			double angle = random.nextDouble() * 2 * Math.PI;
+			int x = (int) (Math.cos(angle) * distance);
+			int y = (int) (Math.sin(angle) * distance);
+			Coord landmarkPos = new Coord(x, y);
+			
+			// Create the landmark place
+			Place landmark = es.add(Place.class);
+			String description = generateLandmarkDescription(type);
+			ls.addLook(landmark, "basic", description);
+			
+			// Mark as prominent so it's visible from distance
+			entityTagSystem.addTag(landmark, visibilitySystem.tagProminent);
+			
+			// Track the landmark
+			placePositions.put(landmark, landmarkPos);
+			positionToPlace.put(landmarkPos, landmark);
+			landmarks.add(landmark);
+			allPlaces.add(landmark);
+			
+			log.log("Generated %s landmark '%s' at position (%d, %d)", 
+				type, description, x, y);
+		}
+	}
+	
+	/**
+	 * Generate evocative descriptions for landmarks based on type.
+	 */
+	private String generateLandmarkDescription(LandmarkType type) {
+		return switch (type) {
+			case GREAT_TREE -> randomChoice(
+				"an ancient oak with massive spreading branches",
+				"a colossal tree reaching toward the sky",
+				"a gnarled elder tree twisted with age",
+				"a towering sentinel tree draped in moss",
+				"a great willow with cascading silver leaves"
+			);
+			case RUINED_TOWER -> randomChoice(
+				"a crumbling stone tower against the horizon",
+				"the broken spire of an ancient watchtower",
+				"a weathered tower with ivy-covered walls",
+				"the skeletal remains of a forgotten fortress",
+				"a lone tower, half-collapsed and abandoned"
+			);
+		};
+	}
+	
+	/**
+	 * Update distant visibility when a new place is generated.
+	 * Makes nearby landmarks visible from this place.
+	 */
+	private void updateDistantVisibility(Entity place) {
+		Coord placePos = placePositions.get(place);
+		if (placePos == null) return;
+		
+		// Check each landmark to see if it should be visible from this place
+		for (Entity landmark : landmarks) {
+			Coord landmarkPos = placePositions.get(landmark);
+			if (landmarkPos == null) continue;
+			
+			// Make landmarks visible if they're 2-8 units away
+			double distance = placePos.distanceTo(landmarkPos);
+			if (distance >= 2.0 && distance <= 8.0) {
+				visibilitySystem.makeVisibleFrom(place, landmark);
+				log.log("Made landmark %d visible from place %d (distance: %.1f)", 
+					landmark.getId(), place.getId(), distance);
+			}
+		}
+	}
 }
+
