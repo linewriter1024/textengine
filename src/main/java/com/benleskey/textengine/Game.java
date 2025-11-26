@@ -62,6 +62,9 @@ public class Game {
 		// Pass seed to ProceduralWorldPlugin (use timestamp if not provided)
 		long worldSeed = (seed != null) ? seed : System.currentTimeMillis();
 		registerPlugin(new ProceduralWorldPlugin(this, worldSeed));
+		
+		// Register HighFantasyPlugin to populate biomes, items, and landmarks
+		registerPlugin(new com.benleskey.textengine.plugins.highfantasy.HighFantasyPlugin(this));
 	}
 
 	public void initialize() throws InternalException {

@@ -216,8 +216,8 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	private void generateNeighborsForPlace(Entity place) {
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		
-		// Get current position from SpatialSystem
-		int[] currentPos = spatialSystem.getPosition(place);
+		// Get current position
+		Coord currentPos = placePositions.get(place);
 		if (currentPos == null) {
 			log.log("Warning: place %s has no position, cannot generate neighbors", place.getId());
 			return;
@@ -233,7 +233,12 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 			.collect(java.util.stream.Collectors.toSet());
 		
 		// Find potential adjacent positions (4 cardinal directions)
-		List<int[]> adjacentPositions = spatialSystem.getAdjacentPositions(currentPos);
+		List<Coord> adjacentPositions = Arrays.asList(
+			new Coord(currentPos.x + 1, currentPos.y),  // east
+			new Coord(currentPos.x - 1, currentPos.y),  // west
+			new Coord(currentPos.x, currentPos.y + 1),  // north
+			new Coord(currentPos.x, currentPos.y - 1)   // south
+		);
 		
 		// Shuffle for variety
 		Collections.shuffle(adjacentPositions, random);
@@ -242,11 +247,11 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		int targetNeighborCount = 2 + random.nextInt(3); // 2-4 neighbors
 		int generatedCount = 0;
 		
-		for (int[] adjacentPos : adjacentPositions) {
+		for (Coord adjacentPos : adjacentPositions) {
 			if (generatedCount >= targetNeighborCount) break;
 			
 			// Check if there's already a place at this position
-			Entity existingPlace = spatialSystem.getEntityAt(adjacentPos);
+			Entity existingPlace = positionToPlace.get(adjacentPos);
 			
 			Entity neighbor;
 			boolean isNewPlace;
@@ -255,10 +260,10 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 				// Found an existing place - connect to it (creates a loop!)
 				neighbor = existingPlace;
 				isNewPlace = false;
-				log.log("Connecting to existing place at (%d, %d) - creating loop!", adjacentPos[0], adjacentPos[1]);
+				log.log("Connecting to existing place at (%d, %d) - creating loop!", adjacentPos.x, adjacentPos.y);
 			} else if (existingPlace == null) {
 				// Empty position - generate new place
-				String neighborBiome = biomeSystem.selectRandomBiome(random);
+				Biome neighborBiome = randomBiome();
 				neighbor = generatePlaceAtPosition(entitySystem, lookSystem, neighborBiome, adjacentPos);
 				placesByBiome.get(neighborBiome).add(neighbor);
 				allPlaces.add(neighbor);
@@ -273,9 +278,22 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 			generatedCount++;
 			
 			if (isNewPlace) {
-				log.log("Created new neighbor at (%d, %d)", adjacentPos[0], adjacentPos[1]);
+				log.log("Created new neighbor at (%d, %d)", adjacentPos.x, adjacentPos.y);
 			}
 		}
+	}
+	
+	/**
+	 * Select a random biome with weighted probabilities.
+	 */
+	private Biome randomBiome() {
+		// Weight biomes - more forests and meadows, fewer ruins
+		double r = random.nextDouble();
+		if (r < 0.35) return Biome.FOREST;
+		if (r < 0.65) return Biome.MEADOW;
+		if (r < 0.80) return Biome.RIVER;
+		if (r < 0.92) return Biome.HILLS;
+		return Biome.RUINS;
 	}
 	
 	/**
@@ -290,18 +308,18 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	 * Extract a single-word keyword from a place description.
 	/**
 	 * Generate items for a place based on its biome type.
-	 * Creates 2-5 items that fit the biome theme using ItemTemplateSystem.
+	 * Creates 2-5 items that fit the biome theme.
 	 * 
 	 * @param place The place to populate with items
-	 * @param biomeName The biome type of the place
+	 * @param biome The biome type of the place
 	 */
-	private void generateItemsForPlace(Entity place, String biomeName) {
+	private void generateItemsForPlace(Entity place, Biome biome) {
 		try {
 			// Generate 2-5 items for this place
 			int itemCount = 2 + random.nextInt(4);
 			
 			for (int i = 0; i < itemCount; i++) {
-				generateItemForBiome(place, biomeName);
+				generateItemForBiome(place, biome);
 			}
 		} catch (Exception e) {
 			log.log("Error generating items for place %d: %s", place.getId(), e.getMessage());
@@ -309,85 +327,180 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	}
 	
 	/**
-	 * Generate a single item appropriate for the biome and add it to the place using ItemTemplateSystem.
+	 * Generate a single item appropriate for the biome and add it to the place.
 	 */
-	private void generateItemForBiome(Entity place, String biomeName) throws InternalException {
-		// Use ItemTemplateSystem to generate item data
-		ItemTemplateSystem.ItemData itemData = itemTemplateSystem.generateItem(biomeName, game, random);
+	private void generateItemForBiome(Entity place, Biome biome) throws InternalException {
+		String itemDescription;
+		ItemSystem.ItemType itemType;
+		long quantity = 1;
+		long weight = 1;
 		
-		if (itemData == null) {
-			// No item generated for this biome
-			return;
+		// Select item based on biome
+		switch (biome) {
+			case FOREST -> {
+				itemDescription = randomChoice(
+					"a stick",
+					"some pine cones",
+					"a fallen branch",
+					"some moss",
+					"a mushroom"
+				);
+				itemType = ItemSystem.ItemType.RESOURCE;
+				// Sticks, moss, and mushrooms can be infinite or abundant
+				if (itemDescription.contains("stick") || itemDescription.contains("moss")) {
+					quantity = -1; // infinite
+				} else {
+					quantity = 5 + random.nextInt(10);
+				}
+			}
+			case MEADOW -> {
+				itemDescription = randomChoice(
+					"some grass",
+					"a wildflower",
+					"a smooth pebble",
+					"some seeds",
+					"a blade of grass"
+				);
+				itemType = ItemSystem.ItemType.RESOURCE;
+				// Grass is infinite
+				if (itemDescription.contains("grass")) {
+					quantity = -1; // infinite
+				} else {
+					quantity = 3 + random.nextInt(7);
+				}
+			}
+			case RIVER -> {
+				itemDescription = randomChoice(
+					"a river stone",
+					"some wet sand",
+					"a smooth rock",
+					"some reeds",
+					"a piece of driftwood"
+				);
+				itemType = ItemSystem.ItemType.RESOURCE;
+				// Stones and sand can be abundant
+				if (itemDescription.contains("stone") || itemDescription.contains("sand") || itemDescription.contains("rock")) {
+					quantity = -1; // infinite
+				} else {
+					quantity = 2 + random.nextInt(5);
+				}
+			}
+			case HILLS -> {
+				itemDescription = randomChoice(
+					"a stone",
+					"a chunk of rock",
+					"some gravel",
+					"a sharp stone",
+					"a small boulder"
+				);
+				itemType = ItemSystem.ItemType.RESOURCE;
+				// Stones are very abundant in hills
+				quantity = -1; // infinite
+			}
+			case RUINS -> {
+				itemDescription = randomChoice(
+					"an old rusty sword",
+					"a broken shield",
+					"a tarnished coin",
+					"a piece of pottery",
+					"an ancient artifact",
+					"some rubble",
+					"a weathered scroll"
+				);
+				// Ruins can have equipment or misc items
+				if (itemDescription.contains("sword") || itemDescription.contains("shield")) {
+					itemType = ItemSystem.ItemType.EQUIPMENT;
+					quantity = 1;
+					weight = 5; // heavier
+				} else if (itemDescription.contains("rubble")) {
+					itemType = ItemSystem.ItemType.RESOURCE;
+					quantity = -1; // infinite rubble
+				} else {
+					itemType = ItemSystem.ItemType.MISC;
+					quantity = 1;
+				}
+			}
+			default -> {
+				itemDescription = "a small stone";
+				itemType = ItemSystem.ItemType.RESOURCE;
+				quantity = -1;
+			}
 		}
 		
-		// Create the item entity
-		Item item = entitySystem.add(Item.class);
-		lookSystem.addLook(item, "basic", itemData.name());
+		// Create the item
+		EntitySystem es = game.getSystem(EntitySystem.class);
+		LookSystem ls = game.getSystem(LookSystem.class);
+		Item item = es.add(Item.class);
+		ls.addLook(item, "basic", itemDescription);
 		
-		// Set default item properties (type, quantity, weight can be in itemData.properties if needed)
-		ItemSystem.ItemType itemType = ItemSystem.ItemType.RESOURCE; // default
-		long quantity = 1; // default
-		long weight = 1; // default
-		
-		// Check if custom properties were set
-		if (itemData.properties().containsKey("type")) {
-			itemType = (ItemSystem.ItemType) itemData.properties().get("type");
-		}
-		if (itemData.properties().containsKey("quantity")) {
-			quantity = (Long) itemData.properties().get("quantity");
-		}
-		if (itemData.properties().containsKey("weight")) {
-			weight = (Long) itemData.properties().get("weight");
-		}
-		
+		// Set item properties
 		itemSystem.setItemType(item, itemType);
 		itemSystem.setQuantity(item, quantity);
 		itemSystem.setWeight(item, weight);
 		
-		// Note: Tags from itemData are for future use, not currently applied
-		
 		// Place the item in the location using the "contains" relationship
 		relationshipSystem.add(place, item, relationshipSystem.rvContains);
 		
-		log.log("Generated item '%s' in place %d (qty: %d)", itemData.name(), place.getId(), quantity);
+		log.log("Generated item '%s' in place %d (qty: %d)", itemDescription, place.getId(), quantity);
 	}
 	
 	/**
-	 * Generate 2-3 distant landmarks using LandmarkTemplateSystem.
+	 * Generate 2-3 distant landmarks (great trees, ruined towers) at strategic positions.
 	 * These landmarks will be visible from multiple places.
 	 */
 	private void generateLandmarks(EntitySystem es, LookSystem ls, RelationshipSystem rs) {
 		int landmarkCount = 2 + random.nextInt(2); // 2-3 landmarks
 		
 		for (int i = 0; i < landmarkCount; i++) {
-			// Choose landmark type from LandmarkTemplateSystem
-			String landmarkTypeName = landmarkTemplateSystem.selectRandomLandmarkType(random);
-			LandmarkTemplateSystem.LandmarkType landmarkType = 
-				landmarkTemplateSystem.getLandmarkType(landmarkTypeName);
+			// Choose landmark type
+			LandmarkType type = random.nextBoolean() ? LandmarkType.GREAT_TREE : LandmarkType.RUINED_TOWER;
 			
 			// Pick a random position offset from origin (between 3-6 units away)
 			int distance = 3 + random.nextInt(4);
 			double angle = random.nextDouble() * 2 * Math.PI;
 			int x = (int) (Math.cos(angle) * distance);
 			int y = (int) (Math.sin(angle) * distance);
-			int[] landmarkPos = new int[]{x, y};
+			Coord landmarkPos = new Coord(x, y);
 			
 			// Create the landmark place
 			Place landmark = es.add(Place.class);
-			String description = landmarkTemplateSystem.generateDescription(landmarkTypeName, random);
+			String description = generateLandmarkDescription(type);
 			ls.addLook(landmark, "basic", description);
 			
 			// Mark as prominent so it's visible from distance
 			entityTagSystem.addTag(landmark, visibilitySystem.tagProminent);
 			
-			// Track spatial position
-			spatialSystem.setPosition(landmark, landmarkPos);
+			// Track the landmark
+			placePositions.put(landmark, landmarkPos);
+			positionToPlace.put(landmarkPos, landmark);
 			landmarks.add(landmark);
 			allPlaces.add(landmark);
 			
 			log.log("Generated %s landmark '%s' at position (%d, %d)", 
-				landmarkTypeName, description, x, y);
+				type, description, x, y);
 		}
+	}
+	
+	/**
+	 * Generate evocative descriptions for landmarks based on type.
+	 */
+	private String generateLandmarkDescription(LandmarkType type) {
+		return switch (type) {
+			case GREAT_TREE -> randomChoice(
+				"an ancient oak with massive spreading branches",
+				"a colossal tree reaching toward the sky",
+				"a gnarled elder tree twisted with age",
+				"a towering sentinel tree draped in moss",
+				"a great willow with cascading silver leaves"
+			);
+			case RUINED_TOWER -> randomChoice(
+				"a crumbling stone tower against the horizon",
+				"the broken spire of an ancient watchtower",
+				"a weathered tower with ivy-covered walls",
+				"the skeletal remains of a forgotten fortress",
+				"a lone tower, half-collapsed and abandoned"
+			);
+		};
 	}
 	
 	/**
@@ -395,18 +508,16 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	 * Makes nearby landmarks visible from this place.
 	 */
 	private void updateDistantVisibility(Entity place) {
-		int[] placePos = spatialSystem.getPosition(place);
+		Coord placePos = placePositions.get(place);
 		if (placePos == null) return;
 		
 		// Check each landmark to see if it should be visible from this place
 		for (Entity landmark : landmarks) {
-			int[] landmarkPos = spatialSystem.getPosition(landmark);
+			Coord landmarkPos = placePositions.get(landmark);
 			if (landmarkPos == null) continue;
 			
-			// Calculate distance
-			double distance = spatialSystem.distance(placePos, landmarkPos);
-			
-			// Make landmarks visible if they're within visibility range (2-8 units)
+			// Make landmarks visible if they're 2-8 units away
+			double distance = placePos.distanceTo(landmarkPos);
 			if (distance >= 2.0 && distance <= 8.0) {
 				visibilitySystem.makeVisibleFrom(place, landmark);
 				log.log("Made landmark %d visible from place %d (distance: %.1f)", 
