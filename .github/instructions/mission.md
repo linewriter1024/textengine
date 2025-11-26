@@ -1,0 +1,102 @@
+# Text Engine Mission
+
+## Core Philosophy
+
+**Everything is dynamic. Nothing is pre-built.**
+
+This engine simulates worlds through **emergent entity relationships**, not scripted content. It combines:
+- **Entity-Relationship Architecture**: Everything (cities, people, objects, locations, abstract concepts) is an entity in relationships with other entities
+- **LLM-Enhanced Consistency**: AI generates descriptions/dialogue while the engine enforces systematic consistency
+
+## Non-Negotiable Principles
+
+### 1. Dynamic Entity Generation
+- **Entities are created on-demand**, not pre-defined in content files
+- Example: Player says "hide under wagon" → system generates "underneath_wagon" entity if it doesn't exist
+- **No hardcoded rooms, items, or NPCs** beyond bootstrap/example code
+- World content emerges from simulation rules, not authored scenarios
+
+### 2. Relationship-Driven Simulation  
+- **All interactions through entity relationships**, not object properties
+- "Container" is not an item type—it's any entity with a "contains" relationship
+- Spatial location is a relationship ("within", "on", "under"), not coordinates
+- Social dynamics are relationships ("ally_of", "employed_by", "distrusts")
+
+### 3. Temporal Event System
+- **All state changes are timestamped events**, not mutations
+- Current state = latest non-cancelled event
+- Enables time-travel queries and consistent history
+- Cancel-events reverse previous events without deleting history
+
+### 4. Scale-Adaptive Simulation
+- **Granularity adjusts to player proximity/relevance**
+- Far-away city = macro-level simulation (population trends, economics)
+- Player enters city = individual NPCs with personalities and goals
+- **Never simulate what players can't observe** unless it affects observable state
+
+### 5. Generic Systems Over Specific Features
+- Build systems that handle **classes of interactions**, not individual use cases
+- Don't implement "chest opening"—implement "state change with prerequisites"
+- Don't implement "quest tracking"—implement "goal representation with progress queries"
+- **Reusable abstractions** beat custom handlers
+
+### 6. LLM as Flavor, Not Logic
+- LLM generates **descriptions and dialogue**, not game state
+- LLM output is non-canonical—it describes what the system already determined
+- Example: System decides "NPC is hostile" → LLM describes *how* hostility manifests
+- **Never let LLM hallucinate entities or relationships** that don't exist in the database
+
+## Anti-Patterns to Reject
+
+❌ **Pre-authored content** - "Create 5 rooms with items"  
+✅ **Generation rules** - "Places can have adjacent places; items spawn based on place type"
+
+❌ **Hardcoded entity types** - Separate classes for Chest, Door, Key  
+✅ **Generic entities with relationships** - Any entity can "lock", "unlock", "contain"
+
+❌ **Special-case commands** - `open_chest`, `pick_lock`, `read_book`  
+✅ **Generic interaction** - `interact_with(entity, action)` → system determines validity
+
+❌ **Player-centric simulation** - Only simulate what player sees  
+✅ **World-centric simulation** - World evolves independently; player observes subset
+
+❌ **Fixed descriptions** - "You see a rusty sword"  
+✅ **Generated descriptions** - LLM describes sword based on its properties/relationships/state
+
+❌ **Quest scripts** - "If player has 3 gems, unlock door"  
+✅ **Emergent goals** - NPCs have goals; players can adopt/interfere with them
+
+## Implementation Tests
+
+Does your code pass these tests?
+
+1. **Entity Flexibility**: Can this entity type be repurposed for unintended uses?
+2. **Relationship Generality**: Does this relationship type work for multiple scenarios?
+3. **Temporal Integrity**: Can this state change be reversed/queried historically?
+4. **Scale Independence**: Does this system work at both micro (individual) and macro (population) scales?
+5. **LLM Separation**: If the LLM fails, does the game state remain consistent?
+
+## Current Status Implications
+
+**Acceptable**:
+- Bootstrap entities (initial "home" location, player actor) for testing
+- Example plugins demonstrating patterns
+- Hardcoded entity types (Actor, Place) as **proof-of-concept**, not final taxonomy
+
+**Unacceptable**:
+- Authored "dungeon" with named rooms and placed treasures
+- Item catalog with fixed properties
+- Scripted NPC behaviors ("shopkeeper sells items")
+- Quest database
+- Handwritten room descriptions
+
+## Development Priorities
+
+1. **Systems for emergence** (relationship types, interaction rules, simulation clock)
+2. **Generative infrastructure** (LLM integration, procedural logic, context building)
+3. **Flexible abstractions** (generic commands, pluggable systems, extensible entity types)
+4. **Content authoring tools** (dead last—and only for defining generation parameters)
+
+---
+
+**Remember**: You are building a **simulation engine**, not a game. Games are what emerge from well-designed simulation rules.
