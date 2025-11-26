@@ -50,6 +50,20 @@ This engine simulates worlds through **emergent entity relationships**, not scri
 - Example: System decides "NPC is hostile" → LLM describes *how* hostility manifests
 - **Never let LLM hallucinate entities or relationships** that don't exist in the database
 
+### 7. Machine-Readable API, Human-Readable Text
+- **All game state goes in structured Message key-value pairs**, not just text output
+- CommandOutput/CommandInput use `put(key, value)` for machine-readable data
+- The `text` field is for human display only—clients should read structured fields
+- Example: `CommandOutput.make(TAKE).put(M_SUCCESS, true).put(M_ITEM, item).text("You take the sword")`
+- **Why**: Enables rich clients (GUIs, bots, tests) to react to game state without parsing text
+- **Pattern**: Every command output should include:
+  - Command ID (e.g., `TAKE`, `DROP`, `LOOK`)
+  - Success/error flags (`M_SUCCESS`, `M_ERROR`)
+  - Relevant entity references (`M_ITEM`, `M_ACTOR`, `M_PLACE`)
+  - Context data (names, quantities, states)
+  - Human-readable `text` field last
+- Use `--apidebug` flag to see the structured data: `(input: 'take sword', item: 'entity_123', success: 'true', text: 'You take...')`
+
 ## Anti-Patterns to Reject
 
 ❌ **Pre-authored content** - "Create 5 rooms with items"  
@@ -69,6 +83,9 @@ This engine simulates worlds through **emergent entity relationships**, not scri
 
 ❌ **Quest scripts** - "If player has 3 gems, unlock door"  
 ✅ **Emergent goals** - NPCs have goals; players can adopt/interfere with them
+
+❌ **Text-only output** - `output.text("You found 3 gold")`  
+✅ **Structured + text** - `output.put(M_GOLD, 3).put(M_SUCCESS, true).text("You found 3 gold")`
 
 ## Implementation Tests
 

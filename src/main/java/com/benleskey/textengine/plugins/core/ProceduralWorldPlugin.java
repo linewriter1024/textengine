@@ -3,7 +3,9 @@ package com.benleskey.textengine.plugins.core;
 import com.benleskey.textengine.Client;
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.Plugin;
+import com.benleskey.textengine.commands.CommandInput;
 import com.benleskey.textengine.entities.Actor;
+import com.benleskey.textengine.entities.Item;
 import com.benleskey.textengine.entities.Place;
 import com.benleskey.textengine.exceptions.InternalException;
 import com.benleskey.textengine.hooks.core.OnCoreSystemsReady;
@@ -76,6 +78,8 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	private EntitySystem entitySystem;
 	private LookSystem lookSystem;
 	private ConnectionSystem connectionSystem;
+	private ItemSystem itemSystem;
+	private RelationshipSystem relationshipSystem;
 	
 	public ProceduralWorldPlugin(Game game, long seed) {
 		super(game);
@@ -102,12 +106,15 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		entitySystem = game.getSystem(EntitySystem.class);
 		lookSystem = game.getSystem(LookSystem.class);
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
+		relationshipSystem = rs;
 		connectionSystem = game.getSystem(ConnectionSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
+		itemSystem = game.getSystem(ItemSystem.class);
 		
 		// Register entity types
 		entitySystem.registerEntityType(Place.class);
 		entitySystem.registerEntityType(Actor.class);
+		entitySystem.registerEntityType(Item.class);
 		
 		// Generate initial world (just starting place + planned exits)
 		startingPlace = generateInitialWorld(entitySystem, lookSystem, rs, connectionSystem, ws);
@@ -127,6 +134,10 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		
 		// Place actor in starting location
 		rs.add(startingPlace, actor, rs.rvContains);
+		
+		// Send initial look command so player sees where they are
+		CommandInput lookCommand = game.inputLineToCommandInput("look");
+		game.feedCommand(client, lookCommand);
 	}
 	
 	/**
@@ -167,6 +178,9 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		// Track spatial position
 		placePositions.put(place, position);
 		positionToPlace.put(position, place);
+		
+		// Generate items for this place based on biome
+		generateItemsForPlace(place, biome);
 		
 		log.log("Generated new place: %s (%s) at (%d, %d)", description, biome, position.x, position.y);
 		
@@ -502,5 +516,140 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		return description.substring(0, index) + 
 		       "<em>" + description.substring(index, index + keyword.length()) + "</em>" +
 		       description.substring(index + keyword.length());
+	}
+	
+	/**
+	 * Generate items for a place based on its biome type.
+	 * Creates 2-5 items that fit the biome theme.
+	 * 
+	 * @param place The place to populate with items
+	 * @param biome The biome type of the place
+	 */
+	private void generateItemsForPlace(Entity place, Biome biome) {
+		try {
+			// Generate 2-5 items for this place
+			int itemCount = 2 + random.nextInt(4);
+			
+			for (int i = 0; i < itemCount; i++) {
+				generateItemForBiome(place, biome);
+			}
+		} catch (Exception e) {
+			log.log("Error generating items for place %d: %s", place.getId(), e.getMessage());
+		}
+	}
+	
+	/**
+	 * Generate a single item appropriate for the biome and add it to the place.
+	 */
+	private void generateItemForBiome(Entity place, Biome biome) throws InternalException {
+		String itemDescription;
+		ItemSystem.ItemType itemType;
+		long quantity = 1;
+		long weight = 1;
+		
+		// Select item based on biome
+		switch (biome) {
+			case FOREST -> {
+				itemDescription = randomChoice(
+					"a stick",
+					"some pine cones",
+					"a fallen branch",
+					"some moss",
+					"a mushroom"
+				);
+				itemType = ItemSystem.ItemType.RESOURCE;
+				// Sticks, moss, and mushrooms can be infinite or abundant
+				if (itemDescription.contains("stick") || itemDescription.contains("moss")) {
+					quantity = -1; // infinite
+				} else {
+					quantity = 5 + random.nextInt(10);
+				}
+			}
+			case MEADOW -> {
+				itemDescription = randomChoice(
+					"some grass",
+					"a wildflower",
+					"a smooth pebble",
+					"some seeds",
+					"a blade of grass"
+				);
+				itemType = ItemSystem.ItemType.RESOURCE;
+				// Grass is infinite
+				if (itemDescription.contains("grass")) {
+					quantity = -1; // infinite
+				} else {
+					quantity = 3 + random.nextInt(7);
+				}
+			}
+			case RIVER -> {
+				itemDescription = randomChoice(
+					"a river stone",
+					"some wet sand",
+					"a smooth rock",
+					"some reeds",
+					"a piece of driftwood"
+				);
+				itemType = ItemSystem.ItemType.RESOURCE;
+				// Stones and sand can be abundant
+				if (itemDescription.contains("stone") || itemDescription.contains("sand") || itemDescription.contains("rock")) {
+					quantity = -1; // infinite
+				} else {
+					quantity = 2 + random.nextInt(5);
+				}
+			}
+			case HILLS -> {
+				itemDescription = randomChoice(
+					"a stone",
+					"a chunk of rock",
+					"some gravel",
+					"a sharp stone",
+					"a small boulder"
+				);
+				itemType = ItemSystem.ItemType.RESOURCE;
+				// Stones are very abundant in hills
+				quantity = -1; // infinite
+			}
+			case RUINS -> {
+				itemDescription = randomChoice(
+					"an old rusty sword",
+					"a broken shield",
+					"a tarnished coin",
+					"a piece of pottery",
+					"an ancient artifact",
+					"some rubble",
+					"a weathered scroll"
+				);
+				// Ruins can have equipment or misc items
+				if (itemDescription.contains("sword") || itemDescription.contains("shield")) {
+					itemType = ItemSystem.ItemType.EQUIPMENT;
+					quantity = 1;
+					weight = 5; // heavier
+				} else if (itemDescription.contains("rubble")) {
+					itemType = ItemSystem.ItemType.RESOURCE;
+					quantity = -1; // infinite rubble
+				} else {
+					itemType = ItemSystem.ItemType.MISC;
+					quantity = 1;
+				}
+			}
+			default -> {
+				itemDescription = "a small stone";
+				itemType = ItemSystem.ItemType.RESOURCE;
+				quantity = -1;
+			}
+		}
+		
+		// Create the item
+		Item item = Item.create(game, itemDescription);
+		
+		// Set item properties
+		itemSystem.setItemType(item, itemType);
+		itemSystem.setQuantity(item, quantity);
+		itemSystem.setWeight(item, weight);
+		
+		// Place the item in the location using the "contains" relationship
+		relationshipSystem.add(place, item, relationshipSystem.rvContains);
+		
+		log.log("Generated item '%s' in place %d (qty: %d)", itemDescription, place.getId(), quantity);
 	}
 }

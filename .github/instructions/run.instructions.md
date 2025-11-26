@@ -20,6 +20,9 @@ printf "look\ngo forest\nlook\ngo meadow\nlook\nquit\n" | mvn -q exec:java -Dexe
 ```bash
 # Same seed with logging to observe generation
 printf "look\ngo forest\nlook\ngo meadow\nlook\nquit\n" | mvn -q exec:java -Dexec.mainClass="com.benleskey.textengine.cli.Main" -Dexec.args="--seed 12345 --showlog"
+
+# Same seed with API debug to see structured data
+printf "look\ngo forest\nlook\ngo meadow\nlook\nquit\n" | mvn -q exec:java -Dexec.mainClass="com.benleskey.textengine.cli.Main" -Dexec.args="--seed 12345 --apidebug"
 ```
 
 The seed ensures that:
@@ -40,6 +43,20 @@ printf "look\ngo forest\nlook\ngo clearing\nlook\nquit\n" | mvn -q exec:java -De
 
 ```bash
 printf "look\ngo forest\nlook\ngo clearing\nlook\nquit\n" | mvn -q exec:java -Dexec.mainClass="com.benleskey.textengine.cli.Main" -Dexec.args="--showlog"
+```
+
+### With API Debug Information
+
+Shows the structured Message data (key-value pairs) sent between client and game, in addition to human-readable text:
+
+```bash
+printf "look\ngo forest\nlook\nquit\n" | mvn -q exec:java -Dexec.mainClass="com.benleskey.textengine.cli.Main" -Dexec.args="--apidebug"
+```
+
+### With Both Logging and API Debug
+
+```bash
+printf "look\ngo forest\nlook\nquit\n" | mvn -q exec:java -Dexec.mainClass="com.benleskey.textengine.cli.Main" -Dexec.args="--showlog --apidebug"
 ```
 
 ### Extended Test Sequence (Procedural Exploration)
@@ -86,6 +103,12 @@ For development and debugging, you can still run interactively without piped inp
 
 ```bash
 mvn -q exec:java -Dexec.mainClass="com.benleskey.textengine.cli.Main" -Dexec.args="--showlog"
+```
+
+Or with API debug to see the structured message data:
+
+```bash
+mvn -q exec:java -Dexec.mainClass="com.benleskey.textengine.cli.Main" -Dexec.args="--showlog --apidebug"
 ```
 
 Then type commands manually at the prompt.

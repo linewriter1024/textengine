@@ -7,6 +7,7 @@ import com.benleskey.textengine.commands.Command;
 import com.benleskey.textengine.commands.CommandInput;
 import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.commands.CommandVariant;
+import com.benleskey.textengine.entities.Item;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.LookDescriptor;
@@ -17,6 +18,7 @@ import com.benleskey.textengine.systems.VisibilitySystem;
 import com.benleskey.textengine.systems.ConnectionSystem;
 import com.benleskey.textengine.systems.RelationshipSystem;
 import com.benleskey.textengine.systems.WorldSystem;
+import com.benleskey.textengine.systems.ItemSystem;
 import com.benleskey.textengine.util.Markup;
 import com.benleskey.textengine.util.Message;
 import com.benleskey.textengine.util.RawMessage;
@@ -218,11 +220,29 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 		Map<VisibilitySystem.VisibilityLevel, List<VisibilityDescriptor>> byDistance = 
 			visible.stream().collect(Collectors.groupingBy(VisibilityDescriptor::getDistanceLevel));
 		
-		// Get looks for all visible entities
-		Map<Entity, List<LookDescriptor>> nearbyLooks = byDistance
+		// Separate items from other entities
+		List<Entity> nearbyItems = byDistance
 			.getOrDefault(VisibilitySystem.VisibilityLevel.NEARBY, List.of())
 			.stream()
 			.map(VisibilityDescriptor::getEntity)
+			.filter(e -> e instanceof Item)
+			.collect(Collectors.toList());
+		
+		List<Entity> nearbyNonItems = byDistance
+			.getOrDefault(VisibilitySystem.VisibilityLevel.NEARBY, List.of())
+			.stream()
+			.map(VisibilityDescriptor::getEntity)
+			.filter(e -> !(e instanceof Item))
+			.collect(Collectors.toList());
+		
+		// Get looks for all visible entities
+		Map<Entity, List<LookDescriptor>> nearbyLooks = nearbyNonItems.stream()
+			.collect(Collectors.toMap(
+				e -> e,
+				e -> ls.getLooksFromEntity(e, ws.getCurrentTime())
+			));
+		
+		Map<Entity, List<LookDescriptor>> itemLooks = nearbyItems.stream()
 			.collect(Collectors.toMap(
 				e -> e,
 				e -> ls.getLooksFromEntity(e, ws.getCurrentTime())
@@ -237,13 +257,14 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 				e -> ls.getLooksFromEntity(e, ws.getCurrentTime())
 			));
 		
-		client.sendOutput(buildEnhancedLookOutput(locationLooks, exits, nearbyLooks, distantLooks));
+		client.sendOutput(buildEnhancedLookOutput(locationLooks, exits, nearbyLooks, itemLooks, distantLooks));
 	}
 
 	private CommandOutput buildEnhancedLookOutput(
 		List<LookDescriptor> locationLooks,
 		List<ConnectionDescriptor> exits,
 		Map<Entity, List<LookDescriptor>> nearbyLooks,
+		Map<Entity, List<LookDescriptor>> itemLooks,
 		Map<Entity, List<LookDescriptor>> distantLooks
 	) {
 		CommandOutput output = CommandOutput.make(M_LOOK);
@@ -297,8 +318,51 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 			}
 			output.put(M_LOOK_EXITS, exitMessage);
 		}
+		
+		// Build items section
+		if (!itemLooks.isEmpty()) {
+			java.util.List<Markup.Safe> itemParts = new java.util.ArrayList<>();
+			RawMessage itemEntities = Message.make();
+			
+			for (Map.Entry<Entity, List<LookDescriptor>> entry : itemLooks.entrySet()) {
+				Entity item = entry.getKey();
+				List<LookDescriptor> looks = entry.getValue();
+				
+				RawMessage entityMessage = Message.make();
+				RawMessage entityLooks = Message.make();
+				
+				for (LookDescriptor lookDescriptor : looks) {
+					RawMessage lookMessage = Message.make()
+						.put(M_LOOK_TYPE, lookDescriptor.getType())
+						.put(M_LOOK_DESCRIPTION, lookDescriptor.getDescription());
+					entityLooks.put(lookDescriptor.getLook().getKeyId(), lookMessage);
+					itemParts.add(Markup.escape(lookDescriptor.getDescription()));
+				}
 
-		// Build nearby section
+				entityMessage.put(M_LOOK_ENTITY_LOOKS, entityLooks);
+				itemEntities.put(item.getKeyId(), entityMessage);
+			}
+			
+			if (!itemParts.isEmpty()) {
+				java.util.List<Markup.Safe> joined = new java.util.ArrayList<>();
+				for (int i = 0; i < itemParts.size(); i++) {
+					if (i > 0) {
+						if (i == itemParts.size() - 1 && itemParts.size() > 1) {
+							joined.add(Markup.raw(", and "));
+						} else if (itemParts.size() > 1) {
+							joined.add(Markup.raw(", "));
+						}
+					}
+					joined.add(itemParts.get(i));
+				}
+				
+				parts.add(Markup.raw("\nItems: "));
+				parts.add(Markup.concat(joined.toArray(new Markup.Safe[0])));
+			}
+			output.put("look_items", itemEntities);
+		}
+
+		// Build nearby section (actors and other non-item entities)
 		if (!nearbyLooks.isEmpty()) {
 			java.util.List<Markup.Safe> nearbyParts = new java.util.ArrayList<>();
 			RawMessage nearbyEntities = Message.make();

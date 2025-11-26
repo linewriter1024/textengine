@@ -38,5 +38,6 @@ public class EntityPlugin extends Plugin implements OnPluginInitialize {
 		game.registerSystem(new EntityTagSystem(game));
 		game.registerSystem(new ConnectionSystem(game, exitProperties));
 		game.registerSystem(new VisibilitySystem(game));
+		game.registerSystem(new ItemSystem(game));
 	}
 }
