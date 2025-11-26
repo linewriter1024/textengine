@@ -1,5 +1,6 @@
 package com.benleskey.textengine;
 
+import com.benleskey.textengine.commands.Command;
 import com.benleskey.textengine.commands.CommandInput;
 import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.model.Entity;
@@ -7,6 +8,9 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Flow;
+import java.util.stream.Stream;
 
 @Getter
 @Setter
@@ -30,6 +34,8 @@ public abstract class Client {
 	public abstract CommandInput waitForInput();
 
 	public abstract void sendOutput(CommandOutput output);
+
+	public abstract void sendStreamedOutput(CommandOutput output, Flow.Publisher<String> stream, CompletableFuture<String> future);
 
 	public void quitFromServer() {
 		if (alive) {

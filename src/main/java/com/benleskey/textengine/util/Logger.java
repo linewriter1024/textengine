@@ -31,4 +31,9 @@ public class Logger {
 	public void log(String fmt, Object... args) {
 		stream.printf("[%s] %s%s\n", LocalDateTime.now(), getFullPrefix(), String.format(fmt, args));
 	}
+
+	public void logError(Throwable error) {
+		stream.printf("Error: %s\n", error.getMessage());
+		error.printStackTrace(stream);
+	}
 }
