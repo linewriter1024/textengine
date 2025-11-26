@@ -1,0 +1,136 @@
+package com.benleskey.textengine.plugins.core;
+
+import com.benleskey.textengine.Client;
+import com.benleskey.textengine.Game;
+import com.benleskey.textengine.Plugin;
+import com.benleskey.textengine.commands.Command;
+import com.benleskey.textengine.commands.CommandInput;
+import com.benleskey.textengine.commands.CommandOutput;
+import com.benleskey.textengine.commands.CommandVariant;
+import com.benleskey.textengine.hooks.core.OnPluginInitialize;
+import com.benleskey.textengine.model.Entity;
+import com.benleskey.textengine.systems.ConnectionSystem;
+import com.benleskey.textengine.systems.RelationshipSystem;
+import com.benleskey.textengine.systems.WorldSystem;
+
+import java.util.Optional;
+import java.util.regex.Matcher;
+
+import static com.benleskey.textengine.plugins.core.InteractionPlugin.LOOK;
+
+/**
+ * NavigationPlugin handles player movement between locations.
+ */
+public class NavigationPlugin extends Plugin implements OnPluginInitialize {
+	public static final String GO = "go";
+	public static final String GO_DIRECTION = "go_direction";
+	public static final String M_GO = "go";
+	public static final String M_GO_SUCCESS = "go_success";
+	public static final String M_GO_FAIL = "go_fail";
+	public static final String M_GO_DESTINATION = "destination";
+	public static final String M_GO_EXIT = "exit";
+	public static final String M_GO_ERROR = "error";
+
+	public NavigationPlugin(Game game) {
+		super(game);
+	}
+
+	@Override
+	public void onPluginInitialize() {
+		game.registerCommand(new Command(GO, this::handleGo,
+			// Match: go north, go n, go castle, etc.
+			new CommandVariant(GO_DIRECTION, "^(?:go|move|travel)\\s+(.+?)\\s*$", this::parseGo)
+		));
+	}
+
+	private CommandInput parseGo(Matcher matcher) {
+		String direction = matcher.group(1).trim().toLowerCase();
+		return CommandInput.makeNone().put(M_GO_EXIT, direction);
+	}
+
+	private void handleGo(Client client, CommandInput input) {
+		Entity actor = client.getEntity().orElse(null);
+		if (actor == null) {
+			client.sendOutput(Client.NO_ENTITY);
+			return;
+		}
+
+		// Get the exit name from input - use getO() which returns Optional
+		Optional<Object> exitOptional = input.getO(M_GO_EXIT);
+		if (exitOptional.isEmpty()) {
+			client.sendOutput(CommandOutput.make(M_GO_FAIL)
+				.put(M_GO_ERROR, "no_direction")
+				.text("Where do you want to go?"));
+			return;
+		}
+		
+		String exitName = exitOptional.get().toString();
+		
+		// Normalize common abbreviations
+		exitName = normalizeDirection(exitName);
+
+		ConnectionSystem cs = game.getSystem(ConnectionSystem.class);
+		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
+		WorldSystem ws = game.getSystem(WorldSystem.class);
+
+		// Find current location (what contains the actor)
+		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
+		if (containers.isEmpty()) {
+			client.sendOutput(CommandOutput.make(M_GO_FAIL)
+				.put(M_GO_ERROR, "nowhere")
+				.text("You are nowhere. This should not happen."));
+			return;
+		}
+
+		Entity currentLocation = containers.get(0).getProvider();
+
+		// Find the exit
+		Optional<Entity> destination = cs.findExit(currentLocation, exitName, ws.getCurrentTime());
+		
+		if (destination.isEmpty()) {
+			client.sendOutput(CommandOutput.make(M_GO_FAIL)
+				.put(M_GO_ERROR, "no_exit")
+				.put(M_GO_EXIT, exitName)
+				.textf("There is no exit '%s' from here.", exitName));
+			return;
+		}
+
+		// Move the actor: remove from current location, add to new location
+		// We cancel the old containment and create a new one
+		var oldContainment = containers.get(0).getRelationship();
+		
+		// Cancel old relationship
+		game.getSystem(com.benleskey.textengine.systems.EventSystem.class)
+			.cancelEvent(oldContainment);
+		
+		// Create new relationship
+		rs.add(destination.get(), actor, rs.rvContains);
+
+		client.sendOutput(CommandOutput.make(M_GO_SUCCESS)
+			.put(M_GO_DESTINATION, destination.get().getKeyId())
+			.put(M_GO_EXIT, exitName)
+			.textf("You go %s.", exitName));
+		
+		// Automatically look around the new location
+		game.feedCommand(client, CommandInput.make(LOOK));
+	}
+
+	/**
+	 * Normalize common direction abbreviations.
+	 */
+	private String normalizeDirection(String direction) {
+		return switch (direction) {
+			case "n" -> "north";
+			case "s" -> "south";
+			case "e" -> "east";
+			case "w" -> "west";
+			case "ne" -> "northeast";
+			case "nw" -> "northwest";
+			case "se" -> "southeast";
+			case "sw" -> "southwest";
+			case "u" -> "up";
+			case "d" -> "down";
+			default -> direction;
+		};
+	}
+}

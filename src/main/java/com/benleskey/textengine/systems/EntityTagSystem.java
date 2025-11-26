@@ -84,4 +84,30 @@ public class EntityTagSystem extends SingletonGameSystem implements OnSystemInit
 			throw new DatabaseException("Unable to find entities by tag", e);
 		}
 	}
+
+	/**
+	 * Check if an entity has a specific tag at a given time.
+	 */
+	public synchronized boolean hasTag(Entity entity, UniqueType tag, DTime when) {
+		Set<Entity> tagged = findEntitiesByTag(tag, when);
+		return tagged.contains(entity);
+	}
+
+	/**
+	 * Add a tag to an entity (at current time).
+	 */
+	public synchronized Reference addTag(Entity entity, UniqueType tag) {
+		return add(entity, tag);
+	}
+
+	/**
+	 * Remove a tag from an entity by creating a cancel event.
+	 */
+	public synchronized void removeTag(Entity entity, UniqueType tag) {
+		// This is a simplified implementation - in a full system, we'd need to 
+		// find the specific tag event and cancel it
+		// For now, this is a placeholder
+		log.log("Warning: removeTag not fully implemented - would need to cancel specific tag event");
+	}
 }
+

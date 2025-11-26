@@ -26,7 +26,7 @@ public class UniqueTypeSystem extends SingletonGameSystem implements OnSystemIni
 	}
 
 	public synchronized UniqueType getType(String type) throws DatabaseException {
-		return getTypeFromRaw(cachedTypes.computeIfAbsent(type, (_) -> types.get(type).orElseGet(() -> {
+		return getTypeFromRaw(cachedTypes.computeIfAbsent(type, (key) -> types.get(type).orElseGet(() -> {
 			long id = game.getNewGlobalId();
 			types.set(type, id);
 			this.log.log("Type %s given ID %d", type, id);

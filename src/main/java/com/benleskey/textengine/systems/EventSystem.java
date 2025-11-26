@@ -69,8 +69,19 @@ public class EventSystem extends SingletonGameSystem implements OnSystemInitiali
 		return addEvent(type, worldSystem.getCurrentTime(), reference);
 	}
 
+	/**
+	 * Cancel an event by creating a cancel-event.
+	 * @param eventToCancel The reference (event) to cancel
+	 */
+	public synchronized void cancelEvent(Reference eventToCancel) {
+		addEventNow(etCancel, eventToCancel);
+	}
+
 	public String getValidEventsSubquery(String reference) {
-		return "(SELECT event.reference FROM event WHERE event.type = ? AND event.time <= ? AND event.reference = " + reference + " AND event.event_id NOT IN (SELECT event_cancel.reference FROM event AS event_cancel WHERE event_cancel.type = ? AND event_cancel.time <= ? AND event_cancel.event_order > event.event_order) ORDER BY event.event_order DESC LIMIT 1)";
+		// Returns a subquery that finds the most recent non-canceled event for a given reference
+		// An event is canceled if there exists a cancel-event whose reference matches this event's reference
+		// (both point to the same underlying entity, e.g. the same relationship_id)
+		return "(SELECT event.reference FROM event WHERE event.type = ? AND event.time <= ? AND event.reference = " + reference + " AND event.reference NOT IN (SELECT event_cancel.reference FROM event AS event_cancel WHERE event_cancel.type = ? AND event_cancel.time <= ?) ORDER BY event.event_order DESC LIMIT 1)";
 	}
 
 	/**

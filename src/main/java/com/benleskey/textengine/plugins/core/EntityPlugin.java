@@ -20,10 +20,23 @@ public class EntityPlugin extends Plugin implements OnPluginInitialize {
 
 	@Override
 	public void onPluginInitialize() {
+		// Create properties subsystem for connection exit names
+		PropertiesSubSystem<Long, String, String> exitProperties = game.registerSystem(
+			new PropertiesSubSystem<>(
+				game,
+				"connection_exit_properties",
+				PropertiesSubSystem.longHandler(),
+				PropertiesSubSystem.stringHandler(),
+				PropertiesSubSystem.stringHandler()
+			)
+		);
+		
 		game.registerSystem(new EntitySystem(game));
 		game.registerSystem(new LookSystem(game));
 		game.registerSystem(new PositionSystem(game));
 		game.registerSystem(new RelationshipSystem(game));
 		game.registerSystem(new EntityTagSystem(game));
+		game.registerSystem(new ConnectionSystem(game, exitProperties));
+		game.registerSystem(new VisibilitySystem(game));
 	}
 }
