@@ -125,16 +125,33 @@ public class InventoryPlugin extends Plugin implements OnPluginInitialize {
 			currentLocation, rs.rvContains, ws.getCurrentTime()
 		);
 		
-		// Filter to actual Item entities and find match
+		// Filter to actual Item entities
 		List<Entity> items = itemsInLocation.stream()
 			.map(RelationshipDescriptor::getReceiver)
 			.filter(e -> e instanceof Item)
 			.collect(Collectors.toList());
 		
-		Entity targetItem = FuzzyMatcher.match(itemName, items, item -> {
-			List<LookDescriptor> looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
-			return looks.isEmpty() ? null : looks.get(0).getDescription();
-		});
+		// Check if itemName is a numeric ID first
+		Entity foundItem = null;
+		try {
+			int numericId = Integer.parseInt(itemName);
+			Optional<Entity> entityById = client.getEntityByNumericId(numericId);
+			if (entityById.isPresent() && items.contains(entityById.get())) {
+				foundItem = entityById.get();
+			}
+		} catch (NumberFormatException e) {
+			// Not a number, will do fuzzy match below
+		}
+		
+		// If not found by numeric ID, do fuzzy matching
+		if (foundItem == null) {
+			foundItem = FuzzyMatcher.match(itemName, items, item -> {
+				List<LookDescriptor> looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
+				return looks.isEmpty() ? null : looks.get(0).getDescription();
+			});
+		}
+		
+		final Entity targetItem = foundItem;
 		
 		if (targetItem == null) {
 			client.sendOutput(CommandOutput.make(TAKE)
@@ -212,10 +229,24 @@ public class InventoryPlugin extends Plugin implements OnPluginInitialize {
 			.filter(e -> e instanceof Item)
 			.collect(Collectors.toList());
 		
-		Entity targetItem = FuzzyMatcher.match(itemName, items, item -> {
-			List<LookDescriptor> looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
-			return looks.isEmpty() ? null : looks.get(0).getDescription();
-		});
+		// Try numeric ID first, then fuzzy match
+		Entity foundItem = null;
+		try {
+			int numericId = Integer.parseInt(itemName);
+			foundItem = client.getEntityByNumericId(numericId).orElse(null);
+			// Verify the entity is actually in inventory
+			if (foundItem != null && !items.contains(foundItem)) {
+				foundItem = null;
+			}
+		} catch (NumberFormatException e) {
+			// Not a number, try fuzzy matching
+			foundItem = FuzzyMatcher.match(itemName, items, item -> {
+				List<LookDescriptor> looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
+				return looks.isEmpty() ? null : looks.get(0).getDescription();
+			});
+		}
+		
+		final Entity targetItem = foundItem;
 		
 		if (targetItem == null) {
 			client.sendOutput(CommandOutput.make(DROP)
@@ -335,11 +366,24 @@ public class InventoryPlugin extends Plugin implements OnPluginInitialize {
 			.filter(e -> e instanceof Item)
 			.collect(Collectors.toList());
 		
-		// Find the item that matches the name
-		Entity targetItem = FuzzyMatcher.match(itemName, visibleItems, item -> {
-			List<LookDescriptor> looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
-			return looks.isEmpty() ? null : looks.get(0).getDescription();
-		});
+		// Try numeric ID first, then fuzzy match
+		Entity foundItem = null;
+		try {
+			int numericId = Integer.parseInt(itemName);
+			foundItem = client.getEntityByNumericId(numericId).orElse(null);
+			// Verify the entity is actually visible
+			if (foundItem != null && !visibleItems.contains(foundItem)) {
+				foundItem = null;
+			}
+		} catch (NumberFormatException e) {
+			// Not a number, try fuzzy matching
+			foundItem = FuzzyMatcher.match(itemName, visibleItems, item -> {
+				List<LookDescriptor> looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
+				return looks.isEmpty() ? null : looks.get(0).getDescription();
+			});
+		}
+		
+		final Entity targetItem = foundItem;
 		
 		if (targetItem == null) {
 			client.sendOutput(CommandOutput.make(EXAMINE)

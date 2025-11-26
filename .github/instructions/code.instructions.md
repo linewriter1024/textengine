@@ -197,6 +197,29 @@ String plainText = Markup.toPlainText(Markup.raw(landmarkName));  // "dark fores
 
 **Why this matters**: Markup rendering is a presentation concern, not a matching concern. `FuzzyMatcher` uses `Markup.toPlainText()` internally to strip markup when comparing user input to entity descriptions.
 
+### Numeric ID Disambiguation
+
+When multiple entities have identical or similar descriptions (e.g., "some grass", "some grass", "a blade of grass"), the system automatically assigns numeric IDs to disambiguate them:
+
+```
+Items: some grass [1], a smooth pebble, some grass [2], a blade of grass [3], and a blade of grass [4]
+```
+
+**How it works**:
+1. **Client-side mapping**: Each client stores a `numericIdMap` that maps integers to entities
+2. **Automatic assignment**: When `look` displays items, duplicates get numeric IDs
+3. **User interaction**: Users can type `take 1` or `take 3` instead of ambiguous names
+4. **Auto-refresh**: The mapping resets with each new list generation (each `look` command)
+5. **Deterministic ordering**: Same seed produces same item order and same numeric IDs
+
+**Implementation**:
+- `Client.setNumericIdMap(Map<Integer, Entity>)` - stores the mapping
+- `Client.getEntityByNumericId(int)` - retrieves entity by numeric ID
+- Commands check numeric IDs first, then fall back to fuzzy matching
+- Only duplicates get IDs; unique items remain ID-free
+
+**Pattern**: This solves the ambiguity problem without complex keyword matching - users simply use numbers when names conflict.
+
 ## World Generation
 
 ### Deterministic Generation

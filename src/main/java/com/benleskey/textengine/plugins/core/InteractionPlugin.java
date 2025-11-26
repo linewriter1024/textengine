@@ -18,6 +18,7 @@ import com.benleskey.textengine.systems.VisibilitySystem;
 import com.benleskey.textengine.systems.ConnectionSystem;
 import com.benleskey.textengine.systems.RelationshipSystem;
 import com.benleskey.textengine.systems.WorldSystem;
+import com.benleskey.textengine.systems.DisambiguationSystem;
 import com.benleskey.textengine.util.FuzzyMatcher;
 import com.benleskey.textengine.util.Markup;
 import com.benleskey.textengine.util.Message;
@@ -258,10 +259,11 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 				e -> ls.getLooksFromEntity(e, ws.getCurrentTime())
 			));
 		
-		client.sendOutput(buildEnhancedLookOutput(locationLooks, exits, nearbyLooks, itemLooks, distantLooks));
+		client.sendOutput(buildEnhancedLookOutput(client, locationLooks, exits, nearbyLooks, itemLooks, distantLooks));
 	}
 
 	private CommandOutput buildEnhancedLookOutput(
+		Client client,
 		List<LookDescriptor> locationLooks,
 		List<ConnectionDescriptor> exits,
 		Map<Entity, List<LookDescriptor>> nearbyLooks,
@@ -284,51 +286,105 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 			));
 		}
 
-		// Build visible places from exits - show landmarks
+		// Build combined numeric ID map for exits and items
+		DisambiguationSystem ds = game.getSystem(DisambiguationSystem.class);
+		Map<Integer, Entity> combinedIdMap = new java.util.HashMap<>();
+		int nextId = 1;
+		
+		// Build visible places from exits with numeric IDs
+		DisambiguationSystem.DisambiguatedList exitDisambiguated = null;
 		if (!exits.isEmpty()) {
 			RawMessage exitMessage = Message.make();
-			java.util.List<Markup.Safe> landmarkNames = new java.util.ArrayList<>();
 			
+			// Build disambiguated list for exits (IDs start at 1)
+			exitDisambiguated = ds.buildDisambiguatedList(
+				exits.stream().map(ConnectionDescriptor::getTo).collect(Collectors.toList()),
+				exit -> {
+					// Find the exit descriptor for this place
+					for (ConnectionDescriptor desc : exits) {
+						if (desc.getTo().equals(exit)) {
+							return desc.getExitName();
+						}
+					}
+					return null;
+				}
+			);
+			
+			// Add exit IDs to combined map
+			combinedIdMap.putAll(exitDisambiguated.getNumericIdMap());
+			nextId = combinedIdMap.size() + 1;
+			
+			// Build machine-readable exit data
 			for (ConnectionDescriptor exit : exits) {
-				// The exit name IS the landmark/description
-				String landmarkName = exit.getExitName();
-				landmarkNames.add(Markup.raw(landmarkName));
 				exitMessage.put(exit.getExitName(), exit.getTo().getKeyId());
 			}
 			
-			// Build natural language description
-			if (!landmarkNames.isEmpty()) {
-				// Join with commas and "and"
-				java.util.List<Markup.Safe> joinedLandmarks = new java.util.ArrayList<>();
-				for (int i = 0; i < landmarkNames.size(); i++) {
+			// Format the list for display
+			if (!exitDisambiguated.getMarkupParts().isEmpty()) {
+				java.util.List<Markup.Safe> joined = new java.util.ArrayList<>();
+				List<Markup.Safe> markupParts = exitDisambiguated.getMarkupParts();
+				for (int i = 0; i < markupParts.size(); i++) {
 					if (i > 0) {
-						if (i == landmarkNames.size() - 1) {
-							joinedLandmarks.add(Markup.raw(", and "));
-						} else {
-							joinedLandmarks.add(Markup.raw(", "));
+						if (i == markupParts.size() - 1 && markupParts.size() > 1) {
+							joined.add(Markup.raw(", and "));
+						} else if (markupParts.size() > 1) {
+							joined.add(Markup.raw(", "));
 						}
 					}
-					joinedLandmarks.add(landmarkNames.get(i));
+					joined.add(markupParts.get(i));
 				}
 				
 				parts.add(Markup.concat(
 					Markup.raw(" You can see "),
-					Markup.concat(joinedLandmarks.toArray(new Markup.Safe[0])),
+					Markup.concat(joined.toArray(new Markup.Safe[0])),
 					Markup.raw(".")
 				));
 			}
 			output.put(M_LOOK_EXITS, exitMessage);
 		}
 		
-		// Build items section
+		// Build items section with numeric IDs (continuing from exits)
+		DisambiguationSystem.DisambiguatedList itemDisambiguated = null;
 		if (!itemLooks.isEmpty()) {
-			java.util.List<Markup.Safe> itemParts = new java.util.ArrayList<>();
 			RawMessage itemEntities = Message.make();
 			
-			for (Map.Entry<Entity, List<LookDescriptor>> entry : itemLooks.entrySet()) {
-				Entity item = entry.getKey();
-				List<LookDescriptor> looks = entry.getValue();
-				
+			// Extract items and their descriptions
+			List<Entity> items = new java.util.ArrayList<>(itemLooks.keySet());
+			
+			// Build disambiguated list (IDs continue from exits)
+			itemDisambiguated = ds.buildDisambiguatedList(
+				items,
+				item -> {
+					List<LookDescriptor> looks = itemLooks.get(item);
+					return (looks != null && !looks.isEmpty()) ? looks.get(0).getDescription() : null;
+				}
+			);
+			
+			// Add item IDs to combined map (renumber to continue from exits)
+			for (Map.Entry<Integer, Entity> entry : itemDisambiguated.getNumericIdMap().entrySet()) {
+				combinedIdMap.put(nextId++, entry.getValue());
+			}
+			
+			// Rebuild markup parts with corrected IDs
+			List<Markup.Safe> correctedMarkupParts = new java.util.ArrayList<>();
+			int currentItemId = combinedIdMap.size() - items.size() + 1;
+			for (Entity item : items) {
+				List<LookDescriptor> looks = itemLooks.get(item);
+				if (looks != null && !looks.isEmpty()) {
+					String description = looks.get(0).getDescription();
+					correctedMarkupParts.add(Markup.concat(
+						Markup.em(description),
+						Markup.raw(" [" + currentItemId++ + "]")
+					));
+				}
+			}
+			
+			// Store combined numeric ID map in client
+			ds.setClientMapping(client, combinedIdMap);
+			
+			// Build entity message for machine-readable API
+			for (Entity item : items) {
+				List<LookDescriptor> looks = itemLooks.get(item);
 				RawMessage entityMessage = Message.make();
 				RawMessage entityLooks = Message.make();
 				
@@ -337,24 +393,24 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 						.put(M_LOOK_TYPE, lookDescriptor.getType())
 						.put(M_LOOK_DESCRIPTION, lookDescriptor.getDescription());
 					entityLooks.put(lookDescriptor.getLook().getKeyId(), lookMessage);
-					itemParts.add(Markup.escape(lookDescriptor.getDescription()));
 				}
-
+				
 				entityMessage.put(M_LOOK_ENTITY_LOOKS, entityLooks);
 				itemEntities.put(item.getKeyId(), entityMessage);
 			}
 			
-			if (!itemParts.isEmpty()) {
+			// Format the list for display using corrected markup parts
+			if (!correctedMarkupParts.isEmpty()) {
 				java.util.List<Markup.Safe> joined = new java.util.ArrayList<>();
-				for (int i = 0; i < itemParts.size(); i++) {
+				for (int i = 0; i < correctedMarkupParts.size(); i++) {
 					if (i > 0) {
-						if (i == itemParts.size() - 1 && itemParts.size() > 1) {
+						if (i == correctedMarkupParts.size() - 1 && correctedMarkupParts.size() > 1) {
 							joined.add(Markup.raw(", and "));
-						} else if (itemParts.size() > 1) {
+						} else if (correctedMarkupParts.size() > 1) {
 							joined.add(Markup.raw(", "));
 						}
 					}
-					joined.add(itemParts.get(i));
+					joined.add(correctedMarkupParts.get(i));
 				}
 				
 				parts.add(Markup.raw("\nItems: "));

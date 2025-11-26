@@ -8,6 +8,8 @@ import com.benleskey.textengine.util.Markup;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Flow;
@@ -31,6 +33,35 @@ public abstract class Client {
 	protected Optional<Entity> entity;
 	protected boolean alive;
 	protected String id = "?";
+	
+	/**
+	 * Client-specific mapping of numeric IDs to entities for disambiguation.
+	 * Reset each time a command generates a new list (look, inventory, etc.).
+	 * Allows users to type "1", "2", "3" instead of ambiguous keywords.
+	 */
+	protected Map<Integer, Entity> numericIdMap = new HashMap<>();
+	
+	/**
+	 * Set the numeric ID mapping for this client.
+	 * This allows users to reference entities by number when keywords are ambiguous.
+	 */
+	public void setNumericIdMap(Map<Integer, Entity> map) {
+		this.numericIdMap = new HashMap<>(map);
+	}
+	
+	/**
+	 * Get an entity by its numeric ID, if mapped.
+	 */
+	public Optional<Entity> getEntityByNumericId(int numericId) {
+		return Optional.ofNullable(numericIdMap.get(numericId));
+	}
+	
+	/**
+	 * Clear the numeric ID mapping.
+	 */
+	public void clearNumericIdMap() {
+		this.numericIdMap.clear();
+	}
 
 	public abstract CommandInput waitForInput();
 

@@ -251,8 +251,7 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 			List<com.benleskey.textengine.model.LookDescriptor> sourceLooks = 
 				lookSystem.getLooksFromEntity(from, ws.getCurrentTime());
 			String sourceDescription = sourceLooks.isEmpty() ? "back" : sourceLooks.get(0).getDescription();
-			String keyword = extractKeyword(sourceDescription);
-			String reverseLandmark = highlightKeywordInDescription(sourceDescription, keyword);
+			String reverseLandmark = sourceDescription; // Plain description, highlighting happens in DisambiguationSystem
 			
 			// Check if reverse connection exists
 			Optional<Entity> reverseExists = connectionSystem.findExit(destination, reverseLandmark, ws.getCurrentTime());
@@ -307,8 +306,7 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		List<com.benleskey.textengine.model.LookDescriptor> sourceLooks = 
 			lookSystem.getLooksFromEntity(from, ws.getCurrentTime());
 		String sourceDescription = sourceLooks.isEmpty() ? "back" : sourceLooks.get(0).getDescription();
-		String keyword = extractKeyword(sourceDescription);
-		String reverseLandmark = highlightKeywordInDescription(sourceDescription, keyword);
+		String reverseLandmark = sourceDescription; // Plain description, highlighting happens in DisambiguationSystem
 		connectionSystem.connect(newPlace, from, reverseLandmark);
 		
 		// Generate neighboring places and exits from the new place
@@ -416,9 +414,8 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 				lookSystem.getLooksFromEntity(neighbor, ws.getCurrentTime());
 			String fullDescription = neighborLooks.isEmpty() ? "somewhere" : neighborLooks.get(0).getDescription();
 			
-			// Extract keyword and create highlighted landmark name
-			String keyword = extractKeyword(fullDescription);
-			String landmarkName = highlightKeywordInDescription(fullDescription, keyword);
+			// Use plain description as landmark name (highlighting happens in DisambiguationSystem)
+			String landmarkName = fullDescription;
 			
 			// Ensure uniqueness - if we already have a connection to this landmark, skip
 			if (usedLandmarks.contains(landmarkName)) {
@@ -426,7 +423,7 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 				int suffix = 2;
 				String uniqueName = landmarkName;
 				while (usedLandmarks.contains(uniqueName) && suffix < 10) {
-					uniqueName = highlightKeywordInDescription(fullDescription, keyword + suffix);
+					uniqueName = fullDescription + " " + suffix;
 					suffix++;
 				}
 				if (!usedLandmarks.contains(uniqueName)) {
@@ -470,54 +467,6 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	
 	/**
 	 * Extract a single-word keyword from a place description.
-	 * Uses heuristics to find the most meaningful noun in the description.
-	 */
-	private String extractKeyword(String description) {
-		if (description == null || description.isEmpty()) {
-			return "place";
-		}
-		
-		String[] words = description.split("\\s+");
-		
-		// Skip common articles and adjectives, look for the key noun
-		Set<String> skipWords = Set.of("a", "an", "the", "with", "in", "of", "under", "over", "beside", "near");
-		
-		for (String word : words) {
-			String cleaned = word.toLowerCase().replaceAll("[^a-z]", "");
-			if (!cleaned.isEmpty() && !skipWords.contains(cleaned)) {
-				return cleaned;
-			}
-		}
-		
-		// Fallback: use the first word
-		return words.length > 0 ? words[0].toLowerCase().replaceAll("[^a-z]", "") : "place";
-	}
-	
-	/**
-	 * Highlight a keyword within a description using markup.
-	 * Creates a string like "dense <em>forest</em> with towering trees"
-	 */
-	private String highlightKeywordInDescription(String description, String keyword) {
-		if (description == null || description.isEmpty() || keyword == null || keyword.isEmpty()) {
-			return description;
-		}
-		
-		// Case-insensitive search for the keyword within the description
-		String lowerDescription = description.toLowerCase();
-		String lowerKeyword = keyword.toLowerCase();
-		
-		int index = lowerDescription.indexOf(lowerKeyword);
-		if (index == -1) {
-			// Keyword not found, just return description
-			return description;
-		}
-		
-		// Build highlighted version
-		return description.substring(0, index) + 
-		       "<em>" + description.substring(index, index + keyword.length()) + "</em>" +
-		       description.substring(index + keyword.length());
-	}
-	
 	/**
 	 * Generate items for a place based on its biome type.
 	 * Creates 2-5 items that fit the biome theme.

@@ -10,9 +10,9 @@ import com.benleskey.textengine.commands.CommandVariant;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.systems.ConnectionSystem;
+import com.benleskey.textengine.systems.DisambiguationSystem;
 import com.benleskey.textengine.systems.RelationshipSystem;
 import com.benleskey.textengine.systems.WorldSystem;
-import com.benleskey.textengine.util.FuzzyMatcher;
 import com.benleskey.textengine.util.Markup;
 
 import java.util.List;
@@ -84,18 +84,53 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 
 		Entity currentLocation = containers.get(0).getProvider();
 		
-		// Get available exits and match user input
+		// Get available exits and match user input using DisambiguationSystem
 		List<com.benleskey.textengine.model.ConnectionDescriptor> exits = 
 			cs.getConnections(currentLocation, ws.getCurrentTime());
 		
-		com.benleskey.textengine.model.ConnectionDescriptor matchedExit = FuzzyMatcher.match(
+		// Try numeric ID first, then fuzzy match
+		DisambiguationSystem ds = game.getSystem(DisambiguationSystem.class);
+		
+		// Extract exit destinations as entities
+		List<Entity> exitDestinations = exits.stream()
+			.map(com.benleskey.textengine.model.ConnectionDescriptor::getTo)
+			.toList();
+		
+		// Resolve the user input to an exit destination
+		Entity matchedDestination = ds.resolveEntity(
+			client,
 			userInput,
-			exits,
-			exit -> exit.getExitName()
+			exitDestinations,
+			exit -> {
+				// Find the exit descriptor for this destination
+				for (com.benleskey.textengine.model.ConnectionDescriptor desc : exits) {
+					if (desc.getTo().equals(exit)) {
+						return desc.getExitName();
+					}
+				}
+				return null;
+			}
 		);
 		
-		if (matchedExit == null) {
+		if (matchedDestination == null) {
 			// Ambiguous or no match
+			client.sendOutput(CommandOutput.make(M_GO_FAIL)
+				.put(M_GO_ERROR, "no_exit")
+				.text(Markup.escape("You can't go that way.")));
+			return;
+		}
+		
+		// Find the exit descriptor for the matched destination
+		com.benleskey.textengine.model.ConnectionDescriptor matchedExit = null;
+		for (com.benleskey.textengine.model.ConnectionDescriptor desc : exits) {
+			if (desc.getTo().equals(matchedDestination)) {
+				matchedExit = desc;
+				break;
+			}
+		}
+		
+		// This should never happen since we matched the destination, but check anyway
+		if (matchedExit == null) {
 			client.sendOutput(CommandOutput.make(M_GO_FAIL)
 				.put(M_GO_ERROR, "no_exit")
 				.text(Markup.escape("You can't go that way.")));
