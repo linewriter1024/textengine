@@ -186,6 +186,17 @@ Markup.Safe message = Markup.concat(
 
 **Pattern**: Use `raw()` for your markup, `escape()` for user content, `em()` for emphasis.
 
+### Rendering Markup
+
+Use `Markup.toPlainText()` to convert markup to plain text for display or logging:
+
+```java
+String landmarkName = "<em>dark forest</em>";
+String plainText = Markup.toPlainText(Markup.raw(landmarkName));  // "dark forest"
+```
+
+**Why this matters**: Markup rendering is a presentation concern, not a matching concern. `FuzzyMatcher` uses `Markup.toPlainText()` internally to strip markup when comparing user input to entity descriptions.
+
 ## World Generation
 
 ### Deterministic Generation

@@ -73,13 +73,11 @@ public class VisibilitySystem extends SingletonGameSystem implements OnSystemIni
 		List<VisibilityDescriptor> visible = new ArrayList<>();
 
 		// 1. Get containers that contain the observer (current location + parents)
-		// But exclude the observer themselves - we don't want to see our own inventory as siblings
 		Set<Entity> containers = relationshipSystem.getProvidingEntitiesRecursive(
 			observer, 
 			relationshipSystem.rvContains, 
 			when
 		);
-		containers.remove(observer);  // Observer is not their own container for visibility
 
 		// 2. Get immediate siblings (things in same immediate container)
 		Set<Entity> immediateSiblings = new HashSet<>();

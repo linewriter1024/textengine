@@ -12,6 +12,7 @@ import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.systems.ConnectionSystem;
 import com.benleskey.textengine.systems.RelationshipSystem;
 import com.benleskey.textengine.systems.WorldSystem;
+import com.benleskey.textengine.util.FuzzyMatcher;
 import com.benleskey.textengine.util.Markup;
 
 import java.util.List;
@@ -87,7 +88,12 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		List<com.benleskey.textengine.model.ConnectionDescriptor> exits = 
 			cs.getConnections(currentLocation, ws.getCurrentTime());
 		
-		String matchedExit = matchExitName(userInput, exits);
+		com.benleskey.textengine.model.ConnectionDescriptor matchedExit = FuzzyMatcher.match(
+			userInput,
+			exits,
+			exit -> exit.getExitName()
+		);
+		
 		if (matchedExit == null) {
 			// Ambiguous or no match
 			client.sendOutput(CommandOutput.make(M_GO_FAIL)
@@ -99,7 +105,7 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		// Always use ProceduralWorldPlugin to handle navigation
 		// It will either find existing place or generate new one, and ensure neighbors exist
 		ProceduralWorldPlugin worldGen = (ProceduralWorldPlugin) game.getPlugin(ProceduralWorldPlugin.class);
-		Entity destination = worldGen.generatePlaceForExit(currentLocation, matchedExit);
+		Entity destination = worldGen.generatePlaceForExit(currentLocation, matchedExit.getExitName());
 
 		// Move the actor: remove from current location, add to new location
 		// We cancel the old containment and create a new one
@@ -113,8 +119,8 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		rs.add(destination, actor, rs.rvContains);
 
 		// Build safe markup message - show the landmark description
-		// Strip the markup tags for the message
-		String landmarkText = stripMarkup(matchedExit);
+		// Convert markup to plain text for the message
+		String landmarkText = Markup.toPlainText(Markup.raw(matchedExit.getExitName()));
 		Markup.Safe message = Markup.concat(
 			Markup.raw("You go to "),
 			Markup.escape(landmarkText),
@@ -123,65 +129,10 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 
 		client.sendOutput(CommandOutput.make(M_GO_SUCCESS)
 			.put(M_GO_DESTINATION, destination.getKeyId())
-			.put(M_GO_EXIT, matchedExit)
+			.put(M_GO_EXIT, matchedExit.getExitName())
 			.text(message));
 		
 		// Automatically look around the new location
 		game.feedCommand(client, CommandInput.make(LOOK));
-	}
-
-	/**
-	 * Match user input against available exit names.
-	 * Returns the matched exit name, or null if no match or ambiguous.
-	 * 
-	 * Matching rules:
-	 * 1. Exact match (case-insensitive, ignoring markup)
-	 * 2. Substring match (case-insensitive, ignoring markup)
-	 * 
-	 * If multiple exits match, returns null (ambiguous).
-	 */
-	private String matchExitName(String userInput, List<com.benleskey.textengine.model.ConnectionDescriptor> exits) {
-		if (exits.isEmpty()) {
-			return null;
-		}
-		
-		String lowerInput = userInput.toLowerCase().trim();
-		String matchedExit = null;
-		int matchCount = 0;
-		
-		// First pass: try exact match
-		for (var exit : exits) {
-			String exitName = exit.getExitName();
-			String exitNameStripped = stripMarkup(exitName).toLowerCase();
-			
-			if (exitNameStripped.equals(lowerInput)) {
-				return exitName; // Exact match, use it immediately
-			}
-		}
-		
-		// Second pass: try substring match
-		for (var exit : exits) {
-			String exitName = exit.getExitName();
-			String exitNameStripped = stripMarkup(exitName).toLowerCase();
-			
-			if (exitNameStripped.contains(lowerInput)) {
-				matchedExit = exitName;
-				matchCount++;
-			}
-		}
-		
-		// Return matched exit only if unambiguous
-		return matchCount == 1 ? matchedExit : null;
-	}
-	
-	/**
-	 * Strip markup tags from a string (simple implementation).
-	 */
-	private String stripMarkup(String text) {
-		if (text == null) {
-			return "";
-		}
-		// Remove <em> tags and other markup
-		return text.replaceAll("<[^>]+>", "");
 	}
 }

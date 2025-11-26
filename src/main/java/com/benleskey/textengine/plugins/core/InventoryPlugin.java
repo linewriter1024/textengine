@@ -14,6 +14,7 @@ import com.benleskey.textengine.model.LookDescriptor;
 import com.benleskey.textengine.model.RelationshipDescriptor;
 import com.benleskey.textengine.model.VisibilityDescriptor;
 import com.benleskey.textengine.systems.*;
+import com.benleskey.textengine.util.FuzzyMatcher;
 import com.benleskey.textengine.util.Markup;
 
 import java.util.List;
@@ -124,23 +125,17 @@ public class InventoryPlugin extends Plugin implements OnPluginInitialize {
 			currentLocation, rs.rvContains, ws.getCurrentTime()
 		);
 		
-		// Filter to actual Item entities and match the name
-		final Entity[] targetItemHolder = new Entity[1];
-		for (RelationshipDescriptor rd : itemsInLocation) {
-			Entity item = rd.getReceiver();
-			if (item instanceof Item) {
-				List<LookDescriptor> looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
-				if (!looks.isEmpty()) {
-					String description = looks.get(0).getDescription().toLowerCase();
-					if (description.contains(itemName) || stripMarkup(description).contains(itemName)) {
-						targetItemHolder[0] = item;
-						break;
-					}
-				}
-			}
-		}
+		// Filter to actual Item entities and find match
+		List<Entity> items = itemsInLocation.stream()
+			.map(RelationshipDescriptor::getReceiver)
+			.filter(e -> e instanceof Item)
+			.collect(Collectors.toList());
 		
-		Entity targetItem = targetItemHolder[0];
+		Entity targetItem = FuzzyMatcher.match(itemName, items, item -> {
+			List<LookDescriptor> looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
+			return looks.isEmpty() ? null : looks.get(0).getDescription();
+		});
+		
 		if (targetItem == null) {
 			client.sendOutput(CommandOutput.make(TAKE)
 				.put(M_ERROR, "not_found")
@@ -173,7 +168,7 @@ public class InventoryPlugin extends Plugin implements OnPluginInitialize {
 		
 		// Get item description for output
 		List<LookDescriptor> looks = ls.getLooksFromEntity(targetItem, ws.getCurrentTime());
-		String itemDescription = looks.isEmpty() ? "something" : stripMarkup(looks.get(0).getDescription());
+		String itemDescription = looks.isEmpty() ? "something" : Markup.toPlainText(Markup.raw(looks.get(0).getDescription()));
 		
 		client.sendOutput(CommandOutput.make(TAKE)
 			.put(M_SUCCESS, true)
@@ -211,23 +206,17 @@ public class InventoryPlugin extends Plugin implements OnPluginInitialize {
 			actor, rs.rvContains, ws.getCurrentTime()
 		);
 		
-		// Filter to actual Item entities and match the name
-		final Entity[] targetItemHolder = new Entity[1];
-		for (RelationshipDescriptor rd : itemsInInventory) {
-			Entity item = rd.getReceiver();
-			if (item instanceof Item) {
-				List<LookDescriptor> looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
-				if (!looks.isEmpty()) {
-					String description = looks.get(0).getDescription().toLowerCase();
-					if (description.contains(itemName) || stripMarkup(description).contains(itemName)) {
-						targetItemHolder[0] = item;
-						break;
-					}
-				}
-			}
-		}
+		// Filter to actual Item entities and find match
+		List<Entity> items = itemsInInventory.stream()
+			.map(RelationshipDescriptor::getReceiver)
+			.filter(e -> e instanceof Item)
+			.collect(Collectors.toList());
 		
-		Entity targetItem = targetItemHolder[0];
+		Entity targetItem = FuzzyMatcher.match(itemName, items, item -> {
+			List<LookDescriptor> looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
+			return looks.isEmpty() ? null : looks.get(0).getDescription();
+		});
+		
 		if (targetItem == null) {
 			client.sendOutput(CommandOutput.make(DROP)
 				.put(M_ERROR, "not_found")
@@ -261,7 +250,7 @@ public class InventoryPlugin extends Plugin implements OnPluginInitialize {
 		
 		// Get item description for output
 		List<LookDescriptor> looks = ls.getLooksFromEntity(targetItem, ws.getCurrentTime());
-		String itemDescription = looks.isEmpty() ? "something" : stripMarkup(looks.get(0).getDescription());
+		String itemDescription = looks.isEmpty() ? "something" : Markup.toPlainText(Markup.raw(looks.get(0).getDescription()));
 		
 		client.sendOutput(CommandOutput.make(DROP)
 			.put(M_SUCCESS, true)
@@ -334,7 +323,6 @@ public class InventoryPlugin extends Plugin implements OnPluginInitialize {
 		
 		String itemName = itemNameOpt.get().toString();
 		
-		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		LookSystem ls = game.getSystem(LookSystem.class);
 		ItemSystem is = game.getSystem(ItemSystem.class);
@@ -342,24 +330,16 @@ public class InventoryPlugin extends Plugin implements OnPluginInitialize {
 		
 		// Get visible entities (items in inventory + items in location)
 		List<VisibilityDescriptor> visibleDescriptors = vs.getVisibleEntities(actor);
-		Set<Entity> visibleEntities = visibleDescriptors.stream()
+		List<Entity> visibleItems = visibleDescriptors.stream()
 			.map(VisibilityDescriptor::getEntity)
-			.collect(Collectors.toSet());
+			.filter(e -> e instanceof Item)
+			.collect(Collectors.toList());
 		
 		// Find the item that matches the name
-		Entity targetItem = null;
-		for (Entity entity : visibleEntities) {
-			if (entity instanceof Item) {
-				List<LookDescriptor> looks = ls.getLooksFromEntity(entity, ws.getCurrentTime());
-				if (!looks.isEmpty()) {
-					String description = looks.get(0).getDescription().toLowerCase();
-					if (description.contains(itemName) || stripMarkup(description).contains(itemName)) {
-						targetItem = entity;
-						break;
-					}
-				}
-			}
-		}
+		Entity targetItem = FuzzyMatcher.match(itemName, visibleItems, item -> {
+			List<LookDescriptor> looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
+			return looks.isEmpty() ? null : looks.get(0).getDescription();
+		});
 		
 		if (targetItem == null) {
 			client.sendOutput(CommandOutput.make(EXAMINE)
@@ -373,7 +353,7 @@ public class InventoryPlugin extends Plugin implements OnPluginInitialize {
 		String description = looks.isEmpty() ? "something" : looks.get(0).getDescription();
 		
 		StringBuilder examineText = new StringBuilder();
-		examineText.append("You examine ").append(stripMarkup(description)).append(".\n");
+		examineText.append("You examine ").append(Markup.toPlainText(Markup.raw(description))).append(".\n");
 		
 		// Add item type info
 		Optional<ItemSystem.ItemType> itemType = is.getItemType(targetItem);
@@ -401,12 +381,5 @@ public class InventoryPlugin extends Plugin implements OnPluginInitialize {
 			.put(M_SUCCESS, true)
 			.put(M_ITEM, targetItem)
 			.text(Markup.escape(examineText.toString())));
-	}
-	
-	/**
-	 * Strip markup tags from a description.
-	 */
-	private String stripMarkup(String text) {
-		return text.replaceAll("<[^>]+>", "");
 	}
 }

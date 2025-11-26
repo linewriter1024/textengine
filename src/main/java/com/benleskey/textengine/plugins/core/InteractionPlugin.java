@@ -18,13 +18,14 @@ import com.benleskey.textengine.systems.VisibilitySystem;
 import com.benleskey.textengine.systems.ConnectionSystem;
 import com.benleskey.textengine.systems.RelationshipSystem;
 import com.benleskey.textengine.systems.WorldSystem;
-import com.benleskey.textengine.systems.ItemSystem;
+import com.benleskey.textengine.util.FuzzyMatcher;
 import com.benleskey.textengine.util.Markup;
 import com.benleskey.textengine.util.Message;
 import com.benleskey.textengine.util.RawMessage;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.StringJoiner;
 import java.util.stream.Collectors;
 
@@ -127,67 +128,60 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 		List<ConnectionDescriptor> exits = cs.getConnections(currentLocation, ws.getCurrentTime());
 		
 		// Use fuzzy matching to find the exit (same as navigation)
-		String matchedExitName = matchExitName(target, exits);
+		ConnectionDescriptor matchingExit = FuzzyMatcher.match(target, exits, 
+			exit -> exit.getExitName());
 		
-		if (matchedExitName != null) {
-			// Find the actual exit descriptor with the matched name
-			ConnectionDescriptor matchingExit = exits.stream()
-				.filter(e -> e.getExitName().equals(matchedExitName))
-				.findFirst()
-				.orElse(null);
-			
-			if (matchingExit != null) {
-				// Found an exit, show description of destination
-				Entity destination = matchingExit.getTo();
-				List<LookDescriptor> destLooks = ls.getLooksFromEntity(destination, ws.getCurrentTime());
+		if (matchingExit != null) {
+			// Found an exit, show description of destination
+			Entity destination = matchingExit.getTo();
+			List<LookDescriptor> destLooks = ls.getLooksFromEntity(destination, ws.getCurrentTime());
 				
-				if (!destLooks.isEmpty()) {
-					String description = destLooks.get(0).getDescription();
-					
-					// Get exits from the destination (look ahead)
-					List<ConnectionDescriptor> destExits = cs.getConnections(destination, ws.getCurrentTime());
-					
-					// Build the message
-					java.util.List<Markup.Safe> parts = new java.util.ArrayList<>();
-					
-					// Main description - just show what we see there
-					parts.add(Markup.concat(
-						Markup.raw("You see "),
-						Markup.escape(description),
-						Markup.raw(".")
-					));
-					
-					// Show what's visible from there (landmarks)
-					if (!destExits.isEmpty()) {
-						java.util.List<Markup.Safe> landmarkNames = new java.util.ArrayList<>();
-						for (ConnectionDescriptor destExit : destExits) {
-							landmarkNames.add(Markup.raw(destExit.getExitName()));
-						}
-						
-						// Join landmark names with commas and "and"
-						java.util.List<Markup.Safe> joinedLandmarks = new java.util.ArrayList<>();
-						for (int i = 0; i < landmarkNames.size(); i++) {
-							if (i > 0) {
-								if (i == landmarkNames.size() - 1) {
-									joinedLandmarks.add(Markup.raw(", and "));
-								} else {
-									joinedLandmarks.add(Markup.raw(", "));
-								}
-							}
-							joinedLandmarks.add(landmarkNames.get(i));
-						}
-						
-						parts.add(Markup.raw(" From there you can see "));
-						parts.add(Markup.concat(joinedLandmarks.toArray(new Markup.Safe[0])));
-						parts.add(Markup.raw("."));
+			if (!destLooks.isEmpty()) {
+				String description = destLooks.get(0).getDescription();
+				
+				// Get exits from the destination (look ahead)
+				List<ConnectionDescriptor> destExits = cs.getConnections(destination, ws.getCurrentTime());
+				
+				// Build the message
+				java.util.List<Markup.Safe> parts = new java.util.ArrayList<>();
+				
+				// Main description - just show what we see there
+				parts.add(Markup.concat(
+					Markup.raw("You see "),
+					Markup.escape(description),
+					Markup.raw(".")
+				));
+				
+				// Show what's visible from there (landmarks)
+				if (!destExits.isEmpty()) {
+					java.util.List<Markup.Safe> landmarkNames = new java.util.ArrayList<>();
+					for (ConnectionDescriptor destExit : destExits) {
+						landmarkNames.add(Markup.raw(destExit.getExitName()));
 					}
-				
-					client.sendOutput(CommandOutput.make(M_LOOK)
-						.text(Markup.concat(parts.toArray(new Markup.Safe[0]))));
-				} else {
-					client.sendOutput(CommandOutput.make(M_LOOK)
-						.text(Markup.escape("You see nothing notable in that direction.")));
+					
+					// Join landmark names with commas and "and"
+					java.util.List<Markup.Safe> joinedLandmarks = new java.util.ArrayList<>();
+					for (int i = 0; i < landmarkNames.size(); i++) {
+						if (i > 0) {
+							if (i == landmarkNames.size() - 1) {
+								joinedLandmarks.add(Markup.raw(", and "));
+							} else {
+								joinedLandmarks.add(Markup.raw(", "));
+							}
+						}
+						joinedLandmarks.add(landmarkNames.get(i));
+					}
+					
+					parts.add(Markup.raw(" From there you can see "));
+					parts.add(Markup.concat(joinedLandmarks.toArray(new Markup.Safe[0])));
+					parts.add(Markup.raw("."));
 				}
+			
+				client.sendOutput(CommandOutput.make(M_LOOK)
+					.text(Markup.concat(parts.toArray(new Markup.Safe[0]))));
+			} else {
+				client.sendOutput(CommandOutput.make(M_LOOK)
+					.text(Markup.escape("You see nothing notable in that direction.")));
 			}
 		} else {
 			// No matching exit
@@ -216,16 +210,23 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 		// Get visible entities
 		List<VisibilityDescriptor> visible = vs.getVisibleEntities(entity);
 		
+		// Get items directly carried by the observer (to exclude from location display)
+		Set<Long> carriedItemIds = rs.getReceivingRelationships(entity, rs.rvContains, ws.getCurrentTime())
+			.stream()
+			.map(rd -> rd.getReceiver().getId())
+			.collect(Collectors.toSet());
+		
 		// Group visible entities by distance
 		Map<VisibilitySystem.VisibilityLevel, List<VisibilityDescriptor>> byDistance = 
 			visible.stream().collect(Collectors.groupingBy(VisibilityDescriptor::getDistanceLevel));
 		
-		// Separate items from other entities
+		// Separate items from other entities, excluding items we're carrying
 		List<Entity> nearbyItems = byDistance
 			.getOrDefault(VisibilitySystem.VisibilityLevel.NEARBY, List.of())
 			.stream()
 			.map(VisibilityDescriptor::getEntity)
 			.filter(e -> e instanceof Item)
+			.filter(e -> !carriedItemIds.contains(e.getId()))  // Exclude items we're carrying
 			.collect(Collectors.toList());
 		
 		List<Entity> nearbyNonItems = byDistance
@@ -443,60 +444,5 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 		// Combine all parts and set as text
 		output.text(Markup.concat(parts.toArray(new Markup.Safe[0])));
 		return output;
-	}
-	
-	/**
-	 * Match user input against available exit names.
-	 * Returns the matched exit name, or null if no match or ambiguous.
-	 * 
-	 * Matching rules:
-	 * 1. Exact match (case-insensitive, ignoring markup)
-	 * 2. Substring match (case-insensitive, ignoring markup)
-	 * 
-	 * If multiple exits match, returns null (ambiguous).
-	 */
-	private String matchExitName(String userInput, List<ConnectionDescriptor> exits) {
-		if (exits.isEmpty()) {
-			return null;
-		}
-		
-		String lowerInput = userInput.toLowerCase().trim();
-		String matchedExit = null;
-		int matchCount = 0;
-		
-		// First pass: try exact match
-		for (var exit : exits) {
-			String exitName = exit.getExitName();
-			String exitNameStripped = stripMarkup(exitName).toLowerCase();
-			
-			if (exitNameStripped.equals(lowerInput)) {
-				return exitName; // Exact match, use it immediately
-			}
-		}
-		
-		// Second pass: try substring match
-		for (var exit : exits) {
-			String exitName = exit.getExitName();
-			String exitNameStripped = stripMarkup(exitName).toLowerCase();
-			
-			if (exitNameStripped.contains(lowerInput)) {
-				matchedExit = exitName;
-				matchCount++;
-			}
-		}
-		
-		// Return matched exit only if unambiguous
-		return matchCount == 1 ? matchedExit : null;
-	}
-	
-	/**
-	 * Strip markup tags from a string (simple implementation).
-	 */
-	private String stripMarkup(String text) {
-		if (text == null) {
-			return "";
-		}
-		// Remove <em> tags and other markup
-		return text.replaceAll("<[^>]+>", "");
 	}
 }
