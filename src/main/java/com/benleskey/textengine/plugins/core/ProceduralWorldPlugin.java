@@ -415,23 +415,14 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 			String fullDescription = neighborLooks.isEmpty() ? "somewhere" : neighborLooks.get(0).getDescription();
 			
 			// Use plain description as landmark name (highlighting happens in DisambiguationSystem)
+			// Numeric IDs handle disambiguation, so we don't need to make landmark names unique
 			String landmarkName = fullDescription;
 			
-			// Ensure uniqueness - if we already have a connection to this landmark, skip
+			// Skip if we already have a connection with this landmark name
 			if (usedLandmarks.contains(landmarkName)) {
-				// Try adding a number to make it unique
-				int suffix = 2;
-				String uniqueName = landmarkName;
-				while (usedLandmarks.contains(uniqueName) && suffix < 10) {
-					uniqueName = fullDescription + " " + suffix;
-					suffix++;
-				}
-				if (!usedLandmarks.contains(uniqueName)) {
-					landmarkName = uniqueName;
-				} else {
-					continue; // Skip this one if we can't make it unique
-				}
+				continue;
 			}
+			
 			usedLandmarks.add(landmarkName);
 			
 			// Create one-way connection FROM current place TO neighbor
