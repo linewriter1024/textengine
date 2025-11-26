@@ -220,6 +220,24 @@ Items: some grass [1], a smooth pebble, some grass [2], a blade of grass [3], an
 
 **Pattern**: This solves the ambiguity problem without complex keyword matching - users simply use numbers when names conflict.
 
+### Navigation to Duplicate Destinations
+
+When multiple exits or landmarks have similar names (e.g., "a gnarled willow [3]", "a gnarled willow [5]"), users **must use numeric IDs** to navigate, not keywords.
+
+```
+Items: a peaceful glade [1], a peaceful glade [2]
+Landmarks: a gnarled willow [3], a gnarled willow [5]
+
+> go glade        ❌ AMBIGUOUS - which glade?
+> go 1            ✅ WORKS - goes to first glade
+> go willow       ❌ AMBIGUOUS - which willow?
+> go 3            ✅ WORKS - navigates toward willow [3]
+```
+
+**Why this matters**: The fuzzy matcher cannot disambiguate identical or highly similar descriptions. Numeric IDs provide unambiguous selection.
+
+**Implementation note**: NavigationPlugin uses DisambiguationSystem.resolveEntity() which checks numeric IDs first, then falls back to fuzzy matching. When fuzzy matching finds multiple strong matches, it fails rather than guessing.
+
 ## World Generation
 
 ### Deterministic Generation
@@ -247,6 +265,25 @@ public class ProceduralWorldPlugin extends Plugin {
 - Testing: Same seed = same world
 - Debugging: Reproduce issues reliably
 - Sharing: Players can share interesting worlds by seed
+
+### Spatial Pathfinding
+
+**Use SpatialSystem for pathfinding logic**
+
+```java
+// ✅ GOOD: Clean separation of concerns
+SpatialSystem spatial = game.getSystem(SpatialSystem.class);
+Entity closestExit = spatial.findClosestToTarget(exitDestinations, landmark);
+
+// ❌ BAD: Pathfinding logic scattered in navigation code
+for (Entity exit : exits) {
+    int[] pos = spatial.getPosition(exit);
+    double dist = spatial.distance(pos, landmarkPos);
+    // ... manual distance comparison
+}
+```
+
+**Why**: SpatialSystem encapsulates spatial logic, keeping navigation code clean and reusable.
 
 ## Database Schema
 

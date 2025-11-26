@@ -12,6 +12,7 @@ import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.systems.ConnectionSystem;
 import com.benleskey.textengine.systems.DisambiguationSystem;
 import com.benleskey.textengine.systems.RelationshipSystem;
+import com.benleskey.textengine.systems.SpatialSystem;
 import com.benleskey.textengine.systems.VisibilitySystem;
 import com.benleskey.textengine.systems.WorldSystem;
 import com.benleskey.textengine.util.Markup;
@@ -136,9 +137,7 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		
 		if (isLandmark) {
 			// User is trying to go to a distant landmark
-			// Find the closest adjacent exit that moves toward the landmark
-			// For now, we'll just pick the first available exit as a reasonable choice
-			// Future: implement proper pathfinding based on spatial distance
+			// Find the adjacent exit that moves closest toward the landmark using spatial pathfinding
 			
 			if (exits.isEmpty()) {
 				client.sendOutput(CommandOutput.make(M_GO_FAIL)
@@ -147,10 +146,26 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 				return;
 			}
 			
-			// Pick first exit as the direction toward the landmark
-			matchedExit = exits.get(0);
+			// Use SpatialSystem to find the exit that moves us closest to the landmark
+			SpatialSystem spatialSystem = game.getSystem(SpatialSystem.class);
 			
-			// (We'll get landmark and destination names later when building the message)
+			// Find which exit destination is closest to the landmark
+			Entity closestDestination = spatialSystem.findClosestToTarget(exitDestinations, matchedDestination);
+			
+			if (closestDestination != null) {
+				// Find the exit descriptor for the closest destination
+				for (com.benleskey.textengine.model.ConnectionDescriptor exit : exits) {
+					if (exit.getTo().equals(closestDestination)) {
+						matchedExit = exit;
+						break;
+					}
+				}
+			}
+			
+			// Fallback: pick first exit if pathfinding failed
+			if (matchedExit == null) {
+				matchedExit = exits.get(0);
+			}
 		} else {
 			// Find the exit descriptor for the matched destination
 			for (com.benleskey.textengine.model.ConnectionDescriptor desc : exits) {

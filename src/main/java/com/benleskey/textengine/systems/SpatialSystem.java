@@ -206,6 +206,38 @@ public class SpatialSystem extends SingletonGameSystem implements OnSystemInitia
 	}
 	
 	/**
+	 * Find the entity from a list that is closest to a target position.
+	 * This is used for pathfinding - selecting which adjacent exit to take
+	 * when navigating toward a distant landmark.
+	 * 
+	 * @param candidates List of candidate entities (e.g., exit destinations)
+	 * @param target The target entity we're trying to reach
+	 * @return The candidate entity closest to the target, or null if no candidates have positions
+	 */
+	public synchronized Entity findClosestToTarget(List<Entity> candidates, Entity target) {
+		int[] targetPos = getPosition(target);
+		if (targetPos == null) {
+			return null; // Target has no position
+		}
+		
+		Entity closest = null;
+		double bestDistance = Double.MAX_VALUE;
+		
+		for (Entity candidate : candidates) {
+			int[] candidatePos = getPosition(candidate);
+			if (candidatePos != null) {
+				double dist = distance(candidatePos, targetPos);
+				if (dist < bestDistance) {
+					bestDistance = dist;
+					closest = candidate;
+				}
+			}
+		}
+		
+		return closest;
+	}
+	
+	/**
 	 * Immutable wrapper for coordinates to use as map key.
 	 */
 	private static class CoordKey {
