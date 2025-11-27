@@ -19,7 +19,7 @@ import com.benleskey.textengine.systems.ConnectionSystem;
 import com.benleskey.textengine.systems.RelationshipSystem;
 import com.benleskey.textengine.systems.WorldSystem;
 import com.benleskey.textengine.systems.DisambiguationSystem;
-import com.benleskey.textengine.util.FuzzyMatcher;
+import com.benleskey.textengine.systems.SpatialSystem;
 import com.benleskey.textengine.util.Markup;
 import com.benleskey.textengine.util.Message;
 import com.benleskey.textengine.util.RawMessage;
@@ -120,101 +120,158 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 	}
 	
 	/**
-	 * Look at a specific target (direction or place name).
+	 * Look at a specific target (direction, exit, or distant landmark).
 	 */
 	private void lookAtTarget(Client client, Entity currentLocation, String target, 
 			LookSystem ls, ConnectionSystem cs, WorldSystem ws) {
 		
+		Entity actor = client.getEntity().orElse(null);
+		if (actor == null) {
+			client.sendOutput(Client.NO_ENTITY);
+			return;
+		}
+		
 		// Get available exits from current location
 		List<ConnectionDescriptor> exits = cs.getConnections(currentLocation, ws.getCurrentTime());
 		
-		// Extract destination descriptions for fuzzy matching
-		List<String> exitDescriptions = new java.util.ArrayList<>();
-		for (ConnectionDescriptor exit : exits) {
-			List<LookDescriptor> looks = ls.getLooksFromEntity(exit.getTo(), ws.getCurrentTime());
-			if (!looks.isEmpty()) {
-				exitDescriptions.add(looks.get(0).getDescription());
-			}
-		}
+		// Get distant landmarks visible from here
+		VisibilitySystem vs = game.getSystem(VisibilitySystem.class);
+		List<Entity> distantLandmarks = vs.getVisibleEntities(actor).stream()
+			.filter(vd -> vd.getDistanceLevel() == VisibilitySystem.VisibilityLevel.DISTANT)
+			.map(vd -> vd.getEntity())
+			.toList();
 		
-		// Use fuzzy matching to find the exit description
-		String matchedDescription = FuzzyMatcher.match(target, exitDescriptions);
+		// Combine exits and landmarks for matching
+		List<Entity> allTargets = new java.util.ArrayList<>();
+		List<Entity> exitDestinations = exits.stream()
+			.map(ConnectionDescriptor::getTo)
+			.toList();
+		allTargets.addAll(exitDestinations);
+		allTargets.addAll(distantLandmarks);
 		
-		if (matchedDescription != null) {
-			// Find the corresponding exit
-			ConnectionDescriptor matchingExit = null;
-			for (ConnectionDescriptor exit : exits) {
-				List<LookDescriptor> looks = ls.getLooksFromEntity(exit.getTo(), ws.getCurrentTime());
-				if (!looks.isEmpty() && looks.get(0).getDescription().equals(matchedDescription)) {
-					matchingExit = exit;
-					break;
-				}
+		// Use DisambiguationSystem to resolve the target
+		DisambiguationSystem ds = game.getSystem(DisambiguationSystem.class);
+		Entity matchedTarget = ds.resolveEntity(
+			client,
+			target,
+			allTargets,
+			entity -> {
+				List<LookDescriptor> looks = ls.getLooksFromEntity(entity, ws.getCurrentTime());
+				return !looks.isEmpty() ? looks.get(0).getDescription() : null;
 			}
-			
-			if (matchingExit != null) {
-				// Found an exit, show description of destination
-				Entity destination = matchingExit.getTo();
-				List<LookDescriptor> destLooks = ls.getLooksFromEntity(destination, ws.getCurrentTime());
-					
-				if (!destLooks.isEmpty()) {
-					String description = destLooks.get(0).getDescription();
-					
-					// Get exits from the destination (look ahead)
-					List<ConnectionDescriptor> destExits = cs.getConnections(destination, ws.getCurrentTime());
-					
-					// Build the message
-					java.util.List<Markup.Safe> parts = new java.util.ArrayList<>();
-					
-					// Main description - just show what we see there
-					parts.add(Markup.concat(
-						Markup.raw("You see "),
-						Markup.escape(description),
-						Markup.raw(".")
-					));
-					
-					// Show what's visible from there (exits to other places)
-					if (!destExits.isEmpty()) {
-						java.util.List<Markup.Safe> landmarkNames = new java.util.ArrayList<>();
-						for (ConnectionDescriptor destExit : destExits) {
-							List<LookDescriptor> destExitLooks = ls.getLooksFromEntity(destExit.getTo(), ws.getCurrentTime());
-							if (!destExitLooks.isEmpty()) {
-								landmarkNames.add(Markup.raw(destExitLooks.get(0).getDescription()));
-							}
-						}
-						
-						// Join landmark names with commas and "and"
-						java.util.List<Markup.Safe> joinedLandmarks = new java.util.ArrayList<>();
-						for (int i = 0; i < landmarkNames.size(); i++) {
-						if (i > 0) {
-							if (i == landmarkNames.size() - 1) {
-								joinedLandmarks.add(Markup.raw(", and "));
-							} else {
-								joinedLandmarks.add(Markup.raw(", "));
-							}
-						}
-						joinedLandmarks.add(landmarkNames.get(i));
-					}
-					
-					parts.add(Markup.raw(" From there you can see "));
-					parts.add(Markup.concat(joinedLandmarks.toArray(new Markup.Safe[0])));
-					parts.add(Markup.raw("."));
-				}
-			
-				client.sendOutput(CommandOutput.make(M_LOOK)
-					.text(Markup.concat(parts.toArray(new Markup.Safe[0]))));
-				} else {
-					client.sendOutput(CommandOutput.make(M_LOOK)
-						.text(Markup.escape("You see nothing notable in that direction.")));
-				}
-			}
-		} else {
-			// No matching exit
+		);
+		
+		if (matchedTarget == null) {
+			// No matching target found
 			client.sendOutput(CommandOutput.make(M_LOOK).text(
 				Markup.concat(
 					Markup.raw("You don't see anything called "),
 					Markup.em(target),
 					Markup.raw(" from here.")
 				)));
+			return;
+		}
+		
+		// Check if it's an adjacent exit or a distant landmark
+		boolean isDistantLandmark = distantLandmarks.contains(matchedTarget);
+		
+		if (isDistantLandmark) {
+			// Looking at a distant landmark
+			List<LookDescriptor> landmarkLooks = ls.getLooksFromEntity(matchedTarget, ws.getCurrentTime());
+			if (landmarkLooks.isEmpty()) {
+				client.sendOutput(CommandOutput.make(M_LOOK)
+					.text(Markup.escape("You can't make out any details from this distance.")));
+				return;
+			}
+			
+			String landmarkDescription = landmarkLooks.get(0).getDescription();
+			
+			// Find the nearest exit that moves toward this landmark using spatial pathfinding
+			SpatialSystem spatialSystem = game.getSystem(SpatialSystem.class);
+			Entity closestExit = spatialSystem.findClosestToTarget(
+				SpatialSystem.SCALE_CONTINENT, exitDestinations, matchedTarget);
+			
+			// Build the message
+			java.util.List<Markup.Safe> parts = new java.util.ArrayList<>();
+			
+			parts.add(Markup.concat(
+				Markup.raw("In the distance, you see "),
+				Markup.em(landmarkDescription),
+				Markup.raw(".")
+			));
+			
+			// Show which exit to take to get closer
+			if (closestExit != null) {
+				List<LookDescriptor> exitLooks = ls.getLooksFromEntity(closestExit, ws.getCurrentTime());
+				if (!exitLooks.isEmpty()) {
+					String exitDescription = exitLooks.get(0).getDescription();
+					parts.add(Markup.concat(
+						Markup.raw(" To get closer, head toward "),
+						Markup.em(exitDescription),
+						Markup.raw(".")
+					));
+				}
+			}
+			
+			client.sendOutput(CommandOutput.make(M_LOOK)
+				.put(M_LOOK_TARGET, matchedTarget.getKeyId())
+				.text(Markup.concat(parts.toArray(new Markup.Safe[0]))));
+		} else {
+			// Looking at an adjacent exit
+			List<LookDescriptor> destLooks = ls.getLooksFromEntity(matchedTarget, ws.getCurrentTime());
+			
+			if (destLooks.isEmpty()) {
+				client.sendOutput(CommandOutput.make(M_LOOK)
+					.text(Markup.escape("You see nothing notable in that direction.")));
+				return;
+			}
+			
+			String description = destLooks.get(0).getDescription();
+			
+			// Get exits from the destination (look ahead)
+			List<ConnectionDescriptor> destExits = cs.getConnections(matchedTarget, ws.getCurrentTime());
+			
+			// Build the message
+			java.util.List<Markup.Safe> parts = new java.util.ArrayList<>();
+			
+			// Main description - just show what we see there
+			parts.add(Markup.concat(
+				Markup.raw("You see "),
+				Markup.escape(description),
+				Markup.raw(".")
+			));
+			
+			// Show what's visible from there (exits to other places)
+			if (!destExits.isEmpty()) {
+				java.util.List<Markup.Safe> landmarkNames = new java.util.ArrayList<>();
+				for (ConnectionDescriptor destExit : destExits) {
+					List<LookDescriptor> destExitLooks = ls.getLooksFromEntity(destExit.getTo(), ws.getCurrentTime());
+					if (!destExitLooks.isEmpty()) {
+						landmarkNames.add(Markup.raw(destExitLooks.get(0).getDescription()));
+					}
+				}
+				
+				// Join landmark names with commas and "and"
+				java.util.List<Markup.Safe> joinedLandmarks = new java.util.ArrayList<>();
+				for (int i = 0; i < landmarkNames.size(); i++) {
+					if (i > 0) {
+						if (i == landmarkNames.size() - 1) {
+							joinedLandmarks.add(Markup.raw(", and "));
+						} else {
+							joinedLandmarks.add(Markup.raw(", "));
+						}
+					}
+					joinedLandmarks.add(landmarkNames.get(i));
+				}
+				
+				parts.add(Markup.raw(" From there you can see "));
+				parts.add(Markup.concat(joinedLandmarks.toArray(new Markup.Safe[0])));
+				parts.add(Markup.raw("."));
+			}
+			
+			client.sendOutput(CommandOutput.make(M_LOOK)
+				.put(M_LOOK_TARGET, matchedTarget.getKeyId())
+				.text(Markup.concat(parts.toArray(new Markup.Safe[0]))));
 		}
 	}
 	
