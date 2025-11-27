@@ -13,9 +13,7 @@ import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.hooks.core.OnStartClient;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.UniqueType;
-import com.benleskey.textengine.plugins.highfantasy.entities.Axe;
 import com.benleskey.textengine.plugins.highfantasy.entities.Rattle;
-import com.benleskey.textengine.plugins.highfantasy.entities.Tree;
 import com.benleskey.textengine.systems.*;
 
 import java.util.*;
@@ -368,25 +366,16 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	 * falls back to generic Item otherwise.
 	 */
 	private Item createItemEntity(ItemTemplateSystem.ItemData itemData) {
-		String name = itemData.name().toLowerCase();
-		
-		// Check for rattle
-		if (name.contains("rattle") || itemData.tags().contains(itemSystem.TAG_TOY)) {
-			return entitySystem.add(Rattle.class);
+		// Use the entity class specified in the item data
+		// Try to use the specified class, but fall back to Item.class if not registered yet
+		try {
+			return entitySystem.add(itemData.entityClass());
+		} catch (Exception e) {
+			// Entity class not registered yet, use generic Item
+			log.log("Could not create %s, using generic Item instead: %s", 
+				itemData.entityClass().getSimpleName(), e.getMessage());
+			return entitySystem.add(Item.class);
 		}
-		
-		// Check for axe (needs both TOOL and CUT tags)
-		if (name.contains("axe") || itemData.tags().contains(itemSystem.TAG_CUT)) {
-			return entitySystem.add(Axe.class);
-		}
-		
-		// Check for tree
-		if (name.contains("tree") || itemData.tags().contains(itemSystem.TAG_CUTTABLE)) {
-			return entitySystem.add(Tree.class);
-		}
-		
-		// Default: generic item
-		return entitySystem.add(Item.class);
 	}
 	
 	/**

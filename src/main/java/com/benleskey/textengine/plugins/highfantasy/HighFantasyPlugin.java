@@ -40,7 +40,6 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 		registerPlaceDescriptions();
 		registerItems();
 		registerLandmarks();
-		registerItemDescriptions();
 		
 		log.log("High fantasy content registered");
 	}
@@ -48,8 +47,11 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 	@Override
 	public void onCoreSystemsReady() {
 		log.log("Registering high fantasy entity types...");
+		// Register entity types (used by items generated after this point)
 		registerEntityTypes();
-		log.log("High fantasy entity types registered");
+		// Register item descriptions (needs ItemSystem tags initialized)
+		registerItemDescriptions();
+		log.log("High fantasy setup complete");
 	}
 	
 	private void registerEntityTypes() {
@@ -125,10 +127,10 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 			new ItemTemplateSystem.ItemData("a bird's feather"));
 		// Trees (can be cut down with axe)
 		its.registerItemGenerator("forest", 4, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a tree", List.of(is.TAG_CUTTABLE)));
+			new ItemTemplateSystem.ItemData("a tree", List.of(is.TAG_CUTTABLE), Tree.class));
 		// Axes (tools for cutting trees)
 		its.registerItemGenerator("forest", 1, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a rusty axe", List.of(is.TAG_TOOL, is.TAG_CUT)));
+			new ItemTemplateSystem.ItemData("a rusty axe", List.of(is.TAG_TOOL, is.TAG_CUT), Axe.class));
 		
 		// Meadow items
 		its.registerItemGenerator("meadow", 5, (g, r) -> 
@@ -139,7 +141,7 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 			new ItemTemplateSystem.ItemData("a smooth pebble"));
 		// Toy rattles (make sound when used)
 		its.registerItemGenerator("meadow", 1, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a wooden toy rattle", List.of(is.TAG_TOY)));
+			new ItemTemplateSystem.ItemData("a wooden toy rattle", List.of(is.TAG_TOY), Rattle.class));
 		
 		// River items
 		its.registerItemGenerator("river", 5, (g, r) -> 

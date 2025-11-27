@@ -388,7 +388,7 @@ public class InventoryPlugin extends Plugin implements OnPluginInitialize {
 		
 		List<Markup.Safe> examineMarkup = new ArrayList<>();
 		examineMarkup.add(Markup.raw("You examine "));
-		examineMarkup.add(Markup.em(Markup.toPlainText(Markup.raw(description))));
+		examineMarkup.add(Markup.raw(description));
 		examineMarkup.add(Markup.raw("."));
 		
 		// Add tag-based descriptions
@@ -397,8 +397,7 @@ public class InventoryPlugin extends Plugin implements OnPluginInitialize {
 		if (!tagDescriptions.isEmpty()) {
 			examineMarkup.add(Markup.raw("\n"));
 			for (String tagDesc : tagDescriptions) {
-				examineMarkup.add(Markup.raw(tagDesc));
-				examineMarkup.add(Markup.raw("\n"));
+				examineMarkup.add(Markup.escape(tagDesc));
 			}
 		}
 		
@@ -406,7 +405,7 @@ public class InventoryPlugin extends Plugin implements OnPluginInitialize {
 		ItemSystem is = game.getSystem(ItemSystem.class);
 		Long weight = is.getTagValue(targetItem, is.TAG_WEIGHT, ws.getCurrentTime());
 		if (weight != null) {
-			examineMarkup.add(Markup.raw("Weight: " + weight + "\n"));
+			examineMarkup.add(Markup.escape("\nWeight: " + weight));
 		}
 		
 		client.sendOutput(CommandOutput.make(EXAMINE)
