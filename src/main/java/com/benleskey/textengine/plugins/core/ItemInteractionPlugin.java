@@ -11,6 +11,7 @@ import com.benleskey.textengine.entities.Item;
 import com.benleskey.textengine.entities.UsableItem;
 import com.benleskey.textengine.entities.UsableOnTarget;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
+import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.LookDescriptor;
 import com.benleskey.textengine.model.RelationshipDescriptor;
@@ -246,6 +247,18 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		
 		rs.add(actor, item, rs.rvContains);
 		
+		// Taking an item consumes time based on weight
+		// Base time: 5 seconds + 1 second per kg (1000g)
+		ItemSystem itemSystem = game.getSystem(ItemSystem.class);
+		Long weightGrams = itemSystem.getTagValue(item, itemSystem.TAG_WEIGHT, ws.getCurrentTime());
+		long timeSeconds = 5;
+		if (weightGrams != null) {
+			long weightKg = weightGrams / 1000;
+			timeSeconds = 5 + weightKg;
+		}
+		
+		ws.incrementCurrentTime(DTime.fromSeconds(timeSeconds));
+		
 		client.sendOutput(CommandOutput.make(TAKE)
 			.put(M_SUCCESS, true)
 			.put(M_ENTITY_ID, String.valueOf(item.getId()))
@@ -458,6 +471,15 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 			.map(RelationshipDescriptor::getReceiver)
 			.filter(e -> e instanceof Item)
 			.collect(Collectors.toList());
+		
+		// Check if entity provides dynamic description
+		if (targetItem instanceof com.benleskey.textengine.entities.DynamicDescription dynamicDesc) {
+			String description = dynamicDesc.getDynamicDescription();
+			if (description != null && !description.isEmpty()) {
+				examineMarkup.add(Markup.raw("\n"));
+				examineMarkup.add(Markup.escape(description));
+			}
+		}
 		
 		// If it's a container, show contents
 		if (!contents.isEmpty()) {

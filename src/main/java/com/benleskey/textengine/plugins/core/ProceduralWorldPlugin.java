@@ -12,7 +12,6 @@ import com.benleskey.textengine.hooks.core.OnEntityTypesRegistered;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.hooks.core.OnStartClient;
 import com.benleskey.textengine.model.Entity;
-import com.benleskey.textengine.plugins.highfantasy.entities.Rattle;
 import com.benleskey.textengine.systems.*;
 
 import java.util.*;
@@ -71,6 +70,7 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	public void onPluginInitialize() {
 		// Register all required systems
 		game.registerSystem(new WorldSystem(game));
+		game.registerSystem(new TickSystem(game));
 		game.registerSystem(new SpatialSystem(game));
 		game.registerSystem(new BiomeSystem(game));
 		game.registerSystem(new PlaceDescriptionSystem(game));
@@ -128,10 +128,15 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		// Place actor in starting location
 		rs.add(startingPlace, actor, rs.rvContains);
 		
-		// Give player a starting rattle for testing
-		Rattle rattle = Rattle.create(game, "a wooden toy rattle");
-		rs.add(actor, rattle, rs.rvContains); // Put rattle in player's inventory
-		log.log("Gave player starting rattle for testing");
+		// Give player a starting timepiece so they can see the time
+		var timepiece = com.benleskey.textengine.plugins.highfantasy.entities.Timepiece.create(game, "a pocket timepiece");
+		rs.add(actor, timepiece, rs.rvContains); // Put timepiece in player's inventory
+		log.log("Gave player starting timepiece");
+		
+		// Add a grandfather clock to the starting location for testing
+		var clock = com.benleskey.textengine.plugins.highfantasy.entities.GrandfatherClock.create(game, "a grandfather clock");
+		rs.add(startingPlace, clock, rs.rvContains);
+		log.log("Added grandfather clock to starting location");
 		
 		// Send initial look command so player sees where they are
 		CommandInput lookCommand = game.inputLineToCommandInput("look");

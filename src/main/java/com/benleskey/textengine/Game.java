@@ -202,6 +202,24 @@ public class Game {
 	private boolean anyClientAlive() {
 		return clients.stream().anyMatch(Client::isAlive);
 	}
+	
+	/**
+	 * Get all registered clients.
+	 * @return Collection of all clients
+	 */
+	public Collection<Client> getClients() {
+		return clients;
+	}
+	
+	/**
+	 * Process ticks for all tickable entities in the world.
+	 * This is called after all client commands have been processed in the game loop.
+	 * Ticks are based on world time advancement, not individual clients.
+	 */
+	private void processTicks() throws InternalException {
+		com.benleskey.textengine.systems.TickSystem tickSystem = getSystem(com.benleskey.textengine.systems.TickSystem.class);
+		tickSystem.processWorldTicks();
+	}
 
 	public void loopWithClients() throws InternalException {
 		if (!initialized) {
@@ -213,6 +231,10 @@ public class Game {
 				for (Client client : clients) {
 					feedCommand(client, client.waitForInput());
 				}
+				
+				// Process ticks after all client commands
+				processTicks();
+				
 				try {
 					databaseConnection.commit();
 				} catch (SQLException e) {

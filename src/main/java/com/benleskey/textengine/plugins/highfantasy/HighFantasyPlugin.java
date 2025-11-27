@@ -34,6 +34,9 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 	public void onPluginInitialize() {
 		log.log("Registering high fantasy content...");
 		
+		// Register the wait command (game-specific calendar implementation)
+		game.registerPlugin(new WaitCommandPlugin(game));
+		
 		registerBiomes();
 		registerPlaceDescriptions();
 		registerItems();
@@ -71,8 +74,10 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 		es.registerEntityType(RustySword.class);
 		es.registerEntityType(TarnishedHelmet.class);
 		es.registerEntityType(WeatheredScroll.class);
+		es.registerEntityType(Timepiece.class);
+		es.registerEntityType(GrandfatherClock.class);
 		
-		log.log("Registered 11 high fantasy entity types");
+		log.log("Registered 13 high fantasy entity types");
 	}
 	
 	/**
@@ -214,6 +219,9 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 		// Wooden chests (containers - can hold items)
 		its.registerItemGenerator("ruins", 2, (g, r) -> 
 			new ItemTemplateSystem.ItemData("a wooden chest", WoodenChest::create));
+		// Grandfather clocks (tickable items that show time)
+		its.registerItemGenerator("ruins", 100, (g, r) -> 
+			new ItemTemplateSystem.ItemData("a grandfather clock", GrandfatherClock::create));
 		
 		// Add chests and axes to all biomes (low probability)
 		for (String biome : List.of("forest", "meadow", "river", "hills", "ruins")) {

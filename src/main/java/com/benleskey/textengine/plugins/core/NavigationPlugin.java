@@ -8,6 +8,7 @@ import com.benleskey.textengine.commands.CommandInput;
 import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.commands.CommandVariant;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
+import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.systems.ConnectionSystem;
 import com.benleskey.textengine.systems.DisambiguationSystem;
@@ -242,6 +243,9 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		var destinationLooks = game.getSystem(com.benleskey.textengine.systems.LookSystem.class)
 			.getLooksFromEntity(destination, ws.getCurrentTime());
 		String exitDescription = !destinationLooks.isEmpty() ? destinationLooks.get(0).getDescription() : "unknown";
+
+		// Movement takes 1 minute
+		ws.incrementCurrentTime(DTime.fromSeconds(60));
 
 		client.sendOutput(CommandOutput.make(M_GO_SUCCESS)
 			.put(M_GO_DESTINATION, destination.getKeyId())

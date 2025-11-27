@@ -312,18 +312,19 @@ Items: some grass [1], a smooth pebble, some grass [2], a blade of grass [3], an
 
 **How it works**:
 1. **Client-side mapping**: Each client stores a `numericIdMap` that maps integers to entities
-2. **Automatic assignment**: When `look` displays items, duplicates get numeric IDs
+2. **Lazy assignment**: Numeric IDs are assigned when a command tries to resolve an entity, not during display commands like `look` or `inventory`
 3. **User interaction**: Users can type `take 1` or `take 3` instead of ambiguous names
-4. **Auto-refresh**: The mapping resets with each new list generation (each `look` command)
+4. **Context-specific**: The mapping is rebuilt for each command that needs disambiguation
 5. **Deterministic ordering**: Same seed produces same item order and same numeric IDs
 
 **Implementation**:
 - `Client.setNumericIdMap(Map<Integer, Entity>)` - stores the mapping
 - `Client.getEntityByNumericId(int)` - retrieves entity by numeric ID
+- `DisambiguationSystem.buildDisambiguatedList()` - assigns IDs when building lists
 - Commands check numeric IDs first, then fall back to fuzzy matching
 - Only duplicates get IDs; unique items remain ID-free
 
-**Pattern**: This solves the ambiguity problem without complex keyword matching - users simply use numbers when names conflict.
+**Pattern**: This solves the ambiguity problem without complex keyword matching - users simply use numbers when names conflict. Numeric IDs are assigned lazily when commands execute (like `take`, `examine`, `drop`), not during display commands (like `look`, `inventory`).
 
 ### Navigation to Duplicate Destinations
 
