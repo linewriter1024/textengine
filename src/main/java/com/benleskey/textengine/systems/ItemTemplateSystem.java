@@ -3,6 +3,7 @@ package com.benleskey.textengine.systems;
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.SingletonGameSystem;
 import com.benleskey.textengine.hooks.core.OnSystemInitialize;
+import com.benleskey.textengine.model.UniqueType;
 
 import java.util.*;
 
@@ -107,16 +108,16 @@ public class ItemTemplateSystem extends SingletonGameSystem implements OnSystemI
 	 * Item data record - contains all information needed to create an item.
 	 * 
 	 * @param name Item name/description
-	 * @param tags Optional tags to apply to the item
+	 * @param tags UniqueType tags to apply to the item
 	 * @param properties Optional additional properties
 	 */
-	public record ItemData(String name, List<String> tags, Map<String, Object> properties) {
+	public record ItemData(String name, List<UniqueType> tags, Map<String, Object> properties) {
 		
 		public ItemData(String name) {
 			this(name, List.of(), Map.of());
 		}
 		
-		public ItemData(String name, List<String> tags) {
+		public ItemData(String name, List<UniqueType> tags) {
 			this(name, tags, Map.of());
 		}
 	}

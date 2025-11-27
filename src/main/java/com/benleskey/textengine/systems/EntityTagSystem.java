@@ -19,6 +19,7 @@ import java.util.Set;
 public class EntityTagSystem extends SingletonGameSystem implements OnSystemInitialize {
 	private PreparedStatement addStatement;
 	private PreparedStatement findByTagStatement;
+	private PreparedStatement findTagsByEntityStatement;
 	private EntitySystem entitySystem;
 	private EventSystem eventSystem;
 	private UniqueType etEntityTag;
@@ -34,7 +35,7 @@ public class EntityTagSystem extends SingletonGameSystem implements OnSystemInit
 		if (v == 0) {
 			try {
 				try (Statement s = game.db().createStatement()) {
-					s.executeUpdate("CREATE TABLE entity_tag(entity_tag_id INTEGER PRIMARY KEY, entity_id INTEGER, entity_tag_type INTEGER)");
+					s.executeUpdate("CREATE TABLE entity_tag(entity_tag_id INTEGER PRIMARY KEY, entity_id INTEGER, entity_tag_type INTEGER, tag_value INTEGER DEFAULT NULL)");
 				}
 			} catch (SQLException e) {
 				throw new DatabaseException("Unable to create entity tag table", e);
@@ -46,8 +47,9 @@ public class EntityTagSystem extends SingletonGameSystem implements OnSystemInit
 		entitySystem = game.getSystem(EntitySystem.class);
 
 		try {
-			addStatement = game.db().prepareStatement("INSERT INTO entity_tag (entity_tag_id, entity_id, entity_tag_type) VALUES (?, ?, ?)");
+			addStatement = game.db().prepareStatement("INSERT INTO entity_tag (entity_tag_id, entity_id, entity_tag_type, tag_value) VALUES (?, ?, ?, ?)");
 			findByTagStatement = game.db().prepareStatement("SELECT entity_id FROM entity_tag WHERE entity_tag_type = ? AND entity_tag_id IN " + eventSystem.getValidEventsSubquery("entity_tag_id"));
+			findTagsByEntityStatement = game.db().prepareStatement("SELECT entity_tag_id, entity_tag_type, tag_value FROM entity_tag WHERE entity_id = ? AND entity_tag_id IN " + eventSystem.getValidEventsSubquery("entity_tag_id"));
 		} catch (SQLException e) {
 			throw new DatabaseException("Unable to prepare entity tag statements", e);
 		}
@@ -55,12 +57,17 @@ public class EntityTagSystem extends SingletonGameSystem implements OnSystemInit
 		etEntityTag = game.getSystem(UniqueTypeSystem.class).getType("entity_tag");
 	}
 
-	public synchronized Reference add(Entity entity, UniqueType tagType) throws DatabaseException {
+	public synchronized Reference add(Entity entity, UniqueType tagType, Long tagValue) throws DatabaseException {
 		try {
 			long newId = game.getNewGlobalId();
 			addStatement.setLong(1, newId);
 			addStatement.setLong(2, entity.getId());
 			addStatement.setLong(3, tagType.type());
+			if (tagValue == null) {
+				addStatement.setNull(4, java.sql.Types.INTEGER);
+			} else {
+				addStatement.setLong(4, tagValue);
+			}
 			addStatement.executeUpdate();
 			// Create an event so the tag is visible at the current time
 			eventSystem.addEventNow(etEntityTag, new Reference(newId, game));
@@ -68,6 +75,10 @@ public class EntityTagSystem extends SingletonGameSystem implements OnSystemInit
 		} catch (SQLException e) {
 			throw new DatabaseException("Unable to add entity tag", e);
 		}
+	}
+
+	public synchronized Reference add(Entity entity, UniqueType tagType) throws DatabaseException {
+		return add(entity, tagType, null);
 	}
 
 	public synchronized Set<Entity> findEntitiesByTag(UniqueType tag, DTime when) {
@@ -96,20 +107,93 @@ public class EntityTagSystem extends SingletonGameSystem implements OnSystemInit
 	}
 
 	/**
-	 * Add a tag to an entity (at current time).
+	 * Add a tag to an entity (at current time) without a value.
 	 */
 	public synchronized Reference addTag(Entity entity, UniqueType tag) {
-		return add(entity, tag);
+		return add(entity, tag, null);
 	}
 
 	/**
-	 * Remove a tag from an entity by creating a cancel event.
+	 * Add a tag to an entity (at current time) with a numeric value.
 	 */
-	public synchronized void removeTag(Entity entity, UniqueType tag) {
-		// This is a simplified implementation - in a full system, we'd need to 
-		// find the specific tag event and cancel it
-		// For now, this is a placeholder
-		log.log("Warning: removeTag not fully implemented - would need to cancel specific tag event");
+	public synchronized Reference addTag(Entity entity, UniqueType tag, long value) {
+		return add(entity, tag, value);
+	}
+
+	/**
+	 * Get the value of a tag on an entity at a given time.
+	 * Returns null if the tag doesn't exist or has no value.
+	 */
+	public synchronized Long getTagValue(Entity entity, UniqueType tag, DTime when) {
+		try {
+			findTagsByEntityStatement.setLong(1, entity.getId());
+			eventSystem.setValidEventsSubqueryParameters(findTagsByEntityStatement, 2, etEntityTag, when);
+			
+			try (ResultSet rs = findTagsByEntityStatement.executeQuery()) {
+				while (rs.next()) {
+					long tagType = rs.getLong(2);
+					
+					if (tagType == tag.type()) {
+						long value = rs.getLong(3);
+						if (rs.wasNull()) {
+							return null;
+						}
+						return value;
+					}
+				}
+			}
+			return null;
+		} catch (SQLException e) {
+			throw new DatabaseException("Unable to get tag value", e);
+		}
+	}
+
+	/**
+	 * Remove a tag from an entity by canceling the tag event at the specified time.
+	 * Finds all tag events for this entity/tag combination and cancels them.
+	 */
+	public synchronized void removeTag(Entity entity, UniqueType tag, DTime when) {
+		try {
+			findTagsByEntityStatement.setLong(1, entity.getId());
+			eventSystem.setValidEventsSubqueryParameters(findTagsByEntityStatement, 2, etEntityTag, when);
+			
+			try (ResultSet rs = findTagsByEntityStatement.executeQuery()) {
+				while (rs.next()) {
+					long tagId = rs.getLong(1);
+					long tagType = rs.getLong(2);
+					
+					// If this tag matches the type we're removing
+					if (tagType == tag.type()) {
+						// Cancel the event
+						eventSystem.cancelEvent(new Reference(tagId, game));
+						log.log("Removed tag %s from entity %d", tag.toString(), entity.getId());
+					}
+				}
+			}
+		} catch (SQLException e) {
+			throw new DatabaseException("Unable to remove tag", e);
+		}
+	}
+
+	/**
+	 * Get all tags for an entity at a given time.
+	 */
+	public synchronized Set<UniqueType> getTags(Entity entity, DTime when) {
+		try {
+			findTagsByEntityStatement.setLong(1, entity.getId());
+			eventSystem.setValidEventsSubqueryParameters(findTagsByEntityStatement, 2, etEntityTag, when);
+			
+			Set<UniqueType> tags = new HashSet<>();
+			UniqueTypeSystem uts = game.getSystem(UniqueTypeSystem.class);
+			try (ResultSet rs = findTagsByEntityStatement.executeQuery()) {
+				while (rs.next()) {
+					long tagType = rs.getLong(2);
+					tags.add(new UniqueType(tagType, uts));
+				}
+			}
+			return tags;
+		} catch (SQLException e) {
+			throw new DatabaseException("Unable to get tags", e);
+		}
 	}
 }
-

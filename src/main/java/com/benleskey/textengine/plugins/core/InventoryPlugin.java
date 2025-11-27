@@ -17,6 +17,7 @@ import com.benleskey.textengine.systems.*;
 import com.benleskey.textengine.util.FuzzyMatcher;
 import com.benleskey.textengine.util.Markup;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -107,7 +108,6 @@ public class InventoryPlugin extends Plugin implements OnPluginInitialize {
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		LookSystem ls = game.getSystem(LookSystem.class);
-		ItemSystem is = game.getSystem(ItemSystem.class);
 		
 		// Find current location
 		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
@@ -157,15 +157,6 @@ public class InventoryPlugin extends Plugin implements OnPluginInitialize {
 			client.sendOutput(CommandOutput.make(TAKE)
 				.put(M_ERROR, "not_found")
 				.text(Markup.escape("You don't see that here.")));
-			return;
-		}
-		
-		// Check if item is infinite (resources) - can't take all of it
-		Optional<Long> quantity = is.getQuantity(targetItem);
-		if (quantity.isPresent() && quantity.get() == -1) {
-			client.sendOutput(CommandOutput.make(TAKE)
-				.put(M_ERROR, "infinite")
-				.text(Markup.escape("You can't take all of that.")));
 			return;
 		}
 		
@@ -356,7 +347,6 @@ public class InventoryPlugin extends Plugin implements OnPluginInitialize {
 		
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		LookSystem ls = game.getSystem(LookSystem.class);
-		ItemSystem is = game.getSystem(ItemSystem.class);
 		VisibilitySystem vs = game.getSystem(VisibilitySystem.class);
 		
 		// Get visible entities (items in inventory + items in location)
@@ -396,34 +386,32 @@ public class InventoryPlugin extends Plugin implements OnPluginInitialize {
 		List<LookDescriptor> looks = ls.getLooksFromEntity(targetItem, ws.getCurrentTime());
 		String description = looks.isEmpty() ? "something" : looks.get(0).getDescription();
 		
-		StringBuilder examineText = new StringBuilder();
-		examineText.append("You examine ").append(Markup.toPlainText(Markup.raw(description))).append(".\n");
+		List<Markup.Safe> examineMarkup = new ArrayList<>();
+		examineMarkup.add(Markup.raw("You examine "));
+		examineMarkup.add(Markup.em(Markup.toPlainText(Markup.raw(description))));
+		examineMarkup.add(Markup.raw("."));
 		
-		// Add item type info
-		Optional<ItemSystem.ItemType> itemType = is.getItemType(targetItem);
-		if (itemType.isPresent()) {
-			examineText.append("Type: ").append(itemType.get().name().toLowerCase()).append("\n");
-		}
-		
-		// Add quantity info
-		Optional<Long> quantity = is.getQuantity(targetItem);
-		if (quantity.isPresent()) {
-			if (quantity.get() == -1) {
-				examineText.append("This appears to be abundant here.\n");
-			} else if (quantity.get() > 1) {
-				examineText.append("Quantity: ").append(quantity.get()).append("\n");
+		// Add tag-based descriptions
+		ItemDescriptionSystem ids = game.getSystem(ItemDescriptionSystem.class);
+		List<String> tagDescriptions = ids.getDescriptions(targetItem, ws.getCurrentTime());
+		if (!tagDescriptions.isEmpty()) {
+			examineMarkup.add(Markup.raw("\n"));
+			for (String tagDesc : tagDescriptions) {
+				examineMarkup.add(Markup.raw(tagDesc));
+				examineMarkup.add(Markup.raw("\n"));
 			}
 		}
 		
-		// Add weight info
-		Optional<Long> weight = is.getWeight(targetItem);
-		if (weight.isPresent()) {
-			examineText.append("Weight: ").append(weight.get()).append("\n");
+		// Add weight if present
+		ItemSystem is = game.getSystem(ItemSystem.class);
+		Long weight = is.getTagValue(targetItem, is.TAG_WEIGHT, ws.getCurrentTime());
+		if (weight != null) {
+			examineMarkup.add(Markup.raw("Weight: " + weight + "\n"));
 		}
 		
 		client.sendOutput(CommandOutput.make(EXAMINE)
 			.put(M_SUCCESS, true)
 			.put(M_ITEM, targetItem)
-			.text(Markup.escape(examineText.toString())));
+			.text(Markup.concat(examineMarkup.toArray(new Markup.Safe[0]))));
 	}
 }

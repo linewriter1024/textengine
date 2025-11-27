@@ -12,6 +12,7 @@ import com.benleskey.textengine.hooks.core.OnCoreSystemsReady;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.hooks.core.OnStartClient;
 import com.benleskey.textengine.model.Entity;
+import com.benleskey.textengine.model.UniqueType;
 import com.benleskey.textengine.plugins.highfantasy.entities.Axe;
 import com.benleskey.textengine.plugins.highfantasy.entities.Rattle;
 import com.benleskey.textengine.plugins.highfantasy.entities.Tree;
@@ -78,6 +79,7 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		game.registerSystem(new PlaceDescriptionSystem(game));
 		game.registerSystem(new ItemTemplateSystem(game));
 		game.registerSystem(new LandmarkTemplateSystem(game));
+		game.registerSystem(new ItemDescriptionSystem(game));
 	}
 	
 	@Override
@@ -131,9 +133,7 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		// Give player a starting rattle for testing
 		Rattle rattle = es.add(Rattle.class);
 		ls.addLook(rattle, "basic", "a wooden toy rattle");
-		is.setItemType(rattle, ItemSystem.ItemType.RESOURCE);
-		is.setQuantity(rattle, 1);
-		is.setWeight(rattle, 1);
+		is.addTag(rattle, is.TAG_TOY);
 		rs.add(actor, rattle, rs.rvContains); // Put rattle in player's inventory
 		log.log("Gave player starting rattle for testing");
 		
@@ -341,31 +341,16 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		Item item = createItemEntity(itemData);
 		lookSystem.addLook(item, "basic", itemData.name());
 		
-		// Set default item properties (type, quantity, weight can be in itemData.properties if needed)
-		ItemSystem.ItemType itemType = ItemSystem.ItemType.RESOURCE; // default
-		long quantity = 1; // default
-		long weight = 1; // default
-		
-		// Check if custom properties were set
-		if (itemData.properties().containsKey("type")) {
-			itemType = (ItemSystem.ItemType) itemData.properties().get("type");
+		// Apply tags directly from item data
+		for (UniqueType tag : itemData.tags()) {
+			itemSystem.addTag(item, tag);
 		}
-		if (itemData.properties().containsKey("quantity")) {
-			quantity = (Long) itemData.properties().get("quantity");
-		}
-		if (itemData.properties().containsKey("weight")) {
-			weight = (Long) itemData.properties().get("weight");
-		}
-		
-		itemSystem.setItemType(item, itemType);
-		itemSystem.setQuantity(item, quantity);
-		itemSystem.setWeight(item, weight);
 		
 		// Place the item in the location using the "contains" relationship
 		relationshipSystem.add(place, item, relationshipSystem.rvContains);
 		
 		// If item is a container (chest), populate it with 2-3 items
-		if (itemData.tags().contains("container")) {
+		if (itemData.tags().contains(itemSystem.TAG_CONTAINER)) {
 			int numContainedItems = 2 + random.nextInt(2); // 2-3 items
 			for (int i = 0; i < numContainedItems; i++) {
 				generateItemInContainer(item, biomeName);
@@ -373,7 +358,7 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 			log.log("Generated container '%s' in place %d with %d items", 
 				itemData.name(), place.getId(), numContainedItems);
 		} else {
-			log.log("Generated item '%s' in place %d (qty: %d)", itemData.name(), place.getId(), quantity);
+			log.log("Generated item '%s' in place %d", itemData.name(), place.getId());
 		}
 	}
 	
@@ -386,17 +371,17 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		String name = itemData.name().toLowerCase();
 		
 		// Check for rattle
-		if (name.contains("rattle") || itemData.tags().contains("toy")) {
+		if (name.contains("rattle") || itemData.tags().contains(itemSystem.TAG_TOY)) {
 			return entitySystem.add(Rattle.class);
 		}
 		
-		// Check for axe
-		if (name.contains("axe") || itemData.tags().contains("tool")) {
+		// Check for axe (needs both TOOL and CUT tags)
+		if (name.contains("axe") || itemData.tags().contains(itemSystem.TAG_CUT)) {
 			return entitySystem.add(Axe.class);
 		}
 		
 		// Check for tree
-		if (name.contains("tree") || itemData.tags().contains("cuttable")) {
+		if (name.contains("tree") || itemData.tags().contains(itemSystem.TAG_CUTTABLE)) {
 			return entitySystem.add(Tree.class);
 		}
 		
@@ -411,7 +396,7 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		// Generate item data (avoid generating another container inside)
 		ItemTemplateSystem.ItemData itemData = itemTemplateSystem.generateItem(biomeName, game, random);
 		
-		if (itemData == null || itemData.tags().contains("container")) {
+		if (itemData == null || itemData.tags().contains(itemSystem.TAG_CONTAINER)) {
 			// Skip containers inside containers, or if no item generated
 			return;
 		}
@@ -420,24 +405,10 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		Item item = createItemEntity(itemData);
 		lookSystem.addLook(item, "basic", itemData.name());
 		
-		// Set default properties
-		ItemSystem.ItemType itemType = ItemSystem.ItemType.RESOURCE;
-		long quantity = 1;
-		long weight = 1;
-		
-		if (itemData.properties().containsKey("type")) {
-			itemType = (ItemSystem.ItemType) itemData.properties().get("type");
+		// Apply tags directly from item data
+		for (UniqueType tag : itemData.tags()) {
+			itemSystem.addTag(item, tag);
 		}
-		if (itemData.properties().containsKey("quantity")) {
-			quantity = (Long) itemData.properties().get("quantity");
-		}
-		if (itemData.properties().containsKey("weight")) {
-			weight = (Long) itemData.properties().get("weight");
-		}
-		
-		itemSystem.setItemType(item, itemType);
-		itemSystem.setQuantity(item, quantity);
-		itemSystem.setWeight(item, weight);
 		
 		// Place item inside the container using the "contains" relationship
 		relationshipSystem.add(container, item, relationshipSystem.rvContains);

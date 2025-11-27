@@ -4,27 +4,34 @@ import com.benleskey.textengine.Game;
 import com.benleskey.textengine.SingletonGameSystem;
 import com.benleskey.textengine.exceptions.DatabaseException;
 import com.benleskey.textengine.hooks.core.OnSystemInitialize;
+import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
-
-import java.util.Optional;
+import com.benleskey.textengine.model.Reference;
+import com.benleskey.textengine.model.UniqueType;
 
 /**
- * System for managing item-specific properties.
- * Handles item types, quantities, weight, and other item attributes.
+ * System for managing item tags using the EntityTagSystem.
+ * Items are non-stackable and use UniqueType tags to define their properties.
+ * 
+ * Common tags:
+ * - "tool" - Item can be used as a tool
+ * - "container" - Item can contain other items
+ * - "cuttable" - Item can be cut down (trees)
+ * - "toy" - Item is a toy (makes sound, etc.)
  */
 public class ItemSystem extends SingletonGameSystem implements OnSystemInitialize {
 	
-	// Item type property subsystem
-	private PropertiesSubSystem<Long, String, String> itemTypeProperties;
+	private EntityTagSystem tagSystem;
+	private UniqueTypeSystem typeSystem;
 	
-	// Item quantity property subsystem (for stackable/infinite resources)
-	private PropertiesSubSystem<Long, String, Long> itemQuantityProperties;
-	
-	// Item weight property subsystem
-	private PropertiesSubSystem<Long, String, Long> itemWeightProperties;
-	
-	// Item container flag property subsystem
-	private PropertiesSubSystem<Long, String, Long> itemContainerProperties;
+	// Common item tags (initialized in onSystemInitialize)
+	public UniqueType TAG_TOOL;
+	public UniqueType TAG_CONTAINER;
+	public UniqueType TAG_CUTTABLE;
+	public UniqueType TAG_TOY;
+	public UniqueType TAG_CUT;  // For tools that can cut things
+	public UniqueType TAG_WEIGHT;  // Numeric tag for item weight
+	public UniqueType TAG_INFINITE_RESOURCE;  // For infinite resources (grass, water, etc.)
 
 	public ItemSystem(Game game) {
 		super(game);
@@ -32,120 +39,51 @@ public class ItemSystem extends SingletonGameSystem implements OnSystemInitializ
 
 	@Override
 	public void onSystemInitialize() throws DatabaseException {
-		// Initialize property subsystems for different item attributes
-		// Note: We create these as standalone subsystems but don't register them with the game
-		// They are managed by ItemSystem and initialized here
-		itemTypeProperties = new PropertiesSubSystem<>(
-			game, 
-			"item_type",
-			PropertiesSubSystem.longHandler(),
-			PropertiesSubSystem.stringHandler(),
-			PropertiesSubSystem.stringHandler()
-		);
-		itemTypeProperties.onSystemInitialize();
+		tagSystem = game.getSystem(EntityTagSystem.class);
+		typeSystem = game.getSystem(UniqueTypeSystem.class);
 		
-		itemQuantityProperties = new PropertiesSubSystem<>(
-			game,
-			"item_quantity", 
-			PropertiesSubSystem.longHandler(),
-			PropertiesSubSystem.stringHandler(),
-			PropertiesSubSystem.longHandler()
-		);
-		itemQuantityProperties.onSystemInitialize();
-		
-		itemWeightProperties = new PropertiesSubSystem<>(
-			game,
-			"item_weight",
-			PropertiesSubSystem.longHandler(),
-			PropertiesSubSystem.stringHandler(),
-			PropertiesSubSystem.longHandler()
-		);
-		itemWeightProperties.onSystemInitialize();
-		
-		itemContainerProperties = new PropertiesSubSystem<>(
-			game,
-			"item_container",
-			PropertiesSubSystem.longHandler(),
-			PropertiesSubSystem.stringHandler(),
-			PropertiesSubSystem.longHandler()
-		);
-		itemContainerProperties.onSystemInitialize();
+		// Initialize common item tags
+		TAG_TOOL = typeSystem.getType("item_tag_tool");
+		TAG_CONTAINER = typeSystem.getType("item_tag_container");
+		TAG_CUTTABLE = typeSystem.getType("item_tag_cuttable");
+		TAG_TOY = typeSystem.getType("item_tag_toy");
+		TAG_CUT = typeSystem.getType("item_tag_cut");
+		TAG_WEIGHT = typeSystem.getType("item_tag_weight");
+		TAG_INFINITE_RESOURCE = typeSystem.getType("item_tag_infinite_resource");
 	}
 
 	/**
-	 * Set the type of an item (e.g., "RESOURCE", "EQUIPMENT", "CONTAINER").
+	 * Add a tag to an item.
 	 */
-	public void setItemType(Entity item, ItemType type) throws DatabaseException {
-		itemTypeProperties.set(item.getId(), "type", type.name());
+	public Reference addTag(Entity item, UniqueType tag) {
+		return tagSystem.addTag(item, tag);
 	}
 
 	/**
-	 * Get the type of an item.
+	 * Add a tag with a numeric value to an item.
 	 */
-	public Optional<ItemType> getItemType(Entity item) throws DatabaseException {
-		return itemTypeProperties.get(item.getId(), "type")
-			.map(ItemType::valueOf);
+	public Reference addTag(Entity item, UniqueType tag, long value) {
+		return tagSystem.addTag(item, tag, value);
 	}
 
 	/**
-	 * Set the quantity of an item. Use -1 for infinite resources.
+	 * Get the numeric value of a tag on an item.
 	 */
-	public void setQuantity(Entity item, long quantity) throws DatabaseException {
-		itemQuantityProperties.set(item.getId(), "quantity", quantity);
+	public Long getTagValue(Entity item, UniqueType tag, DTime when) {
+		return tagSystem.getTagValue(item, tag, when);
 	}
 
 	/**
-	 * Get the quantity of an item. Returns Optional.empty() if not set.
-	 * A value of -1 indicates infinite quantity.
+	 * Remove a tag from an item at a specific time.
 	 */
-	public Optional<Long> getQuantity(Entity item) throws DatabaseException {
-		return itemQuantityProperties.get(item.getId(), "quantity");
+	public void removeTag(Entity item, UniqueType tag, DTime when) {
+		tagSystem.removeTag(item, tag, when);
 	}
 
 	/**
-	 * Check if an item has infinite quantity (e.g., grass, stones in a field).
+	 * Check if an item has a specific tag.
 	 */
-	public boolean isInfinite(Entity item) throws DatabaseException {
-		Optional<Long> quantity = getQuantity(item);
-		return quantity.isPresent() && quantity.get() == -1;
-	}
-
-	/**
-	 * Set the weight of an item (in arbitrary units).
-	 */
-	public void setWeight(Entity item, long weight) throws DatabaseException {
-		itemWeightProperties.set(item.getId(), "weight", weight);
-	}
-
-	/**
-	 * Get the weight of an item.
-	 */
-	public Optional<Long> getWeight(Entity item) throws DatabaseException {
-		return itemWeightProperties.get(item.getId(), "weight");
-	}
-
-	/**
-	 * Mark an item as a container (can hold other items).
-	 */
-	public void setIsContainer(Entity item, boolean isContainer) throws DatabaseException {
-		itemContainerProperties.set(item.getId(), "container", isContainer ? 1L : 0L);
-	}
-
-	/**
-	 * Check if an item is a container.
-	 */
-	public boolean isContainer(Entity item) throws DatabaseException {
-		Optional<Long> containerFlag = itemContainerProperties.get(item.getId(), "container");
-		return containerFlag.isPresent() && containerFlag.get() == 1L;
-	}
-
-	/**
-	 * Enum for item types.
-	 */
-	public enum ItemType {
-		RESOURCE,    // Natural resources like stones, grass, wood
-		EQUIPMENT,   // Tools, weapons, armor
-		CONTAINER,   // Chests, bags, boxes
-		MISC         // Miscellaneous items
+	public boolean hasTag(Entity item, UniqueType tag, DTime when) {
+		return tagSystem.hasTag(item, tag, when);
 	}
 }

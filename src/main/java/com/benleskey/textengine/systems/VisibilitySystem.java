@@ -157,7 +157,7 @@ public class VisibilitySystem extends SingletonGameSystem implements OnSystemIni
 		if (prominent) {
 			entityTagSystem.addTag(entity, tagProminent);
 		} else {
-			entityTagSystem.removeTag(entity, tagProminent);
+			entityTagSystem.removeTag(entity, tagProminent, worldSystem.getCurrentTime());
 		}
 	}
 

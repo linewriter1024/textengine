@@ -40,6 +40,7 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 		registerPlaceDescriptions();
 		registerItems();
 		registerLandmarks();
+		registerItemDescriptions();
 		
 		log.log("High fantasy content registered");
 	}
@@ -113,6 +114,7 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 	
 	private void registerItems() {
 		ItemTemplateSystem its = game.getSystem(ItemTemplateSystem.class);
+		ItemSystem is = game.getSystem(ItemSystem.class);
 		
 		// Forest items
 		its.registerItemGenerator("forest", 5, (g, r) -> 
@@ -123,10 +125,10 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 			new ItemTemplateSystem.ItemData("a bird's feather"));
 		// Trees (can be cut down with axe)
 		its.registerItemGenerator("forest", 4, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a tree", List.of("cuttable")));
+			new ItemTemplateSystem.ItemData("a tree", List.of(is.TAG_CUTTABLE)));
 		// Axes (tools for cutting trees)
 		its.registerItemGenerator("forest", 1, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a rusty axe", List.of("tool")));
+			new ItemTemplateSystem.ItemData("a rusty axe", List.of(is.TAG_TOOL, is.TAG_CUT)));
 		
 		// Meadow items
 		its.registerItemGenerator("meadow", 5, (g, r) -> 
@@ -137,7 +139,7 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 			new ItemTemplateSystem.ItemData("a smooth pebble"));
 		// Toy rattles (make sound when used)
 		its.registerItemGenerator("meadow", 1, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a wooden toy rattle", List.of("toy")));
+			new ItemTemplateSystem.ItemData("a wooden toy rattle", List.of(is.TAG_TOY)));
 		
 		// River items
 		its.registerItemGenerator("river", 5, (g, r) -> 
@@ -168,17 +170,17 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 			new ItemTemplateSystem.ItemData("a weathered scroll"));
 		// Wooden chests (containers - can hold items)
 		its.registerItemGenerator("ruins", 2, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a wooden chest", List.of("container")));
+			new ItemTemplateSystem.ItemData("a wooden chest", List.of(is.TAG_CONTAINER)));
 		
 		// Add chests and axes to all biomes (low probability)
 		for (String biome : List.of("forest", "meadow", "river", "hills", "ruins")) {
 			if (!biome.equals("ruins")) {  // Already added to ruins above
 				its.registerItemGenerator(biome, 1, (g, r) -> 
-					new ItemTemplateSystem.ItemData("a wooden chest", List.of("container")));
+					new ItemTemplateSystem.ItemData("a wooden chest", List.of(is.TAG_CONTAINER)));
 			}
 			if (!biome.equals("forest")) {  // Already added to forest above
 				its.registerItemGenerator(biome, 1, (g, r) -> 
-					new ItemTemplateSystem.ItemData("a rusty axe", List.of("tool")));
+					new ItemTemplateSystem.ItemData("a rusty axe", List.of(is.TAG_TOOL, is.TAG_CUT)));
 			}
 		}
 		
@@ -213,5 +215,20 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 		});
 		
 		log.log("Registered 2 landmark types");
+	}
+	
+	private void registerItemDescriptions() {
+		ItemDescriptionSystem ids = game.getSystem(ItemDescriptionSystem.class);
+		ItemSystem is = game.getSystem(ItemSystem.class);
+		
+		// Register descriptions for common item tags
+		ids.registerTagDescription(is.TAG_INFINITE_RESOURCE, "This resource is abundant here.");
+		ids.registerTagDescription(is.TAG_CONTAINER, "It can hold other items.");
+		ids.registerTagDescription(is.TAG_TOOL, "This appears to be a tool.");
+		ids.registerTagDescription(is.TAG_CUT, "It looks sharp enough to cut things.");
+		ids.registerTagDescription(is.TAG_CUTTABLE, "It could be cut down.");
+		ids.registerTagDescription(is.TAG_TOY, "It looks like a toy.");
+		
+		log.log("Registered item tag descriptions");
 	}
 }

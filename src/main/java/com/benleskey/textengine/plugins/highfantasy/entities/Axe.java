@@ -7,8 +7,8 @@ import com.benleskey.textengine.entities.Item;
 import com.benleskey.textengine.entities.UsableOnTarget;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.LookDescriptor;
-import com.benleskey.textengine.model.RelationshipDescriptor;
 import com.benleskey.textengine.systems.EntitySystem;
+import com.benleskey.textengine.systems.ItemSystem;
 import com.benleskey.textengine.systems.LookSystem;
 import com.benleskey.textengine.systems.RelationshipSystem;
 import com.benleskey.textengine.systems.WorldSystem;
@@ -17,7 +17,8 @@ import com.benleskey.textengine.util.Markup;
 import java.util.List;
 
 /**
- * An axe that can be used to cut down trees, producing wood.
+ * An axe that can be used to cut down cuttable things (trees), producing wood.
+ * Works on any entity tagged with TAG_CUTTABLE.
  */
 public class Axe extends Item implements UsableOnTarget {
 	
@@ -27,13 +28,15 @@ public class Axe extends Item implements UsableOnTarget {
 	
 	@Override
 	public CommandOutput useOn(Client client, Entity actor, Entity target, String targetName) {
-		// Only works on trees
-		if (!(target instanceof Tree)) {
+		ItemSystem is = game.getSystem(ItemSystem.class);
+		LookSystem ls = game.getSystem(LookSystem.class);
+		WorldSystem ws = game.getSystem(WorldSystem.class);
+		
+		// Only works on cuttable things
+		if (!is.hasTag(target, is.TAG_CUTTABLE, ws.getCurrentTime())) {
 			return null; // No interaction defined
 		}
 		
-		LookSystem ls = game.getSystem(LookSystem.class);
-		WorldSystem ws = game.getSystem(WorldSystem.class);
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		EntitySystem es = game.getSystem(EntitySystem.class);
 		
@@ -59,7 +62,7 @@ public class Axe extends Item implements UsableOnTarget {
 		// Add wood to location
 		rs.add(currentLocation, wood, rs.rvContains);
 		
-		// Remove the tree
+		// Remove the tree (cancel its containment)
 		var treeContainment = rs.getProvidingRelationships(target, rs.rvContains, ws.getCurrentTime());
 		if (!treeContainment.isEmpty()) {
 			game.getSystem(com.benleskey.textengine.systems.EventSystem.class)
