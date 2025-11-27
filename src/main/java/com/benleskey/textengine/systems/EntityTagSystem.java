@@ -196,4 +196,17 @@ public class EntityTagSystem extends SingletonGameSystem implements OnSystemInit
 			throw new DatabaseException("Unable to get tags", e);
 		}
 	}
+	
+	/**
+	 * Update a tag value by canceling the old tag and adding a new one.
+	 * This maintains temporal history of value changes.
+	 */
+	public synchronized Reference updateTagValue(Entity entity, UniqueType tag, long newValue, DTime when) {
+		// Cancel existing tag if it exists
+		if (hasTag(entity, tag, when)) {
+			removeTag(entity, tag, when);
+		}
+		// Add new tag with updated value
+		return add(entity, tag, newValue);
+	}
 }

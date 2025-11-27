@@ -39,6 +39,8 @@ public class ItemSystem extends SingletonGameSystem implements OnSystemInitializ
 	public UniqueType TAG_TAKEABLE;  // Item can be taken (picked up)
 	public UniqueType TAG_CARRY_WEIGHT;  // Maximum weight entity can carry (in grams)
 	public UniqueType TAG_TICKABLE;  // Entity receives periodic tick updates
+	public UniqueType TAG_ENTITY_CREATED;  // Time when entity was created (in milliseconds)
+	public UniqueType TAG_LAST_TICK;  // Last time entity was ticked (in milliseconds)
 
 	public ItemSystem(Game game) {
 		super(game);
@@ -64,6 +66,8 @@ public class ItemSystem extends SingletonGameSystem implements OnSystemInitializ
 		TAG_TAKEABLE = typeSystem.getType("item_tag_takeable");
 		TAG_CARRY_WEIGHT = typeSystem.getType("item_tag_carry_weight");
 		TAG_TICKABLE = typeSystem.getType("item_tag_tickable");
+		TAG_ENTITY_CREATED = typeSystem.getType("item_tag_entity_created");
+		TAG_LAST_TICK = typeSystem.getType("item_tag_last_tick");
 	}
 
 	/**
@@ -99,5 +103,12 @@ public class ItemSystem extends SingletonGameSystem implements OnSystemInitializ
 	 */
 	public boolean hasTag(Entity item, UniqueType tag, DTime when) {
 		return tagSystem.hasTag(item, tag, when);
+	}
+	
+	/**
+	 * Update a tag value (cancels old value and adds new one).
+	 */
+	public Reference updateTagValue(Entity item, UniqueType tag, long newValue, DTime when) {
+		return tagSystem.updateTagValue(item, tag, newValue, when);
 	}
 }

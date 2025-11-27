@@ -19,11 +19,12 @@ public class SchemaManager {
 
 	public void initialize() throws DatabaseException {
 		try {
-			try (PreparedStatement s = game.db().prepareStatement("CREATE TABLE system_schema(system_id TEXT PRIMARY KEY, version_number INTEGER)")) {
+			// Use IF NOT EXISTS to allow reconnecting to existing databases
+			try (PreparedStatement s = game.db().prepareStatement("CREATE TABLE IF NOT EXISTS system_schema(system_id TEXT PRIMARY KEY, version_number INTEGER)")) {
 				s.execute();
 			}
 
-			try (PreparedStatement s = game.db().prepareStatement("CREATE TABLE system_id(id INTEGER PRIMARY KEY)")) {
+			try (PreparedStatement s = game.db().prepareStatement("CREATE TABLE IF NOT EXISTS system_id(id INTEGER PRIMARY KEY)")) {
 				s.execute();
 			}
 

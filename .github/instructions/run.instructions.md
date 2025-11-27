@@ -59,6 +59,24 @@ printf "look\ngo forest\nlook\nquit\n" | mvn -q exec:java -Dexec.mainClass="com.
 printf "look\ngo forest\nlook\nquit\n" | mvn -q exec:java -Dexec.mainClass="com.benleskey.textengine.cli.Main" -Dexec.args="--showlog --apidebug"
 ```
 
+### Testing Persistence
+
+Use the `--database` option to specify a persistent database file instead of the default timestamped temporary file:
+
+```bash
+# First run - create world and do some actions
+printf "look\nwait 3 hours\nquit\n" | mvn -q exec:java -Dexec.mainClass="com.benleskey.textengine.cli.Main" -Dexec.args="--seed 12345 --database /tmp/mygame.db"
+
+# Second run - same database continues from where we left off
+printf "look\nwait 2 hours\nquit\n" | mvn -q exec:java -Dexec.mainClass="com.benleskey.textengine.cli.Main" -Dexec.args="--database /tmp/mygame.db"
+```
+
+**Important**: When resuming from a persistent database:
+- The `--seed` argument is only used on the **first run** (when creating a new database)
+- Subsequent runs should **NOT** include `--seed` - the world already exists
+- All game state (entity positions, tick times, etc.) persists between runs
+- Clocks will not re-chime hours they already chimed in previous sessions
+
 ### Extended Test Sequence (Procedural Exploration)
 
 Navigation uses single-word landmarks visible from your current location:

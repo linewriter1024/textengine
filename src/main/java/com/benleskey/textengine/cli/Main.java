@@ -20,23 +20,37 @@ public class Main {
 		parser.addArgument("--apidebug").help("Print API debug information with each command").action(new StoreTrueArgumentAction());
 		parser.addArgument("--showlog").help("Print game log to standard output").action(new StoreTrueArgumentAction());
 		parser.addArgument("--seed").help("World generation seed for deterministic procedural generation").type(Long.class);
+		parser.addArgument("--database").help("Database file path for persistence (default: timestamped temp file)").type(String.class);
 
 		Namespace ns = parser.parseArgsOrFail(args);
 
 		boolean apiDebug = ns.getBoolean("apidebug");
 		boolean showLog = ns.getBoolean("showlog");
 		Long seed = ns.getLong("seed");
+		String databasePath = ns.getString("database");
 
 		Logger logger = Logger.builder()
 			.stream(showLog ? System.out : OutputStream.nullOutputStream())
 			.build();
 
-		String directory = "/tmp/textengine";
-		String filename = String.format("%d.sqlitedb", System.currentTimeMillis() / 1000L);
+		// Use specified database path or default to timestamped temp file
+		String dbFile;
+		if (databasePath != null) {
+			dbFile = databasePath;
+			// Create parent directory if needed
+			File dbFileObj = new File(dbFile);
+			File parentDir = dbFileObj.getParentFile();
+			if (parentDir != null) {
+				parentDir.mkdirs();
+			}
+		} else {
+			String directory = "/tmp/textengine";
+			String filename = String.format("%d.sqlitedb", System.currentTimeMillis() / 1000L);
+			(new File(directory)).mkdir();
+			dbFile = directory + "/" + filename;
+		}
 
-		(new File(directory)).mkdir();
-
-		try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + directory + "/" + filename)) {
+		try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + dbFile)) {
 			try {
 				Game.GameBuilder builder = Game.builder().log(logger).databaseConnection(connection);
 				if (seed != null) {

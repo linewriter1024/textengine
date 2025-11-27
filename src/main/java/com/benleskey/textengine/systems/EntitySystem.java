@@ -5,6 +5,7 @@ import com.benleskey.textengine.SingletonGameSystem;
 import com.benleskey.textengine.exceptions.DatabaseException;
 import com.benleskey.textengine.exceptions.InternalException;
 import com.benleskey.textengine.hooks.core.OnSystemInitialize;
+import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.UniqueType;
 
@@ -21,6 +22,9 @@ public class EntitySystem extends SingletonGameSystem implements OnSystemInitial
 	private PreparedStatement addStatement;
 	private PreparedStatement getStatement;
 	private final Map<UniqueType, Class<? extends Entity>> entityTypes = new HashMap<>();
+	private EntityTagSystem tagSystem;
+	private ItemSystem itemSystem;
+	private WorldSystem worldSystem;
 
 	public EntitySystem(Game game) {
 		super(game);
@@ -47,6 +51,11 @@ public class EntitySystem extends SingletonGameSystem implements OnSystemInitial
 		} catch (SQLException e) {
 			throw new DatabaseException("Unable to prepare entity statements", e);
 		}
+		
+		// Get systems for storing creation time
+		tagSystem = game.getSystem(EntityTagSystem.class);
+		itemSystem = game.getSystem(ItemSystem.class);
+		worldSystem = game.getSystem(WorldSystem.class);
 	}
 
 	@SuppressWarnings("null") // Generic type T will never be null
@@ -69,7 +78,13 @@ public class EntitySystem extends SingletonGameSystem implements OnSystemInitial
 			addStatement.setLong(1, newId);
 			addStatement.setLong(2, type.type());
 			addStatement.executeUpdate();
-			return get(newId, clazz);
+			
+			// Store entity creation time
+			T entity = get(newId, clazz);
+			DTime creationTime = worldSystem.getCurrentTime();
+			tagSystem.addTag(entity, itemSystem.TAG_ENTITY_CREATED, creationTime.toMilliseconds());
+			
+			return entity;
 		} catch (SQLException e) {
 			throw new DatabaseException("Unable to add entity", e);
 		}

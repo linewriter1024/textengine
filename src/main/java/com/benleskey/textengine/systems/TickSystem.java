@@ -9,8 +9,6 @@ import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.UniqueType;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -24,9 +22,6 @@ public class TickSystem extends SingletonGameSystem implements OnSystemInitializ
 	private EntityTagSystem tagSystem;
 	private WorldSystem worldSystem;
 	private ItemSystem itemSystem;
-	
-	// Track last tick time for each tickable entity
-	private Map<Long, DTime> lastTickTimes = new HashMap<>();
 
 	public TickSystem(Game game) {
 		super(game);
@@ -78,14 +73,21 @@ public class TickSystem extends SingletonGameSystem implements OnSystemInitializ
 	 * @param currentTime The current game time
 	 */
 	private void processEntityTick(Tickable tickable, Entity entity, DTime currentTime) {
-		DTime lastTick = lastTickTimes.get(entity.getId());
+		// Get last tick time from tag, or use entity creation time if never ticked
+		Long lastTickMs = itemSystem.getTagValue(entity, itemSystem.TAG_LAST_TICK, currentTime);
+		DTime lastTick;
 		
-		if (lastTick == null) {
-			// First time seeing this entity - initialize to world start time (0:00:00)
-			// This ensures all ticks from world start to now will be processed
-			lastTick = new DTime(0);
-			lastTickTimes.put(entity.getId(), lastTick);
-			// Don't return - continue to process ticks
+		if (lastTickMs == null) {
+			// Never ticked before - use entity creation time
+			Long creationMs = itemSystem.getTagValue(entity, itemSystem.TAG_ENTITY_CREATED, currentTime);
+			if (creationMs != null) {
+				lastTick = new DTime(creationMs);
+			} else {
+				// Fallback: entity created before creation time tracking was added
+				lastTick = new DTime(0);
+			}
+		} else {
+			lastTick = new DTime(lastTickMs);
 		}
 		
 		DTime interval = tickable.getTickInterval();
@@ -104,9 +106,9 @@ public class TickSystem extends SingletonGameSystem implements OnSystemInitializ
 				tickable.onTick(tickTime, timeSincePreviousTick);
 			}
 			
-			// Update last tick time
+			// Update last tick time as a tag (persisted and temporal)
 			DTime newLastTick = new DTime(lastTick.toMilliseconds() + (tickCount * interval.toMilliseconds()));
-			lastTickTimes.put(entity.getId(), newLastTick);
+			itemSystem.updateTagValue(entity, itemSystem.TAG_LAST_TICK, newLastTick.toMilliseconds(), currentTime);
 		}
 	}
 }
