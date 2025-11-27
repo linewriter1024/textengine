@@ -51,6 +51,7 @@ public class EventSystem extends SingletonGameSystem implements OnSystemInitiali
 		etCancel = uniqueTypeSystem.getType("event_cancel");
 	}
 
+	@SuppressWarnings("null") // Generic type T will never be null
 	public synchronized <T extends Reference> FullEvent<T> addEvent(UniqueType type, DTime time, T reference) throws DatabaseException {
 		try {
 			long id = game.getNewGlobalId();

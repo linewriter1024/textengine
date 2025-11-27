@@ -1,6 +1,7 @@
 package com.benleskey.textengine;
 
 import com.benleskey.textengine.util.Message;
+import com.benleskey.textengine.util.RawMessage;
 import com.benleskey.textengine.util.VersionNumber;
 
 public class Version {
@@ -18,7 +19,7 @@ public class Version {
 		return String.format("%s <%s> %s", humanName, url, versionNumber);
 	}
 
-	public static Message toMessage() {
+	public static RawMessage toMessage() {
 		return Message.make().put(M_INTERNAL_NAME, internalName).put(M_HUMAN_NAME, humanName).put(M_VERSION_NUMBER, versionNumber.toString()).put(M_URL, url);
 	}
 }

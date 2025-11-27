@@ -374,7 +374,7 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 			List<Entity> landmarks = new java.util.ArrayList<>(distantLooks.keySet());
 			
 			// Build disambiguated list
-			DisambiguationSystem.DisambiguatedList landmarkDisambiguated = ds.buildDisambiguatedList(
+			ds.buildDisambiguatedList(
 				landmarks,
 				landmark -> {
 					List<LookDescriptor> looks = distantLooks.get(landmark);

@@ -21,6 +21,7 @@ public class HookManager<THandler extends HookHandler> {
 		}
 	}
 
+	@SuppressWarnings("null") // Generic type THandler will never be null
 	public Set<Class<? extends HookEvent>> registerHookHandler(THandler handler) {
 		Set<Class<? extends HookEvent>> events = new HashSet<>();
 

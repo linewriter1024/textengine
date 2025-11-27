@@ -1,7 +1,5 @@
 package com.benleskey.textengine.model;
 
-import lombok.Getter;
-
 public record DTime(long raw) {
 
 	public static DTime fromSeconds(long seconds) {

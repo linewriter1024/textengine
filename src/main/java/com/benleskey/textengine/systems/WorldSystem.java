@@ -2,8 +2,6 @@ package com.benleskey.textengine.systems;
 
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.SingletonGameSystem;
-import com.benleskey.textengine.entities.Actor;
-import com.benleskey.textengine.entities.Place;
 import com.benleskey.textengine.exceptions.DatabaseException;
 import com.benleskey.textengine.hooks.core.OnSystemInitialize;
 import com.benleskey.textengine.model.DTime;
@@ -11,6 +9,8 @@ import com.benleskey.textengine.model.DTime;
 public class WorldSystem extends SingletonGameSystem implements OnSystemInitialize {
 
 	private final static long TIME_NOW = 0;
+	// Reserved for future use - may be used for temporal anchoring or waypoint system
+	@SuppressWarnings("unused")
 	private final GrouplessPropertiesSubSystem<String, Long> referencePoints;
 	private final GrouplessPropertiesSubSystem<Long, Long> time;
 	private long currentTime;

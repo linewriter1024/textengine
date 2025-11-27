@@ -281,7 +281,9 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	
 	/**
 	 * Helper to randomly choose from options.
+	 * Reserved for future use in procedural generation.
 	 */
+	@SuppressWarnings("unused")
 	@SafeVarargs
 	private final <T> T randomChoice(T... options) {
 		return options[random.nextInt(options.length)];
@@ -363,8 +365,6 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		for (int i = 0; i < landmarkCount; i++) {
 			// Choose landmark type from LandmarkTemplateSystem
 			String landmarkTypeName = landmarkTemplateSystem.selectRandomLandmarkType(random);
-			LandmarkTemplateSystem.LandmarkType landmarkType = 
-				landmarkTemplateSystem.getLandmarkType(landmarkTypeName);
 			
 			// Pick a random position offset from origin (between 3-6 units away)
 			int distance = 3 + random.nextInt(4);

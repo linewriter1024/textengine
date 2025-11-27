@@ -1,7 +1,6 @@
 package com.benleskey.textengine.util;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class Message<T> {
 	public static final String M_TYPE = "type";

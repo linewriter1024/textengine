@@ -1,7 +1,6 @@
 package com.benleskey.textengine.systems;
 
 import com.benleskey.textengine.Game;
-import com.benleskey.textengine.exceptions.DatabaseException;
 
 import java.util.Optional;
 

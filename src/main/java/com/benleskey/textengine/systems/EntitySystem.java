@@ -49,6 +49,7 @@ public class EntitySystem extends SingletonGameSystem implements OnSystemInitial
 		}
 	}
 
+	@SuppressWarnings("null") // Generic type T will never be null
 	public synchronized <T extends Entity> void registerEntityType(Class<T> clazz) {
 		T dummy = get(0, clazz);
 		UniqueType type = dummy.getEntityType();
@@ -56,6 +57,7 @@ public class EntitySystem extends SingletonGameSystem implements OnSystemInitial
 		log.log("Registered entity type %s to class %s", type, clazz.getCanonicalName());
 	}
 
+	@SuppressWarnings("null") // Generic type T will never be null
 	public synchronized <T extends Entity> T add(Class<T> clazz) throws DatabaseException {
 		try {
 			T dummy = get(0, clazz);

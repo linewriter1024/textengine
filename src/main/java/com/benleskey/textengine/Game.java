@@ -187,6 +187,7 @@ public class Game {
 		hooks.doEvent(OnStartClient.class, plugin -> plugin.onStartClient(client));
 	}
 
+	@SuppressWarnings("null") // Generic type T will never be null
 	public <T extends GameSystem> T registerSystem(T system) {
 		systems.put(system.getId(), system);
 		Set<Class<? extends HookEvent>> events = hooks.registerHookHandler(system);

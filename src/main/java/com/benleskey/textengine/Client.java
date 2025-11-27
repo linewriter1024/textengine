@@ -1,6 +1,5 @@
 package com.benleskey.textengine;
 
-import com.benleskey.textengine.commands.Command;
 import com.benleskey.textengine.commands.CommandInput;
 import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.model.Entity;
@@ -13,7 +12,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Flow;
-import java.util.stream.Stream;
 
 @Getter
 @Setter

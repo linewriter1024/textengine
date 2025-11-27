@@ -54,6 +54,8 @@ public class SchemaManager {
 	}
 
 	public class Schema {
+		// Reserved for future use - may be needed for advanced schema operations
+		@SuppressWarnings("unused")
 		private final SchemaManager schemaManager;
 		private final String systemId;
 
