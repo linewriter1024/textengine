@@ -54,7 +54,7 @@ public class Game {
 		registerPlugin(new EntityPlugin(this));
 		registerPlugin(new EventPlugin(this));
 		registerPlugin(new InteractionPlugin(this));
-		registerPlugin(new InventoryPlugin(this));
+		registerPlugin(new ItemInteractionPlugin(this));
 		registerPlugin(new NavigationPlugin(this));
 		registerPlugin(new Quit(this));
 		registerPlugin(new UnknownCommand(this));

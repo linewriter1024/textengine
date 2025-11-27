@@ -99,6 +99,12 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize {
 			new ItemTemplateSystem.ItemData("some wild mushrooms"));
 		its.registerItemGenerator("forest", 2, (g, r) -> 
 			new ItemTemplateSystem.ItemData("a bird's feather"));
+		// Trees (can be cut down with axe)
+		its.registerItemGenerator("forest", 4, (g, r) -> 
+			new ItemTemplateSystem.ItemData("a tree", List.of("cuttable")));
+		// Axes (tools for cutting trees)
+		its.registerItemGenerator("forest", 1, (g, r) -> 
+			new ItemTemplateSystem.ItemData("a rusty axe", List.of("tool")));
 		
 		// Meadow items
 		its.registerItemGenerator("meadow", 5, (g, r) -> 
@@ -107,6 +113,9 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize {
 			new ItemTemplateSystem.ItemData("a wildflower"));
 		its.registerItemGenerator("meadow", 2, (g, r) -> 
 			new ItemTemplateSystem.ItemData("a smooth pebble"));
+		// Toy rattles (make sound when used)
+		its.registerItemGenerator("meadow", 1, (g, r) -> 
+			new ItemTemplateSystem.ItemData("a wooden toy rattle", List.of("toy")));
 		
 		// River items
 		its.registerItemGenerator("river", 5, (g, r) -> 
@@ -135,6 +144,21 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize {
 			new ItemTemplateSystem.ItemData("a tarnished helmet"));
 		its.registerItemGenerator("ruins", 1, (g, r) -> 
 			new ItemTemplateSystem.ItemData("a weathered scroll"));
+		// Wooden chests (containers - can hold items)
+		its.registerItemGenerator("ruins", 2, (g, r) -> 
+			new ItemTemplateSystem.ItemData("a wooden chest", List.of("container")));
+		
+		// Add chests and axes to all biomes (low probability)
+		for (String biome : List.of("forest", "meadow", "river", "hills", "ruins")) {
+			if (!biome.equals("ruins")) {  // Already added to ruins above
+				its.registerItemGenerator(biome, 1, (g, r) -> 
+					new ItemTemplateSystem.ItemData("a wooden chest", List.of("container")));
+			}
+			if (!biome.equals("forest")) {  // Already added to forest above
+				its.registerItemGenerator(biome, 1, (g, r) -> 
+					new ItemTemplateSystem.ItemData("a rusty axe", List.of("tool")));
+			}
+		}
 		
 		log.log("Registered item generators for all biomes");
 	}

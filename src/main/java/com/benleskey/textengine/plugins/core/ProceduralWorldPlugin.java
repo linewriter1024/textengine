@@ -313,6 +313,7 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	
 	/**
 	 * Generate a single item appropriate for the biome and add it to the place using ItemTemplateSystem.
+	 * If the item is a container (chest), populate it with 2-3 random items.
 	 */
 	private void generateItemForBiome(Entity place, String biomeName) throws InternalException {
 		// Use ItemTemplateSystem to generate item data
@@ -347,12 +348,59 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		itemSystem.setQuantity(item, quantity);
 		itemSystem.setWeight(item, weight);
 		
-		// Note: Tags from itemData are for future use, not currently applied
-		
 		// Place the item in the location using the "contains" relationship
 		relationshipSystem.add(place, item, relationshipSystem.rvContains);
 		
-		log.log("Generated item '%s' in place %d (qty: %d)", itemData.name(), place.getId(), quantity);
+		// If item is a container (chest), populate it with 2-3 items
+		if (itemData.tags().contains("container")) {
+			int numContainedItems = 2 + random.nextInt(2); // 2-3 items
+			for (int i = 0; i < numContainedItems; i++) {
+				generateItemInContainer(item, biomeName);
+			}
+			log.log("Generated container '%s' in place %d with %d items", 
+				itemData.name(), place.getId(), numContainedItems);
+		} else {
+			log.log("Generated item '%s' in place %d (qty: %d)", itemData.name(), place.getId(), quantity);
+		}
+	}
+	
+	/**
+	 * Generate an item inside a container.
+	 */
+	private void generateItemInContainer(Entity container, String biomeName) throws InternalException {
+		// Generate item data (avoid generating another container inside)
+		ItemTemplateSystem.ItemData itemData = itemTemplateSystem.generateItem(biomeName, game, random);
+		
+		if (itemData == null || itemData.tags().contains("container")) {
+			// Skip containers inside containers, or if no item generated
+			return;
+		}
+		
+		// Create the item entity
+		Item item = entitySystem.add(Item.class);
+		lookSystem.addLook(item, "basic", itemData.name());
+		
+		// Set default properties
+		ItemSystem.ItemType itemType = ItemSystem.ItemType.RESOURCE;
+		long quantity = 1;
+		long weight = 1;
+		
+		if (itemData.properties().containsKey("type")) {
+			itemType = (ItemSystem.ItemType) itemData.properties().get("type");
+		}
+		if (itemData.properties().containsKey("quantity")) {
+			quantity = (Long) itemData.properties().get("quantity");
+		}
+		if (itemData.properties().containsKey("weight")) {
+			weight = (Long) itemData.properties().get("weight");
+		}
+		
+		itemSystem.setItemType(item, itemType);
+		itemSystem.setQuantity(item, quantity);
+		itemSystem.setWeight(item, weight);
+		
+		// Place item inside the container using the "contains" relationship
+		relationshipSystem.add(container, item, relationshipSystem.rvContains);
 	}
 	
 	/**
