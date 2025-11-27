@@ -2,24 +2,36 @@ package com.benleskey.textengine.plugins.highfantasy.entities;
 
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.entities.Item;
-import com.benleskey.textengine.entities.TagProvider;
-import com.benleskey.textengine.model.UniqueType;
+import com.benleskey.textengine.systems.EntitySystem;
 import com.benleskey.textengine.systems.ItemSystem;
-
-import java.util.List;
+import com.benleskey.textengine.systems.LookSystem;
 
 /**
  * A wooden chest that can contain other items.
  */
-public class WoodenChest extends Item implements TagProvider {
+public class WoodenChest extends Item {
 	
 	public WoodenChest(long id, Game game) {
 		super(id, game);
 	}
 	
-	@Override
-	public List<UniqueType> getRequiredTags() {
+	/**
+	 * Create a wooden chest with the specified description.
+	 * Adds basic look and TAG_CONTAINER automatically.
+	 * 
+	 * @param game The game instance
+	 * @param description The description of the chest (e.g., "a wooden chest")
+	 * @return The created and configured chest entity
+	 */
+	public static WoodenChest create(Game game, String description) {
+		EntitySystem es = game.getSystem(EntitySystem.class);
+		LookSystem ls = game.getSystem(LookSystem.class);
 		ItemSystem is = game.getSystem(ItemSystem.class);
-		return List.of(is.TAG_CONTAINER);
+		
+		WoodenChest chest = es.add(WoodenChest.class);
+		ls.addLook(chest, "basic", description);
+		is.addTag(chest, is.TAG_CONTAINER);
+		
+		return chest;
 	}
 }

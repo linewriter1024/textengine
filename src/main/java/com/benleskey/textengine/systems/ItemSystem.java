@@ -32,6 +32,10 @@ public class ItemSystem extends SingletonGameSystem implements OnSystemInitializ
 	public UniqueType TAG_CUT;  // For tools that can cut things
 	public UniqueType TAG_WEIGHT;  // Numeric tag for item weight
 	public UniqueType TAG_INFINITE_RESOURCE;  // For infinite resources (grass, water, etc.)
+	public UniqueType TAG_WEAPON;  // Item is a weapon
+	public UniqueType TAG_ARMOR;  // Item is armor
+	public UniqueType TAG_CURRENCY;  // Item is currency (coins, gems)
+	public UniqueType TAG_READABLE;  // Item can be read (scrolls, books)
 
 	public ItemSystem(Game game) {
 		super(game);
@@ -50,6 +54,10 @@ public class ItemSystem extends SingletonGameSystem implements OnSystemInitializ
 		TAG_CUT = typeSystem.getType("item_tag_cut");
 		TAG_WEIGHT = typeSystem.getType("item_tag_weight");
 		TAG_INFINITE_RESOURCE = typeSystem.getType("item_tag_infinite_resource");
+		TAG_WEAPON = typeSystem.getType("item_tag_weapon");
+		TAG_ARMOR = typeSystem.getType("item_tag_armor");
+		TAG_CURRENCY = typeSystem.getType("item_tag_currency");
+		TAG_READABLE = typeSystem.getType("item_tag_readable");
 	}
 
 	/**

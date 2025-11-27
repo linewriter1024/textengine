@@ -57,41 +57,22 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 	private void registerEntityTypes() {
 		EntitySystem es = game.getSystem(EntitySystem.class);
 		
-		// Register custom entity types for high fantasy items
-		// Tools and interactive items
-		es.registerEntityType(Rattle.class);
+		// Register consolidated entity types
+		es.registerEntityType(Rock.class);    // All stone/rock items
+		es.registerEntityType(Plant.class);   // All plant items (grass, flowers, mushrooms, etc.)
+		es.registerEntityType(Wood.class);    // All wood items (branches, driftwood, roots)
+		
+		// Register specialized entity types with unique behavior
 		es.registerEntityType(Axe.class);
 		es.registerEntityType(Tree.class);
-		
-		// Forest items
-		es.registerEntityType(FallenBranch.class);
-		es.registerEntityType(WildMushrooms.class);
-		es.registerEntityType(BirdFeather.class);
-		
-		// Meadow items
-		es.registerEntityType(Grass.class);
-		es.registerEntityType(Wildflower.class);
-		es.registerEntityType(SmoothPebble.class);
-		
-		// River items
-		es.registerEntityType(RiverStone.class);
-		es.registerEntityType(Driftwood.class);
-		es.registerEntityType(WetLeaf.class);
-		
-		// Hills items
-		es.registerEntityType(GraniteChunk.class);
-		es.registerEntityType(ScragglyMoss.class);
-		es.registerEntityType(TwistedRoot.class);
-		
-		// Ruins items
-		es.registerEntityType(Rubble.class);
+		es.registerEntityType(Rattle.class);
+		es.registerEntityType(WoodenChest.class);
 		es.registerEntityType(AncientCoin.class);
 		es.registerEntityType(RustySword.class);
 		es.registerEntityType(TarnishedHelmet.class);
 		es.registerEntityType(WeatheredScroll.class);
-		es.registerEntityType(WoodenChest.class);
 		
-		log.log("Registered 22 high fantasy entity types");
+		log.log("Registered 11 high fantasy entity types");
 	}
 	
 	/**
@@ -105,7 +86,7 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 		// Register cutting interaction: TAG_CUT + TAG_CUTTABLE
 		tis.registerInteraction(is.TAG_CUT, is.TAG_CUTTABLE, (client, actor, tool, toolName, target, targetName) -> {
 			// If target implements Cuttable interface, delegate to it
-			if (target instanceof com.benleskey.textengine.entities.Cuttable cuttable) {
+			if (target instanceof Cuttable cuttable) {
 				return cuttable.onCut(client, actor, tool, toolName, targetName);
 			}
 			
@@ -177,15 +158,14 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 	
 	private void registerItems() {
 		ItemTemplateSystem its = game.getSystem(ItemTemplateSystem.class);
-		ItemSystem is = game.getSystem(ItemSystem.class);
 		
 		// Forest items
 		its.registerItemGenerator("forest", 5, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a fallen branch", FallenBranch.class));
+			new ItemTemplateSystem.ItemData("a fallen branch", Wood.class));
 		its.registerItemGenerator("forest", 3, (g, r) -> 
-			new ItemTemplateSystem.ItemData("some wild mushrooms", WildMushrooms.class));
+			new ItemTemplateSystem.ItemData("some wild mushrooms", Plant.class));
 		its.registerItemGenerator("forest", 2, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a bird's feather", BirdFeather.class));
+			new ItemTemplateSystem.ItemData("a bird's feather", Plant.class));
 		// Trees (can be cut down with axe)
 		its.registerItemGenerator("forest", 4, (g, r) -> 
 			new ItemTemplateSystem.ItemData("a tree", Tree.class));
@@ -195,34 +175,34 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 		
 		// Meadow items
 		its.registerItemGenerator("meadow", 5, (g, r) -> 
-			new ItemTemplateSystem.ItemData("some grass", Grass.class));
+			new ItemTemplateSystem.ItemData("some grass", Plant.class));
 		its.registerItemGenerator("meadow", 3, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a wildflower", Wildflower.class));
+			new ItemTemplateSystem.ItemData("a wildflower", Plant.class));
 		its.registerItemGenerator("meadow", 2, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a smooth pebble", SmoothPebble.class));
+			new ItemTemplateSystem.ItemData("a smooth pebble", Rock.class));
 		// Toy rattles (make sound when used)
 		its.registerItemGenerator("meadow", 1, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a wooden toy rattle", List.of(is.TAG_TOY), Rattle.class));
+			new ItemTemplateSystem.ItemData("a wooden toy rattle", Rattle.class));
 		
 		// River items
 		its.registerItemGenerator("river", 5, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a river stone", RiverStone.class));
+			new ItemTemplateSystem.ItemData("a river stone", Rock.class));
 		its.registerItemGenerator("river", 3, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a piece of driftwood", Driftwood.class));
+			new ItemTemplateSystem.ItemData("a piece of driftwood", Wood.class));
 		its.registerItemGenerator("river", 2, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a wet leaf", WetLeaf.class));
+			new ItemTemplateSystem.ItemData("a wet leaf", Plant.class));
 		
 		// Hills items
 		its.registerItemGenerator("hills", 5, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a chunk of granite", GraniteChunk.class));
+			new ItemTemplateSystem.ItemData("a chunk of granite", Rock.class));
 		its.registerItemGenerator("hills", 3, (g, r) -> 
-			new ItemTemplateSystem.ItemData("some scraggly moss", ScragglyMoss.class));
+			new ItemTemplateSystem.ItemData("some scraggly moss", Plant.class));
 		its.registerItemGenerator("hills", 2, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a twisted root", TwistedRoot.class));
+			new ItemTemplateSystem.ItemData("a twisted root", Wood.class));
 		
 		// Ruins items
 		its.registerItemGenerator("ruins", 5, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a piece of rubble", Rubble.class));
+			new ItemTemplateSystem.ItemData("a piece of rubble", Rock.class));
 		its.registerItemGenerator("ruins", 4, (g, r) -> 
 			new ItemTemplateSystem.ItemData("an ancient coin", AncientCoin.class));
 		its.registerItemGenerator("ruins", 3, (g, r) -> 

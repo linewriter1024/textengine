@@ -1,4 +1,4 @@
-package com.benleskey.textengine.entities;
+package com.benleskey.textengine.plugins.highfantasy;
 
 import com.benleskey.textengine.Client;
 import com.benleskey.textengine.commands.CommandOutput;
@@ -7,6 +7,7 @@ import com.benleskey.textengine.model.Entity;
 /**
  * Interface for entities that can be cut down (e.g., trees).
  * This defines what happens when the entity is cut, not the cutting logic itself.
+ * High fantasy specific - not all games have cutting.
  */
 public interface Cuttable {
 	/**

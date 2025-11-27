@@ -3,11 +3,9 @@ package com.benleskey.textengine.plugins.highfantasy.entities;
 import com.benleskey.textengine.Client;
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.commands.CommandOutput;
-import com.benleskey.textengine.entities.Cuttable;
 import com.benleskey.textengine.entities.Item;
-import com.benleskey.textengine.entities.TagProvider;
 import com.benleskey.textengine.model.Entity;
-import com.benleskey.textengine.model.UniqueType;
+import com.benleskey.textengine.plugins.highfantasy.Cuttable;
 import com.benleskey.textengine.systems.EntitySystem;
 import com.benleskey.textengine.systems.EventSystem;
 import com.benleskey.textengine.systems.ItemSystem;
@@ -16,23 +14,34 @@ import com.benleskey.textengine.systems.RelationshipSystem;
 import com.benleskey.textengine.systems.WorldSystem;
 import com.benleskey.textengine.util.Markup;
 
-import java.util.List;
-
 /**
  * A tree that can be cut down to produce wood.
  * Implements Cuttable to define what happens when cut (spawn wood, remove self).
- * Implements TagProvider to declare TAG_CUTTABLE.
  */
-public class Tree extends Item implements Cuttable, TagProvider {
+public class Tree extends Item implements Cuttable {
 	
 	public Tree(long id, Game game) {
 		super(id, game);
 	}
 	
-	@Override
-	public List<UniqueType> getRequiredTags() {
+	/**
+	 * Create a tree with the specified description.
+	 * Adds basic look and TAG_CUTTABLE automatically.
+	 * 
+	 * @param game The game instance
+	 * @param description The description of the tree (e.g., "a tree", "an oak tree")
+	 * @return The created and configured tree entity
+	 */
+	public static Tree create(Game game, String description) {
+		EntitySystem es = game.getSystem(EntitySystem.class);
+		LookSystem ls = game.getSystem(LookSystem.class);
 		ItemSystem is = game.getSystem(ItemSystem.class);
-		return List.of(is.TAG_CUTTABLE);
+		
+		Tree tree = es.add(Tree.class);
+		ls.addLook(tree, "basic", description);
+		is.addTag(tree, is.TAG_CUTTABLE);
+		
+		return tree;
 	}
 	
 	@Override
