@@ -21,6 +21,7 @@ import java.util.*;
  * Generates places and connections dynamically based on registered content from other plugins.
  * No hardcoded biomes, items, or landmarks - all content comes from systems.
  * Follows the mission: "Everything is dynamic. Nothing is pre-built."
+ * Uses SCALE_CONTINENT for all spatial operations.
  */
 public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize, OnCoreSystemsReady, OnStartClient {
 	
@@ -170,8 +171,8 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		String description = placeDescriptionSystem.generateDescription(biomeName, random);
 		ls.addLook(place, "basic", description);
 		
-		// Track spatial position in SpatialSystem
-		spatialSystem.setPosition(place, position);
+		// Track spatial position in SpatialSystem at continent scale
+		spatialSystem.setPosition(place, SpatialSystem.SCALE_CONTINENT, position);
 		
 		// Generate items for this place based on biome
 		generateItemsForPlace(place, biomeName);
@@ -216,8 +217,8 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	private void generateNeighborsForPlace(Entity place) {
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		
-		// Get current position from SpatialSystem
-		int[] currentPos = spatialSystem.getPosition(place);
+		// Get current position from SpatialSystem at continent scale
+		int[] currentPos = spatialSystem.getPosition(place, SpatialSystem.SCALE_CONTINENT);
 		if (currentPos == null) {
 			log.log("Warning: place %s has no position, cannot generate neighbors", place.getId());
 			return;
@@ -245,8 +246,8 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		for (int[] adjacentPos : adjacentPositions) {
 			if (generatedCount >= targetNeighborCount) break;
 			
-			// Check if there's already a place at this position
-			Entity existingPlace = spatialSystem.getEntityAt(adjacentPos);
+			// Check if there's already a place at this position at continent scale
+			Entity existingPlace = spatialSystem.getEntityAt(SpatialSystem.SCALE_CONTINENT, adjacentPos);
 			
 			Entity neighbor;
 			boolean isNewPlace;
@@ -380,8 +381,8 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 			// Mark as prominent so it's visible from distance
 			entityTagSystem.addTag(landmark, visibilitySystem.tagProminent);
 			
-			// Track spatial position
-			spatialSystem.setPosition(landmark, landmarkPos);
+			// Track spatial position at continent scale
+			spatialSystem.setPosition(landmark, SpatialSystem.SCALE_CONTINENT, landmarkPos);
 			landmarks.add(landmark);
 			allPlaces.add(landmark);
 			
@@ -395,12 +396,12 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	 * Makes nearby landmarks visible from this place.
 	 */
 	private void updateDistantVisibility(Entity place) {
-		int[] placePos = spatialSystem.getPosition(place);
+		int[] placePos = spatialSystem.getPosition(place, SpatialSystem.SCALE_CONTINENT);
 		if (placePos == null) return;
 		
 		// Check each landmark to see if it should be visible from this place
 		for (Entity landmark : landmarks) {
-			int[] landmarkPos = spatialSystem.getPosition(landmark);
+			int[] landmarkPos = spatialSystem.getPosition(landmark, SpatialSystem.SCALE_CONTINENT);
 			if (landmarkPos == null) continue;
 			
 			// Calculate distance

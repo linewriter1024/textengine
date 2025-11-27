@@ -130,6 +130,64 @@ MySystem sys = game.getSystem(MySystem.class);
 MySystem sys = game.getSystem(MySystem.class);  // NoSuchElementException!
 ```
 
+## UniqueType System
+
+### String-to-Integer Mapping for Database Efficiency
+
+**UniqueTypeSystem converts human-readable strings to compact integers for database storage.**
+
+```java
+// At initialization - registers "scale_continent" and gets/creates ID
+UniqueType scaleContinent = game.getUniqueTypeSystem().getType("scale_continent");
+// Returns: UniqueType(1011)
+
+// In database - stores integer, not string
+spatialSystem.setPosition(place, SpatialSystem.SCALE_CONTINENT, coords);
+// Database stores: scale_id = 1011 (not "scale_continent")
+```
+
+**Why this matters**:
+- **Space savings**: Integer (4-8 bytes) vs string (variable, often 20+ bytes)
+- **Performance**: Integer comparisons are faster than string comparisons
+- **Consistency**: Typos in strings become impossible after initialization
+- **Human-readable**: The `unique_type` table maps IDs back to strings for debugging
+
+**Database structure**:
+```sql
+-- unique_type table preserves human readability
+SELECT * FROM unique_type;
+0|scale_continent|1011
+0|relationship_contains|1004
+
+-- Other tables use compact integers
+SELECT * FROM spatial_position;
+entity_id | scale_id | x | y
+1032      | 1011     | 0 | 0  -- scale_id references unique_type
+```
+
+### Where to Define UniqueType Constants
+
+**Define constants in the system that uses them, not in UniqueTypeSystem.**
+
+```java
+// ✅ GOOD: In SpatialSystem
+public class SpatialSystem extends SingletonGameSystem {
+    public static UniqueType SCALE_CONTINENT;
+    
+    @Override
+    public void onSystemInitialize() {
+        SCALE_CONTINENT = game.getUniqueTypeSystem().getType("scale_continent");
+    }
+}
+
+// ❌ BAD: In UniqueTypeSystem
+public class UniqueTypeSystem extends SingletonGameSystem {
+    public static UniqueType SCALE_CONTINENT;  // Wrong place!
+}
+```
+
+**Pattern**: Only define the types you need NOW. Add others when they're actually used (YAGNI principle).
+
 ## Event System
 
 ### Event Ordering

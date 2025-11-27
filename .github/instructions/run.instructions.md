@@ -112,3 +112,63 @@ mvn -q exec:java -Dexec.mainClass="com.benleskey.textengine.cli.Main" -Dexec.arg
 ```
 
 Then type commands manually at the prompt.
+
+## Database Storage
+
+### Development Database Location
+
+**In development, the database is stored in `/tmp/textengine/` with timestamped filenames.**
+
+Each game run creates a new database file:
+```bash
+/tmp/textengine/1764214970.sqlitedb  # Timestamp: seconds since epoch
+/tmp/textengine/1764214722.sqlitedb  # Previous run
+```
+
+**Why timestamped files?**
+- **No conflicts**: Each run gets its own database
+- **Easy debugging**: Can inspect databases from previous runs
+- **No cleanup needed**: Temp directory automatically cleared on reboot
+- **Testing isolation**: Tests don't interfere with each other
+
+### Inspecting the Database
+
+To examine the most recent database:
+
+```bash
+# Find the latest database
+DB=$(ls -t /tmp/textengine/*.sqlitedb | head -1)
+
+# Check spatial positions
+sqlite3 "$DB" "SELECT COUNT(*) FROM spatial_position;"
+
+# View unique types (human-readable string → integer mapping)
+sqlite3 "$DB" "SELECT * FROM unique_type;" | grep scale
+
+# Example output:
+# 0|scale_continent|1011
+
+# See which positions use which scale
+sqlite3 "$DB" "SELECT entity_id, scale_id, x, y FROM spatial_position LIMIT 5;"
+
+# Example output:
+# 1032|1011|0|0
+# 1050|1011|1|0
+# 1065|1011|0|-1
+```
+
+### Production Database Configuration
+
+For production or persistent development, modify `Main.java` to use a fixed database path instead of the timestamped temporary location.
+
+Change:
+```java
+String directory = "/tmp/textengine";
+String filename = String.format("%d.sqlitedb", System.currentTimeMillis() / 1000L);
+```
+
+To:
+```java
+String directory = "/path/to/persistent/storage";
+String filename = "textengine.db";
+```

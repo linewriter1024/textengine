@@ -22,7 +22,7 @@ public class UniqueTypeSystem extends SingletonGameSystem implements OnSystemIni
 
 	@Override
 	public void onSystemInitialize() throws DatabaseException {
-
+		// No types defined here - they're defined in the systems that use them
 	}
 
 	public synchronized UniqueType getType(String type) throws DatabaseException {

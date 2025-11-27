@@ -146,11 +146,12 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 				return;
 			}
 			
-			// Use SpatialSystem to find the exit that moves us closest to the landmark
+			// Use SpatialSystem to find the exit that moves us closest to the landmark at continent scale
 			SpatialSystem spatialSystem = game.getSystem(SpatialSystem.class);
 			
 			// Find which exit destination is closest to the landmark
-			Entity closestDestination = spatialSystem.findClosestToTarget(exitDestinations, matchedDestination);
+			Entity closestDestination = spatialSystem.findClosestToTarget(
+				SpatialSystem.SCALE_CONTINENT, exitDestinations, matchedDestination);
 			
 			if (closestDestination != null) {
 				// Find the exit descriptor for the closest destination
