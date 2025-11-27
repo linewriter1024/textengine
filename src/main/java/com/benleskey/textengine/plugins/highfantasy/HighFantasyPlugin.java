@@ -4,9 +4,7 @@ import com.benleskey.textengine.Game;
 import com.benleskey.textengine.Plugin;
 import com.benleskey.textengine.hooks.core.OnCoreSystemsReady;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
-import com.benleskey.textengine.plugins.highfantasy.entities.Axe;
-import com.benleskey.textengine.plugins.highfantasy.entities.Rattle;
-import com.benleskey.textengine.plugins.highfantasy.entities.Tree;
+import com.benleskey.textengine.plugins.highfantasy.entities.*;
 import com.benleskey.textengine.systems.*;
 
 import java.util.*;
@@ -49,6 +47,8 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 		log.log("Registering high fantasy entity types...");
 		// Register entity types (used by items generated after this point)
 		registerEntityTypes();
+		// Register tag-based interactions (cutting trees with axes)
+		registerTagInteractions();
 		// Register item descriptions (needs ItemSystem tags initialized)
 		registerItemDescriptions();
 		log.log("High fantasy setup complete");
@@ -58,11 +58,72 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 		EntitySystem es = game.getSystem(EntitySystem.class);
 		
 		// Register custom entity types for high fantasy items
+		// Tools and interactive items
 		es.registerEntityType(Rattle.class);
 		es.registerEntityType(Axe.class);
 		es.registerEntityType(Tree.class);
 		
-		log.log("Registered 3 high fantasy entity types");
+		// Forest items
+		es.registerEntityType(FallenBranch.class);
+		es.registerEntityType(WildMushrooms.class);
+		es.registerEntityType(BirdFeather.class);
+		
+		// Meadow items
+		es.registerEntityType(Grass.class);
+		es.registerEntityType(Wildflower.class);
+		es.registerEntityType(SmoothPebble.class);
+		
+		// River items
+		es.registerEntityType(RiverStone.class);
+		es.registerEntityType(Driftwood.class);
+		es.registerEntityType(WetLeaf.class);
+		
+		// Hills items
+		es.registerEntityType(GraniteChunk.class);
+		es.registerEntityType(ScragglyMoss.class);
+		es.registerEntityType(TwistedRoot.class);
+		
+		// Ruins items
+		es.registerEntityType(Rubble.class);
+		es.registerEntityType(AncientCoin.class);
+		es.registerEntityType(RustySword.class);
+		es.registerEntityType(TarnishedHelmet.class);
+		es.registerEntityType(WeatheredScroll.class);
+		es.registerEntityType(WoodenChest.class);
+		
+		log.log("Registered 22 high fantasy entity types");
+	}
+	
+	/**
+	 * Register tag-based interactions for high fantasy items.
+	 * This defines what happens when TAG_CUT is used on TAG_CUTTABLE.
+	 */
+	private void registerTagInteractions() {
+		TagInteractionSystem tis = game.getSystem(TagInteractionSystem.class);
+		ItemSystem is = game.getSystem(ItemSystem.class);
+		
+		// Register cutting interaction: TAG_CUT + TAG_CUTTABLE
+		tis.registerInteraction(is.TAG_CUT, is.TAG_CUTTABLE, (client, actor, tool, toolName, target, targetName) -> {
+			// If target implements Cuttable interface, delegate to it
+			if (target instanceof com.benleskey.textengine.entities.Cuttable cuttable) {
+				return cuttable.onCut(client, actor, tool, toolName, targetName);
+			}
+			
+			// Default behavior if target doesn't implement Cuttable
+			return com.benleskey.textengine.commands.CommandOutput.make("use")
+				.put("success", true)
+				.put("item", tool.getKeyId())
+				.put("target", target.getKeyId())
+				.text(com.benleskey.textengine.util.Markup.concat(
+					com.benleskey.textengine.util.Markup.raw("You use "),
+					com.benleskey.textengine.util.Markup.em(toolName),
+					com.benleskey.textengine.util.Markup.raw(" on "),
+					com.benleskey.textengine.util.Markup.em(targetName),
+					com.benleskey.textengine.util.Markup.raw(".")
+				));
+		});
+		
+		log.log("Registered cutting interaction (TAG_CUT + TAG_CUTTABLE)");
 	}
 	
 	private void registerBiomes() {
@@ -120,11 +181,11 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 		
 		// Forest items
 		its.registerItemGenerator("forest", 5, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a fallen branch"));
+			new ItemTemplateSystem.ItemData("a fallen branch", FallenBranch.class));
 		its.registerItemGenerator("forest", 3, (g, r) -> 
-			new ItemTemplateSystem.ItemData("some wild mushrooms"));
+			new ItemTemplateSystem.ItemData("some wild mushrooms", WildMushrooms.class));
 		its.registerItemGenerator("forest", 2, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a bird's feather"));
+			new ItemTemplateSystem.ItemData("a bird's feather", BirdFeather.class));
 		// Trees (can be cut down with axe)
 		its.registerItemGenerator("forest", 4, (g, r) -> 
 			new ItemTemplateSystem.ItemData("a tree", Tree.class));
@@ -134,51 +195,51 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 		
 		// Meadow items
 		its.registerItemGenerator("meadow", 5, (g, r) -> 
-			new ItemTemplateSystem.ItemData("some grass"));
+			new ItemTemplateSystem.ItemData("some grass", Grass.class));
 		its.registerItemGenerator("meadow", 3, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a wildflower"));
+			new ItemTemplateSystem.ItemData("a wildflower", Wildflower.class));
 		its.registerItemGenerator("meadow", 2, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a smooth pebble"));
+			new ItemTemplateSystem.ItemData("a smooth pebble", SmoothPebble.class));
 		// Toy rattles (make sound when used)
 		its.registerItemGenerator("meadow", 1, (g, r) -> 
 			new ItemTemplateSystem.ItemData("a wooden toy rattle", List.of(is.TAG_TOY), Rattle.class));
 		
 		// River items
 		its.registerItemGenerator("river", 5, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a river stone"));
+			new ItemTemplateSystem.ItemData("a river stone", RiverStone.class));
 		its.registerItemGenerator("river", 3, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a piece of driftwood"));
+			new ItemTemplateSystem.ItemData("a piece of driftwood", Driftwood.class));
 		its.registerItemGenerator("river", 2, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a wet leaf"));
+			new ItemTemplateSystem.ItemData("a wet leaf", WetLeaf.class));
 		
 		// Hills items
 		its.registerItemGenerator("hills", 5, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a chunk of granite"));
+			new ItemTemplateSystem.ItemData("a chunk of granite", GraniteChunk.class));
 		its.registerItemGenerator("hills", 3, (g, r) -> 
-			new ItemTemplateSystem.ItemData("some scraggly moss"));
+			new ItemTemplateSystem.ItemData("some scraggly moss", ScragglyMoss.class));
 		its.registerItemGenerator("hills", 2, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a twisted root"));
+			new ItemTemplateSystem.ItemData("a twisted root", TwistedRoot.class));
 		
 		// Ruins items
 		its.registerItemGenerator("ruins", 5, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a piece of rubble"));
+			new ItemTemplateSystem.ItemData("a piece of rubble", Rubble.class));
 		its.registerItemGenerator("ruins", 4, (g, r) -> 
-			new ItemTemplateSystem.ItemData("an ancient coin"));
+			new ItemTemplateSystem.ItemData("an ancient coin", AncientCoin.class));
 		its.registerItemGenerator("ruins", 3, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a rusty sword"));
+			new ItemTemplateSystem.ItemData("a rusty sword", RustySword.class));
 		its.registerItemGenerator("ruins", 2, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a tarnished helmet"));
+			new ItemTemplateSystem.ItemData("a tarnished helmet", TarnishedHelmet.class));
 		its.registerItemGenerator("ruins", 1, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a weathered scroll"));
+			new ItemTemplateSystem.ItemData("a weathered scroll", WeatheredScroll.class));
 		// Wooden chests (containers - can hold items)
 		its.registerItemGenerator("ruins", 2, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a wooden chest", List.of(is.TAG_CONTAINER)));
+			new ItemTemplateSystem.ItemData("a wooden chest", WoodenChest.class));
 		
 		// Add chests and axes to all biomes (low probability)
 		for (String biome : List.of("forest", "meadow", "river", "hills", "ruins")) {
 			if (!biome.equals("ruins")) {  // Already added to ruins above
 				its.registerItemGenerator(biome, 1, (g, r) -> 
-					new ItemTemplateSystem.ItemData("a wooden chest", List.of(is.TAG_CONTAINER)));
+					new ItemTemplateSystem.ItemData("a wooden chest", WoodenChest.class));
 			}
 			if (!biome.equals("forest")) {  // Already added to forest above
 				its.registerItemGenerator(biome, 1, (g, r) -> 
