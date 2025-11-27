@@ -55,7 +55,6 @@ public class Game {
 		registerPlugin(new EventPlugin(this));
 		registerPlugin(new InteractionPlugin(this));
 		registerPlugin(new ItemInteractionPlugin(this));
-		registerPlugin(new InventoryPlugin(this));
 		registerPlugin(new NavigationPlugin(this));
 		registerPlugin(new Quit(this));
 		registerPlugin(new UnknownCommand(this));
@@ -119,6 +118,10 @@ public class Game {
 			log.log("Systems ready...");
 
 			hooks.doEvent(OnCoreSystemsReady.class, OnCoreSystemsReady::onCoreSystemsReady);
+
+			log.log("Entity types registered...");
+
+			hooks.doEvent(OnEntityTypesRegistered.class, OnEntityTypesRegistered::onEntityTypesRegistered);
 
 			log.log("Starting game...");
 

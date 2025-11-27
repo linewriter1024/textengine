@@ -15,6 +15,8 @@ import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.LookDescriptor;
 import com.benleskey.textengine.model.RelationshipDescriptor;
 import com.benleskey.textengine.systems.DisambiguationSystem;
+import com.benleskey.textengine.systems.ItemDescriptionSystem;
+import com.benleskey.textengine.systems.ItemSystem;
 import com.benleskey.textengine.systems.LookSystem;
 import com.benleskey.textengine.systems.RelationshipSystem;
 import com.benleskey.textengine.systems.WorldSystem;
@@ -278,6 +280,8 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		LookSystem ls = game.getSystem(LookSystem.class);
+		ItemSystem is = game.getSystem(ItemSystem.class);
+		ItemDescriptionSystem ids = game.getSystem(ItemDescriptionSystem.class);
 		
 		// Get items from both inventory and current location
 		List<Entity> availableItems = new java.util.ArrayList<>();
@@ -321,14 +325,35 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 				.text(Markup.concat(
 					Markup.raw("You don't see "),
 					Markup.em(itemInput),
-					Markup.raw(" here.")
+					Markup.raw(".")
 				)));
 			return;
 		}
 		
-		// Get item description and details
+		// Get item description
 		List<LookDescriptor> looks = ls.getLooksFromEntity(targetItem, ws.getCurrentTime());
-		String itemName = !looks.isEmpty() ? looks.get(0).getDescription() : "the item";
+		String itemName = !looks.isEmpty() ? looks.get(0).getDescription() : "something";
+		
+		// Build examination output
+		java.util.List<Markup.Safe> examineMarkup = new java.util.ArrayList<>();
+		examineMarkup.add(Markup.raw("You examine "));
+		examineMarkup.add(Markup.raw(itemName));
+		examineMarkup.add(Markup.raw("."));
+		
+		// Add tag-based descriptions
+		List<String> tagDescriptions = ids.getDescriptions(targetItem, ws.getCurrentTime());
+		if (!tagDescriptions.isEmpty()) {
+			examineMarkup.add(Markup.raw("\n"));
+			for (String tagDesc : tagDescriptions) {
+				examineMarkup.add(Markup.escape(tagDesc));
+			}
+		}
+		
+		// Add weight if present
+		Long weight = is.getTagValue(targetItem, is.TAG_WEIGHT, ws.getCurrentTime());
+		if (weight != null) {
+			examineMarkup.add(Markup.escape("\nWeight: " + weight));
+		}
 		
 		// Check if it's a container with contents
 		List<Entity> contents = rs.getReceivingRelationships(targetItem, rs.rvContains, ws.getCurrentTime())
@@ -337,24 +362,9 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 			.filter(e -> e instanceof Item)
 			.collect(Collectors.toList());
 		
-		java.util.List<Markup.Safe> parts = new java.util.ArrayList<>();
-		parts.add(Markup.concat(
-			Markup.raw("You examine "),
-			Markup.em(itemName),
-			Markup.raw(".")
-		));
-		
-		// Show detailed description if available
-		if (!looks.isEmpty()) {
-			parts.add(Markup.concat(
-				Markup.raw(" "),
-				Markup.escape(looks.get(0).getDescription())
-			));
-		}
-		
 		// If it's a container, show contents
 		if (!contents.isEmpty()) {
-			parts.add(Markup.raw(" It contains: "));
+			examineMarkup.add(Markup.raw("\nIt contains: "));
 			
 			DisambiguationSystem.DisambiguatedList contentList = ds.buildDisambiguatedList(
 				contents,
@@ -368,21 +378,20 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 			for (int i = 0; i < contentParts.size(); i++) {
 				if (i > 0) {
 					if (i == contentParts.size() - 1) {
-						parts.add(Markup.raw(", and "));
+						examineMarkup.add(Markup.raw(", and "));
 					} else {
-						parts.add(Markup.raw(", "));
+						examineMarkup.add(Markup.raw(", "));
 					}
 				}
-				parts.add(contentParts.get(i));
+				examineMarkup.add(contentParts.get(i));
 			}
-			parts.add(Markup.raw("."));
+			examineMarkup.add(Markup.raw("."));
 		}
 		
 		client.sendOutput(CommandOutput.make(EXAMINE)
 			.put(M_SUCCESS, true)
-			.put(M_ITEM, targetItem.getKeyId())
-			.put(M_ITEM_NAME, itemName)
-			.text(Markup.concat(parts.toArray(new Markup.Safe[0]))));
+			.put(M_ITEM, targetItem)
+			.text(Markup.concat(examineMarkup.toArray(new Markup.Safe[0]))));
 	}
 	
 	private void handleUse(Client client, CommandInput input) {

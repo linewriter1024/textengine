@@ -6,6 +6,41 @@ applyTo: "**"
 
 This document captures important patterns, gotchas, and non-obvious implementation details discovered during development.
 
+## Error Handling
+
+### Never Hide Errors
+
+**Critical**: NEVER catch exceptions just to hide them or log and continue. Always let exceptions propagate with full stack traces.
+
+```java
+// ❌ BAD: Hiding errors
+try {
+    entitySystem.add(Tree.class);
+} catch (Exception e) {
+    log.log("Could not create tree: " + e.getMessage());
+    return entitySystem.add(Item.class);  // Silent fallback
+}
+
+// ✅ GOOD: Let errors propagate
+public Item createEntity(Class<? extends Item> clazz) throws InternalException {
+    return entitySystem.add(clazz);  // Throws if entity type not registered
+}
+
+// ✅ GOOD: Wrap with app-specific exception if needed
+try {
+    entitySystem.add(Tree.class);
+} catch (SQLException e) {
+    throw new DatabaseException("Failed to create tree entity", e);
+}
+```
+
+**Why**: Hidden errors make debugging impossible. If something is wrong, it should fail loudly with a full stack trace so you can fix the root cause.
+
+**Approved exception types**:
+- `InternalException` - Internal game engine errors
+- `DatabaseException` - Database operation failures
+- `ConsistencyException` - Data consistency violations
+
 ## Plugin System
 
 ### Plugin Initialization Order
@@ -33,11 +68,12 @@ Different hooks run at different times:
 
 1. **OnRegister** - Plugin registered, systems can be registered here
 2. **OnPluginInitialize** - Systems are registered but NOT initialized
-3. **OnCoreSystemsReady** - Systems are initialized, safe to create entities
-4. **OnStart** - Game is ready to start
-5. **OnStartClient** - New client connected
+3. **OnCoreSystemsReady** - Systems are initialized, register custom entity types here
+4. **OnEntityTypesRegistered** - All entity types registered, safe to generate world with custom entities
+5. **OnStart** - Game is ready to start
+6. **OnStartClient** - New client connected
 
-**Gotcha**: Don't create entities in `OnPluginInitialize` - systems aren't ready yet. Use `OnCoreSystemsReady` instead.
+**Gotcha**: Don't create entities in `OnPluginInitialize` - systems aren't ready yet. Use `OnCoreSystemsReady` or later.
 
 ```java
 @Override
@@ -48,10 +84,21 @@ public void onPluginInitialize() {
 
 @Override
 public void onCoreSystemsReady() {
-    // ✅ GOOD: Create entities after systems are ready
-    Place place = game.getSystem(EntitySystem.class).add(Place.class);
+    // ✅ GOOD: Register custom entity types
+    EntitySystem es = game.getSystem(EntitySystem.class);
+    es.registerEntityType(Tree.class);
+    es.registerEntityType(Axe.class);
+}
+
+@Override
+public void onEntityTypesRegistered() {
+    // ✅ GOOD: Generate world after entity types are registered
+    EntitySystem es = game.getSystem(EntitySystem.class);
+    Tree tree = es.add(Tree.class);  // Works because Tree was registered in onCoreSystemsReady
 }
 ```
+
+**Pattern**: Content plugins register custom entity types in `OnCoreSystemsReady`, world generation plugins use `OnEntityTypesRegistered` to generate entities.
 
 ### Plugin Logging
 

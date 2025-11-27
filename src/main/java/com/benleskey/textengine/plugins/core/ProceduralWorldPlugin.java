@@ -8,7 +8,7 @@ import com.benleskey.textengine.entities.Actor;
 import com.benleskey.textengine.entities.Item;
 import com.benleskey.textengine.entities.Place;
 import com.benleskey.textengine.exceptions.InternalException;
-import com.benleskey.textengine.hooks.core.OnCoreSystemsReady;
+import com.benleskey.textengine.hooks.core.OnEntityTypesRegistered;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.hooks.core.OnStartClient;
 import com.benleskey.textengine.model.Entity;
@@ -25,7 +25,7 @@ import java.util.*;
  * Follows the mission: "Everything is dynamic. Nothing is pre-built."
  * Uses SCALE_CONTINENT for all spatial operations.
  */
-public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize, OnCoreSystemsReady, OnStartClient {
+public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize, OnEntityTypesRegistered, OnStartClient {
 	
 	// Generation parameters
 	private final Random random;
@@ -81,7 +81,7 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	}
 	
 	@Override
-	public void onCoreSystemsReady() {
+	public void onEntityTypesRegistered() {
 		log.log("Generating procedural world with seed %d...", seed);
 		
 		// Cache all systems for lazy generation
@@ -102,7 +102,7 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		// Set spatial system to 2D
 		spatialSystem.setDimensions(2);
 		
-		// Register entity types
+		// Register base entity types (custom types registered by content plugins in OnCoreSystemsReady)
 		entitySystem.registerEntityType(Place.class);
 		entitySystem.registerEntityType(Actor.class);
 		entitySystem.registerEntityType(Item.class);
@@ -365,17 +365,9 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	 * Uses specific entity classes (Rattle, Axe, Tree) when appropriate,
 	 * falls back to generic Item otherwise.
 	 */
-	private Item createItemEntity(ItemTemplateSystem.ItemData itemData) {
+	private Item createItemEntity(ItemTemplateSystem.ItemData itemData) throws InternalException {
 		// Use the entity class specified in the item data
-		// Try to use the specified class, but fall back to Item.class if not registered yet
-		try {
-			return entitySystem.add(itemData.entityClass());
-		} catch (Exception e) {
-			// Entity class not registered yet, use generic Item
-			log.log("Could not create %s, using generic Item instead: %s", 
-				itemData.entityClass().getSimpleName(), e.getMessage());
-			return entitySystem.add(Item.class);
-		}
+		return entitySystem.add(itemData.entityClass());
 	}
 	
 	/**
