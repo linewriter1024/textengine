@@ -31,7 +31,11 @@ import java.util.regex.Matcher;
 import java.util.stream.Collectors;
 
 /**
- * ItemInteractionPlugin handles item manipulation: take, drop, examine, use, inventory.
+ * ItemInteractionPlugin handles all item-related commands:
+ * - Basic manipulation: take, drop, examine, inventory
+ * - Item usage: use (solo or on target)
+ * - Container operations: open, close, put
+ * - Taking from containers: take X from Y
  */
 public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize {
 	public static final String TAKE = "take";
