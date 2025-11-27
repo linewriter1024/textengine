@@ -59,9 +59,8 @@ public class Game {
 		registerPlugin(new Quit(this));
 		registerPlugin(new UnknownCommand(this));
 		
-		// Pass seed to ProceduralWorldPlugin (use timestamp if not provided)
-		long worldSeed = (seed != null) ? seed : System.currentTimeMillis();
-		registerPlugin(new ProceduralWorldPlugin(this, worldSeed));
+		// Pass seed to ProceduralWorldPlugin (can be null - will use persisted or generate)
+		registerPlugin(new ProceduralWorldPlugin(this, seed));
 		
 		// Register HighFantasyPlugin to populate biomes, items, and landmarks
 		registerPlugin(new com.benleskey.textengine.plugins.highfantasy.HighFantasyPlugin(this));

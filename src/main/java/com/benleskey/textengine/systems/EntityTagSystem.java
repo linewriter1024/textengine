@@ -22,7 +22,7 @@ public class EntityTagSystem extends SingletonGameSystem implements OnSystemInit
 	private PreparedStatement findTagsByEntityStatement;
 	private EntitySystem entitySystem;
 	private EventSystem eventSystem;
-	private UniqueType etEntityTag;
+	public UniqueType etEntityTag;
 
 	public EntityTagSystem(Game game) {
 		super(game);

@@ -53,6 +53,18 @@ public class VisibilitySystem extends SingletonGameSystem implements OnSystemIni
 	 * @param visible The entity that can be seen
 	 */
 	public synchronized FullEvent<Relationship> makeVisibleFrom(Entity from, Entity visible) {
+		// Check if visibility relationship already exists
+		DTime now = worldSystem.getCurrentTime();
+		List<RelationshipDescriptor> existing = relationshipSystem.getReceivingRelationships(from, rvVisibleFrom, now);
+		
+		for (RelationshipDescriptor rd : existing) {
+			if (rd.getReceiver().getId() == visible.getId()) {
+				// Relationship already exists, return null to indicate no change
+				return null;
+			}
+		}
+		
+		// Create new visibility relationship
 		return relationshipSystem.add(from, visible, rvVisibleFrom);
 	}
 

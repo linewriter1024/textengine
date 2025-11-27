@@ -48,8 +48,8 @@ public class RelationshipSystem extends SingletonGameSystem implements OnSystemI
 
 		try {
 			addStatement = game.db().prepareStatement("INSERT INTO entity_relationship (relationship_id, provider_id, receiver_id, relationship_verb) VALUES (?, ?, ?, ?)");
-			getProviderStatement = game.db().prepareStatement("SELECT relationship_id, provider_id FROM entity_relationship WHERE receiver_id = ? AND relationship_verb = ? AND relationship_id IN " + eventSystem.getValidEventsSubquery("entity_relationship.relationship_id"));
-			getReceiverStatement = game.db().prepareStatement("SELECT relationship_id, receiver_id FROM entity_relationship WHERE provider_id = ? AND relationship_verb = ? AND relationship_id IN " + eventSystem.getValidEventsSubquery("entity_relationship.relationship_id"));
+			getProviderStatement = game.db().prepareStatement("SELECT relationship_id, provider_id FROM entity_relationship WHERE receiver_id = ? AND relationship_verb = ? AND relationship_id IN " + eventSystem.getValidEventsSubquery("entity_relationship.relationship_id") + " ORDER BY relationship_id");
+			getReceiverStatement = game.db().prepareStatement("SELECT relationship_id, receiver_id FROM entity_relationship WHERE provider_id = ? AND relationship_verb = ? AND relationship_id IN " + eventSystem.getValidEventsSubquery("entity_relationship.relationship_id") + " ORDER BY relationship_id");
 		} catch (SQLException e) {
 			throw new DatabaseException("Unable to prepare relationship statements", e);
 		}

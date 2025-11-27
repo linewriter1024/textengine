@@ -47,7 +47,8 @@ public class ConnectionSystem extends SingletonGameSystem implements OnSystemIni
 			getConnectionsStatement = game.db().prepareStatement(
 				"SELECT relationship_id, receiver_id FROM entity_relationship " +
 				"WHERE provider_id = ? AND relationship_verb = ? AND relationship_id IN " +
-				eventSystem.getValidEventsSubquery("entity_relationship.relationship_id")
+				eventSystem.getValidEventsSubquery("entity_relationship.relationship_id") +
+				" ORDER BY relationship_id"
 			);
 		} catch (SQLException e) {
 			throw new DatabaseException("Unable to prepare connection statements", e);

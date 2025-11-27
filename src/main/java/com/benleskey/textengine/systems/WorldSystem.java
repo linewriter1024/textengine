@@ -9,6 +9,7 @@ import com.benleskey.textengine.model.DTime;
 public class WorldSystem extends SingletonGameSystem implements OnSystemInitialize {
 
 	private final static long TIME_NOW = 0;
+	private final static long WORLD_SEED = 1;
 	// Reserved for future use - may be used for temporal anchoring or waypoint system
 	@SuppressWarnings("unused")
 	private final GrouplessPropertiesSubSystem<String, Long> referencePoints;
@@ -41,5 +42,22 @@ public class WorldSystem extends SingletonGameSystem implements OnSystemInitiali
 
 	public synchronized DTime incrementCurrentTime(DTime delta) throws DatabaseException {
 		return setCurrentTime(getCurrentTime().add(delta));
+	}
+	
+	/**
+	 * Get the world generation seed.
+	 * Returns null if seed has not been set (new world).
+	 */
+	public synchronized Long getSeed() throws DatabaseException {
+		return time.get(WORLD_SEED).orElse(null);
+	}
+	
+	/**
+	 * Set the world generation seed.
+	 * Should only be called once when creating a new world.
+	 */
+	public synchronized void setSeed(long seed) throws DatabaseException {
+		time.set(WORLD_SEED, seed);
+		log.log("World seed set to %d", seed);
 	}
 }
