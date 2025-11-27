@@ -304,45 +304,62 @@ String plainText = Markup.toPlainText(Markup.raw(landmarkName));  // "dark fores
 
 ### Numeric ID Disambiguation
 
-When multiple entities have identical or similar descriptions (e.g., "some grass", "some grass", "a blade of grass"), the system automatically assigns numeric IDs to disambiguate them:
-
-```
-Items: some grass [1], a smooth pebble, some grass [2], a blade of grass [3], and a blade of grass [4]
-```
+When multiple entities have identical or similar descriptions, users can reference them by numeric ID to disambiguate.
 
 **How it works**:
-1. **Client-side mapping**: Each client stores a `numericIdMap` that maps integers to entities
-2. **Lazy assignment**: Numeric IDs are assigned when a command tries to resolve an entity, not during display commands like `look` or `inventory`
-3. **User interaction**: Users can type `take 1` or `take 3` instead of ambiguous names
-4. **Context-specific**: The mapping is rebuilt for each command that needs disambiguation
-5. **Deterministic ordering**: Same seed produces same item order and same numeric IDs
+1. **Display commands** (`look`, `inventory`) - Show entities WITHOUT numeric IDs to keep output clean
+2. **Interaction commands** (`take`, `examine`, `drop`, `put`) - If user input is ambiguous, the system displays options WITH numeric IDs
+3. **Client-side mapping**: Each client stores a `numericIdMap` that maps integers to entities
+4. **User interaction**: After seeing numbered options, users can type `take 1` or `take 3` to select
+5. **Context-specific**: The mapping is rebuilt for each ambiguous command
+
+**Example flow**:
+```
+> look
+Items: a wet leaf, a weathered plank, a wet leaf
+
+> take leaf
+Which leaf did you mean? a wet leaf [1], and a wet leaf [2]
+
+> take 1
+You take a wet leaf.
+```
 
 **Implementation**:
 - `Client.setNumericIdMap(Map<Integer, Entity>)` - stores the mapping
 - `Client.getEntityByNumericId(int)` - retrieves entity by numeric ID
-- `DisambiguationSystem.buildDisambiguatedList()` - assigns IDs when building lists
+- `DisambiguationSystem.buildDisambiguatedList()` - assigns IDs when presenting ambiguous choices
+- `DisambiguationSystem.resolveEntityWithAmbiguity()` - checks numeric IDs first, then fuzzy matches
 - Commands check numeric IDs first, then fall back to fuzzy matching
-- Only duplicates get IDs; unique items remain ID-free
 
-**Pattern**: This solves the ambiguity problem without complex keyword matching - users simply use numbers when names conflict. Numeric IDs are assigned lazily when commands execute (like `take`, `examine`, `drop`), not during display commands (like `look`, `inventory`).
+**Pattern**: IDs appear only when needed for disambiguation, keeping normal output clean. Users see IDs only after an ambiguous command, then use numbers to clarify their intent.
 
 ### Navigation to Duplicate Destinations
 
-When multiple exits or landmarks have similar names (e.g., "a gnarled willow [3]", "a gnarled willow [5]"), users **must use numeric IDs** to navigate, not keywords.
+When multiple exits or landmarks have similar names, navigation commands handle ambiguity the same way as item commands.
 
+**Example flow**:
 ```
-Items: a peaceful glade [1], a peaceful glade [2]
-Landmarks: a gnarled willow [3], a gnarled willow [5]
+> look
+You can see a peaceful glade, a peaceful glade, and a dense forest.
+In the distance you can see a gnarled willow, and a gnarled willow.
 
-> go glade        ❌ AMBIGUOUS - which glade?
-> go 1            ✅ WORKS - goes to first glade
-> go willow       ❌ AMBIGUOUS - which willow?
-> go 3            ✅ WORKS - navigates toward willow [3]
+> go glade
+Which glade did you mean? a peaceful glade [1], and a peaceful glade [2]
+
+> go 1
+You go to a peaceful glade.
+
+> go willow
+Which willow did you mean? a gnarled willow [3], and a gnarled willow [4]
+
+> go 3
+You move closer toward a gnarled willow.
 ```
 
-**Why this matters**: The fuzzy matcher cannot disambiguate identical or highly similar descriptions. Numeric IDs provide unambiguous selection.
+**Why this matters**: The fuzzy matcher cannot disambiguate identical or highly similar descriptions. Numeric IDs provide unambiguous selection after the user sees the options.
 
-**Implementation note**: NavigationPlugin uses DisambiguationSystem.resolveEntity() which checks numeric IDs first, then falls back to fuzzy matching. When fuzzy matching finds multiple strong matches, it fails rather than guessing.
+**Implementation note**: NavigationPlugin uses DisambiguationSystem.resolveEntity() which checks numeric IDs first, then falls back to fuzzy matching. When fuzzy matching finds multiple strong matches, it prompts the user with numbered choices rather than guessing.
 
 ## World Generation
 

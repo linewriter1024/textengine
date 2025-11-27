@@ -39,6 +39,9 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 	public static final String EXAMINE = "examine";
 	public static final String USE = "use";
 	public static final String INVENTORY = "inventory";
+	public static final String OPEN = "open";
+	public static final String CLOSE = "close";
+	public static final String PUT = "put";
 	
 	public static final String M_ITEM = "item";
 	public static final String M_ENTITY_ID = "entity_id";
@@ -50,6 +53,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 	public static final String M_ITEMS = "items";
 	public static final String M_WEIGHT = "weight";
 	public static final String M_CARRY_WEIGHT = "carry_weight";
+	public static final String M_CONTAINER_NAME = "container_name";
 	
 	public ItemInteractionPlugin(Game game) {
 		super(game);
@@ -84,6 +88,21 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		// Inventory
 		game.registerCommand(new Command(INVENTORY, this::handleInventory,
 			new CommandVariant("inventory", "^(?:inventory|inv|i)\\s*$", args -> CommandInput.makeNone())
+		));
+		
+		// Open container
+		game.registerCommand(new Command(OPEN, this::handleOpen,
+			new CommandVariant("open_container", "^open\\s+(.+?)\\s*$", this::parseOpen)
+		));
+		
+		// Close container
+		game.registerCommand(new Command(CLOSE, this::handleClose,
+			new CommandVariant("close_container", "^close\\s+(.+?)\\s*$", this::parseClose)
+		));
+		
+		// Put item in container
+		game.registerCommand(new Command(PUT, this::handlePut,
+			new CommandVariant("put_in", "^put\\s+(.+?)\\s+(?:in|into)\\s+(.+?)\\s*$", this::parsePut)
 		));
 	}
 	
@@ -684,8 +703,13 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		
 		// Check TagInteractionSystem for registered tag interactions
 		TagInteractionSystem tis = game.getSystem(TagInteractionSystem.class);
-		Optional<CommandOutput> tagInteractionOutput = tis.executeInteraction(
-			client, actor, item, itemName, target, targetName, ws.getCurrentTime()
+		
+		// Get actor name for broadcasting
+		List<LookDescriptor> actorLooks = ls.getLooksFromEntity(actor, ws.getCurrentTime());
+		String actorName = !actorLooks.isEmpty() ? actorLooks.get(0).getDescription() : "someone";
+		
+		Optional<CommandOutput> tagInteractionOutput = tis.executeInteractionWithBroadcast(
+			actor, actorName, item, itemName, target, targetName, ws.getCurrentTime()
 		);
 		
 		if (tagInteractionOutput.isPresent()) {
@@ -814,5 +838,463 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 			.put(M_SUCCESS, false)
 			.put(M_ERROR, "ambiguous")
 			.text(Markup.concat(parts.toArray(new Markup.Safe[0]))));
+	}
+	
+	private CommandInput parseOpen(Matcher matcher) {
+		return CommandInput.makeNone().put(M_CONTAINER, matcher.group(1).trim());
+	}
+	
+	private CommandInput parseClose(Matcher matcher) {
+		return CommandInput.makeNone().put(M_CONTAINER, matcher.group(1).trim());
+	}
+	
+	private CommandInput parsePut(Matcher matcher) {
+		return CommandInput.makeNone()
+			.put(M_ITEM, matcher.group(1).trim())
+			.put(M_CONTAINER, matcher.group(2).trim());
+	}
+	
+	private void handleOpen(Client client, CommandInput input) {
+		Entity actor = client.getEntity().orElse(null);
+		if (actor == null) {
+			client.sendOutput(Client.NO_ENTITY);
+			return;
+		}
+		
+		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
+		WorldSystem ws = game.getSystem(WorldSystem.class);
+		ItemSystem is = game.getSystem(ItemSystem.class);
+		LookSystem ls = game.getSystem(LookSystem.class);
+		DisambiguationSystem ds = game.getSystem(DisambiguationSystem.class);
+		
+		// Get current location
+		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
+		if (containers.isEmpty()) {
+			client.sendOutput(CommandOutput.make(OPEN)
+				.put(M_SUCCESS, false)
+				.put(M_ERROR, "nowhere")
+				.text(Markup.escape("You are nowhere.")));
+			return;
+		}
+		
+		Entity currentLocation = containers.get(0).getProvider();
+		
+		// Get all visible containers (in location or in inventory)
+		List<Entity> allItems = new java.util.ArrayList<>();
+		
+		// Items at location
+		allItems.addAll(rs.getReceivingRelationships(currentLocation, rs.rvContains, ws.getCurrentTime())
+			.stream()
+			.map(RelationshipDescriptor::getReceiver)
+			.filter(e -> e instanceof Item)
+			.collect(Collectors.toList()));
+		
+		// Items in inventory
+		allItems.addAll(rs.getReceivingRelationships(actor, rs.rvContains, ws.getCurrentTime())
+			.stream()
+			.map(RelationshipDescriptor::getReceiver)
+			.filter(e -> e instanceof Item)
+			.collect(Collectors.toList()));
+		
+		// Filter to only containers
+		List<Entity> availableContainers = allItems.stream()
+			.filter(item -> is.hasTag(item, is.TAG_CONTAINER, ws.getCurrentTime()))
+			.collect(Collectors.toList());
+		
+		if (availableContainers.isEmpty()) {
+			client.sendOutput(CommandOutput.make(OPEN)
+				.put(M_SUCCESS, false)
+				.put(M_ERROR, "no_containers")
+				.text(Markup.escape("There are no containers here.")));
+			return;
+		}
+		
+		String containerInput = input.get(M_CONTAINER);
+		
+		// Resolve which container
+		var result = ds.resolveEntityWithAmbiguity(client, containerInput, availableContainers,
+			container -> {
+				var looks = ls.getLooksFromEntity(container, ws.getCurrentTime());
+				return !looks.isEmpty() ? looks.get(0).getDescription() : null;
+			});
+		
+		if (result.isNotFound()) {
+			client.sendOutput(CommandOutput.make(OPEN)
+				.put(M_SUCCESS, false)
+				.put(M_ERROR, "not_found")
+				.text(Markup.concat(
+					Markup.raw("You don't see "),
+					Markup.em(containerInput),
+					Markup.raw(" here.")
+				)));
+			return;
+		}
+		
+		if (result.isAmbiguous()) {
+			handleAmbiguousMatch(client, OPEN, containerInput, result.getAmbiguousMatches(),
+				container -> {
+					var looks = ls.getLooksFromEntity(container, ws.getCurrentTime());
+					return !looks.isEmpty() ? looks.get(0).getDescription() : null;
+				});
+			return;
+		}
+		
+		Entity container = result.getUniqueMatch();
+		var containerLooks = ls.getLooksFromEntity(container, ws.getCurrentTime());
+		String containerName = !containerLooks.isEmpty() ? containerLooks.get(0).getDescription() : "the container";
+		
+		// Check if already open
+		Long openValue = is.getTagValue(container, is.TAG_OPEN, ws.getCurrentTime());
+		if (openValue != null && openValue == 1) {
+			client.sendOutput(CommandOutput.make(OPEN)
+				.put(M_SUCCESS, false)
+				.put(M_ERROR, "already_open")
+				.put(M_CONTAINER, container.getKeyId())
+				.put(M_CONTAINER_NAME, containerName)
+				.text(Markup.concat(
+					Markup.em(containerName.substring(0, 1).toUpperCase() + containerName.substring(1)),
+					Markup.raw(" is already open.")
+				)));
+			return;
+		}
+		
+		// Open the container
+		is.addTag(container, is.TAG_OPEN, 1);
+		
+		// Get contents
+		List<Entity> contents = rs.getReceivingRelationships(container, rs.rvContains, ws.getCurrentTime())
+			.stream()
+			.map(RelationshipDescriptor::getReceiver)
+			.filter(e -> e instanceof Item)
+			.collect(Collectors.toList());
+		
+		if (contents.isEmpty()) {
+			client.sendOutput(CommandOutput.make(OPEN)
+				.put(M_SUCCESS, true)
+				.put(M_CONTAINER, container.getKeyId())
+				.put(M_CONTAINER_NAME, containerName)
+				.text(Markup.concat(
+					Markup.raw("You open "),
+					Markup.em(containerName),
+					Markup.raw(". It is empty.")
+				)));
+		} else {
+			// Format contents list
+			List<Markup.Safe> contentParts = new java.util.ArrayList<>();
+			contentParts.add(Markup.raw("You open "));
+			contentParts.add(Markup.em(containerName));
+			contentParts.add(Markup.raw(". Inside you see "));
+			
+			for (int i = 0; i < contents.size(); i++) {
+				if (i > 0) {
+					if (i == contents.size() - 1) {
+						contentParts.add(Markup.raw(", and "));
+					} else {
+						contentParts.add(Markup.raw(", "));
+					}
+				}
+				var looks = ls.getLooksFromEntity(contents.get(i), ws.getCurrentTime());
+				String desc = !looks.isEmpty() ? looks.get(0).getDescription() : "something";
+				contentParts.add(Markup.em(desc));
+			}
+			contentParts.add(Markup.raw("."));
+			
+			client.sendOutput(CommandOutput.make(OPEN)
+				.put(M_SUCCESS, true)
+				.put(M_CONTAINER, container.getKeyId())
+				.put(M_CONTAINER_NAME, containerName)
+				.text(Markup.concat(contentParts.toArray(new Markup.Safe[0]))));
+		}
+	}
+	
+	private void handleClose(Client client, CommandInput input) {
+		Entity actor = client.getEntity().orElse(null);
+		if (actor == null) {
+			client.sendOutput(Client.NO_ENTITY);
+			return;
+		}
+		
+		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
+		WorldSystem ws = game.getSystem(WorldSystem.class);
+		ItemSystem is = game.getSystem(ItemSystem.class);
+		LookSystem ls = game.getSystem(LookSystem.class);
+		DisambiguationSystem ds = game.getSystem(DisambiguationSystem.class);
+		
+		// Get current location
+		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
+		if (containers.isEmpty()) {
+			client.sendOutput(CommandOutput.make(CLOSE)
+				.put(M_SUCCESS, false)
+				.put(M_ERROR, "nowhere")
+				.text(Markup.escape("You are nowhere.")));
+			return;
+		}
+		
+		Entity currentLocation = containers.get(0).getProvider();
+		
+		// Get all visible containers
+		List<Entity> allItems = new java.util.ArrayList<>();
+		allItems.addAll(rs.getReceivingRelationships(currentLocation, rs.rvContains, ws.getCurrentTime())
+			.stream()
+			.map(RelationshipDescriptor::getReceiver)
+			.filter(e -> e instanceof Item)
+			.collect(Collectors.toList()));
+		allItems.addAll(rs.getReceivingRelationships(actor, rs.rvContains, ws.getCurrentTime())
+			.stream()
+			.map(RelationshipDescriptor::getReceiver)
+			.filter(e -> e instanceof Item)
+			.collect(Collectors.toList()));
+		
+		List<Entity> availableContainers = allItems.stream()
+			.filter(item -> is.hasTag(item, is.TAG_CONTAINER, ws.getCurrentTime()))
+			.collect(Collectors.toList());
+		
+		if (availableContainers.isEmpty()) {
+			client.sendOutput(CommandOutput.make(CLOSE)
+				.put(M_SUCCESS, false)
+				.put(M_ERROR, "no_containers")
+				.text(Markup.escape("There are no containers here.")));
+			return;
+		}
+		
+		String containerInput = input.get(M_CONTAINER);
+		
+		var result = ds.resolveEntityWithAmbiguity(client, containerInput, availableContainers,
+			container -> {
+				var looks = ls.getLooksFromEntity(container, ws.getCurrentTime());
+				return !looks.isEmpty() ? looks.get(0).getDescription() : null;
+			});
+		
+		if (result.isNotFound()) {
+			client.sendOutput(CommandOutput.make(CLOSE)
+				.put(M_SUCCESS, false)
+				.put(M_ERROR, "not_found")
+				.text(Markup.concat(
+					Markup.raw("You don't see "),
+					Markup.em(containerInput),
+					Markup.raw(" here.")
+				)));
+			return;
+		}
+		
+		if (result.isAmbiguous()) {
+			handleAmbiguousMatch(client, CLOSE, containerInput, result.getAmbiguousMatches(),
+				container -> {
+					var looks = ls.getLooksFromEntity(container, ws.getCurrentTime());
+					return !looks.isEmpty() ? looks.get(0).getDescription() : null;
+				});
+			return;
+		}
+		
+		Entity container = result.getUniqueMatch();
+		var containerLooks = ls.getLooksFromEntity(container, ws.getCurrentTime());
+		String containerName = !containerLooks.isEmpty() ? containerLooks.get(0).getDescription() : "the container";
+		
+		// Check if already closed
+		Long openValue = is.getTagValue(container, is.TAG_OPEN, ws.getCurrentTime());
+		if (openValue == null || openValue == 0) {
+			client.sendOutput(CommandOutput.make(CLOSE)
+				.put(M_SUCCESS, false)
+				.put(M_ERROR, "already_closed")
+				.put(M_CONTAINER, container.getKeyId())
+				.put(M_CONTAINER_NAME, containerName)
+				.text(Markup.concat(
+					Markup.em(containerName.substring(0, 1).toUpperCase() + containerName.substring(1)),
+					Markup.raw(" is already closed.")
+				)));
+			return;
+		}
+		
+		// Close the container
+		is.updateTagValue(container, is.TAG_OPEN, 0, ws.getCurrentTime());
+		
+		client.sendOutput(CommandOutput.make(CLOSE)
+			.put(M_SUCCESS, true)
+			.put(M_CONTAINER, container.getKeyId())
+			.put(M_CONTAINER_NAME, containerName)
+			.text(Markup.concat(
+				Markup.raw("You close "),
+				Markup.em(containerName),
+				Markup.raw(".")
+			)));
+	}
+	
+	private void handlePut(Client client, CommandInput input) {
+		Entity actor = client.getEntity().orElse(null);
+		if (actor == null) {
+			client.sendOutput(Client.NO_ENTITY);
+			return;
+		}
+		
+		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
+		WorldSystem ws = game.getSystem(WorldSystem.class);
+		ItemSystem is = game.getSystem(ItemSystem.class);
+		LookSystem ls = game.getSystem(LookSystem.class);
+		DisambiguationSystem ds = game.getSystem(DisambiguationSystem.class);
+		com.benleskey.textengine.systems.EventSystem evs = game.getSystem(com.benleskey.textengine.systems.EventSystem.class);
+		
+		// Get current location
+		var locationContainers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
+		if (locationContainers.isEmpty()) {
+			client.sendOutput(CommandOutput.make(PUT)
+				.put(M_SUCCESS, false)
+				.put(M_ERROR, "nowhere")
+				.text(Markup.escape("You are nowhere.")));
+			return;
+		}
+		
+		Entity currentLocation = locationContainers.get(0).getProvider();
+		
+		// Get items in inventory
+		List<Entity> inventory = rs.getReceivingRelationships(actor, rs.rvContains, ws.getCurrentTime())
+			.stream()
+			.map(RelationshipDescriptor::getReceiver)
+			.filter(e -> e instanceof Item)
+			.collect(Collectors.toList());
+		
+		if (inventory.isEmpty()) {
+			client.sendOutput(CommandOutput.make(PUT)
+				.put(M_SUCCESS, false)
+				.put(M_ERROR, "nothing_to_put")
+				.text(Markup.escape("You aren't carrying anything.")));
+			return;
+		}
+		
+		String itemInput = input.get(M_ITEM);
+		
+		// Resolve which item to put
+		var itemResult = ds.resolveEntityWithAmbiguity(client, itemInput, inventory,
+			item -> {
+				var looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
+				return !looks.isEmpty() ? looks.get(0).getDescription() : null;
+			});
+		
+		if (itemResult.isNotFound()) {
+			client.sendOutput(CommandOutput.make(PUT)
+				.put(M_SUCCESS, false)
+				.put(M_ERROR, "not_carrying")
+				.text(Markup.concat(
+					Markup.raw("You aren't carrying "),
+					Markup.em(itemInput),
+					Markup.raw(".")
+				)));
+			return;
+		}
+		
+		if (itemResult.isAmbiguous()) {
+			handleAmbiguousMatch(client, PUT, itemInput, itemResult.getAmbiguousMatches(),
+				item -> {
+					var looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
+					return !looks.isEmpty() ? looks.get(0).getDescription() : null;
+				});
+			return;
+		}
+		
+		Entity item = itemResult.getUniqueMatch();
+		var itemLooks = ls.getLooksFromEntity(item, ws.getCurrentTime());
+		String itemName = !itemLooks.isEmpty() ? itemLooks.get(0).getDescription() : "it";
+		
+		// Get all visible containers
+		List<Entity> allItems = new java.util.ArrayList<>();
+		allItems.addAll(rs.getReceivingRelationships(currentLocation, rs.rvContains, ws.getCurrentTime())
+			.stream()
+			.map(RelationshipDescriptor::getReceiver)
+			.filter(e -> e instanceof Item)
+			.collect(Collectors.toList()));
+		allItems.addAll(inventory);
+		
+		List<Entity> availableContainers = allItems.stream()
+			.filter(container -> is.hasTag(container, is.TAG_CONTAINER, ws.getCurrentTime()))
+			.collect(Collectors.toList());
+		
+		if (availableContainers.isEmpty()) {
+			client.sendOutput(CommandOutput.make(PUT)
+				.put(M_SUCCESS, false)
+				.put(M_ERROR, "no_containers")
+				.text(Markup.escape("There are no containers here.")));
+			return;
+		}
+		
+		String containerInput = input.get(M_CONTAINER);
+		
+		// Resolve which container
+		var containerResult = ds.resolveEntityWithAmbiguity(client, containerInput, availableContainers,
+			container -> {
+				var looks = ls.getLooksFromEntity(container, ws.getCurrentTime());
+				return !looks.isEmpty() ? looks.get(0).getDescription() : null;
+			});
+		
+		if (containerResult.isNotFound()) {
+			client.sendOutput(CommandOutput.make(PUT)
+				.put(M_SUCCESS, false)
+				.put(M_ERROR, "container_not_found")
+				.text(Markup.concat(
+					Markup.raw("You don't see "),
+					Markup.em(containerInput),
+					Markup.raw(" here.")
+				)));
+			return;
+		}
+		
+		if (containerResult.isAmbiguous()) {
+			handleAmbiguousMatch(client, PUT, containerInput, containerResult.getAmbiguousMatches(),
+				container -> {
+					var looks = ls.getLooksFromEntity(container, ws.getCurrentTime());
+					return !looks.isEmpty() ? looks.get(0).getDescription() : null;
+				});
+			return;
+		}
+		
+		Entity container = containerResult.getUniqueMatch();
+		var containerLooks = ls.getLooksFromEntity(container, ws.getCurrentTime());
+		String containerName = !containerLooks.isEmpty() ? containerLooks.get(0).getDescription() : "the container";
+		
+		// Check if container is open
+		Long openValue = is.getTagValue(container, is.TAG_OPEN, ws.getCurrentTime());
+		if (openValue == null || openValue == 0) {
+			client.sendOutput(CommandOutput.make(PUT)
+				.put(M_SUCCESS, false)
+				.put(M_ERROR, "container_closed")
+				.put(M_CONTAINER, container.getKeyId())
+				.put(M_CONTAINER_NAME, containerName)
+				.text(Markup.concat(
+					Markup.em(containerName.substring(0, 1).toUpperCase() + containerName.substring(1)),
+					Markup.raw(" is closed.")
+				)));
+			return;
+		}
+		
+		// Can't put container inside itself
+		if (item.getId() == container.getId()) {
+			client.sendOutput(CommandOutput.make(PUT)
+				.put(M_SUCCESS, false)
+				.put(M_ERROR, "container_self")
+				.text(Markup.escape("You can't put something inside itself.")));
+			return;
+		}
+		
+		// Move item from inventory to container
+		// Cancel old containment relationship
+		var oldContainment = rs.getProvidingRelationships(item, rs.rvContains, ws.getCurrentTime());
+		if (!oldContainment.isEmpty()) {
+			evs.cancelEvent(oldContainment.get(0).getRelationship());
+		}
+		
+		// Add new containment relationship
+		rs.add(container, item, rs.rvContains);
+		
+		client.sendOutput(CommandOutput.make(PUT)
+			.put(M_SUCCESS, true)
+			.put(M_ITEM, item.getKeyId())
+			.put(M_ITEM_NAME, itemName)
+			.put(M_CONTAINER, container.getKeyId())
+			.put(M_CONTAINER_NAME, containerName)
+			.text(Markup.concat(
+				Markup.raw("You put "),
+				Markup.em(itemName),
+				Markup.raw(" in "),
+				Markup.em(containerName),
+				Markup.raw(".")
+			)));
 	}
 }

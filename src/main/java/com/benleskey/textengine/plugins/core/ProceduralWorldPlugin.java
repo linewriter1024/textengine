@@ -243,23 +243,39 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 			return existingActor;
 		}
 		
-		// Create new actor
-		Actor actor = es.add(Actor.class);
-		ls.addLook(actor, "basic", "yourself");
-		is.addTag(actor, is.TAG_CARRY_WEIGHT, 10000); // Can carry up to 10kg
-		rs.add(startingPlace, actor, rs.rvContains);
-		log.log("Created new actor %d", actor.getId());
-		
-		// Give starting inventory (timepiece + grandfather clock)
+	// Create new actor
+	Actor actor = es.add(Actor.class);
+	ls.addLook(actor, "basic", "yourself");
+	es.addTag(actor, es.TAG_ACTOR); // Mark as an actor (can perform actions)
+	is.addTag(actor, is.TAG_CARRY_WEIGHT, 10000); // Can carry up to 10kg
+	rs.add(startingPlace, actor, rs.rvContains);
+	log.log("Created new actor %d", actor.getId());		// Give starting inventory (timepiece + grandfather clock)
 		// Use a new Random instance for starting items (non-deterministic, per-session)
 		Random startingRandom = new Random();
 		var timepiece = com.benleskey.textengine.plugins.highfantasy.entities.Timepiece.create(game, startingRandom);
 		rs.add(actor, timepiece, rs.rvContains);
 		log.log("Gave player starting timepiece");
 		
+		// Add axe for testing tree cutting
+		var axe = com.benleskey.textengine.plugins.highfantasy.entities.Axe.create(game, startingRandom);
+		rs.add(actor, axe, rs.rvContains);
+		log.log("Gave player starting axe");
+		
 		var clock = com.benleskey.textengine.plugins.highfantasy.entities.GrandfatherClock.create(game, startingRandom);
 		rs.add(startingPlace, clock, rs.rvContains);
 		log.log("Added grandfather clock to starting location");
+		
+		// Add a wooden chest with items for testing container system
+		var chest = com.benleskey.textengine.plugins.highfantasy.entities.WoodenChest.create(game, startingRandom);
+		rs.add(startingPlace, chest, rs.rvContains);
+		log.log("Added wooden chest to starting location");
+		
+		// Put some items in the chest for testing
+		var coin = com.benleskey.textengine.plugins.highfantasy.entities.AncientCoin.create(game, startingRandom);
+		rs.add(chest, coin, rs.rvContains);
+		
+		var scroll = com.benleskey.textengine.plugins.highfantasy.entities.WeatheredScroll.create(game, startingRandom);
+		rs.add(chest, scroll, rs.rvContains);
 		
 		return actor;
 	}

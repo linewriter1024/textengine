@@ -39,7 +39,6 @@ public class AncientCoin extends Item {
 		
 		AncientCoin coin = es.add(AncientCoin.class);
 		ls.addLook(coin, "basic", description);
-		is.addTag(coin, is.TAG_CURRENCY);
 		is.addTag(coin, is.TAG_TAKEABLE);
 		is.addTag(coin, is.TAG_WEIGHT, 10); // 10g
 		

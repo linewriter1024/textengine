@@ -32,15 +32,9 @@ public class ItemSystem extends SingletonGameSystem implements OnSystemInitializ
 	public UniqueType TAG_CUT;  // For tools that can cut things
 	public UniqueType TAG_WEIGHT;  // Numeric tag for item weight
 	public UniqueType TAG_INFINITE_RESOURCE;  // For infinite resources (grass, water, etc.)
-	public UniqueType TAG_WEAPON;  // Item is a weapon
-	public UniqueType TAG_ARMOR;  // Item is armor
-	public UniqueType TAG_CURRENCY;  // Item is currency (coins, gems)
-	public UniqueType TAG_READABLE;  // Item can be read (scrolls, books)
 	public UniqueType TAG_TAKEABLE;  // Item can be taken (picked up)
 	public UniqueType TAG_CARRY_WEIGHT;  // Maximum weight entity can carry (in grams)
-	public UniqueType TAG_TICKABLE;  // Entity receives periodic tick updates
-	public UniqueType TAG_ENTITY_CREATED;  // Time when entity was created (in milliseconds)
-	public UniqueType TAG_LAST_TICK;  // Last time entity was ticked (in milliseconds)
+	public UniqueType TAG_OPEN;  // Container is open (value: 1=open, 0 or absent=closed)
 
 	public ItemSystem(Game game) {
 		super(game);
@@ -59,15 +53,9 @@ public class ItemSystem extends SingletonGameSystem implements OnSystemInitializ
 		TAG_CUT = typeSystem.getType("item_tag_cut");
 		TAG_WEIGHT = typeSystem.getType("item_tag_weight");
 		TAG_INFINITE_RESOURCE = typeSystem.getType("item_tag_infinite_resource");
-		TAG_WEAPON = typeSystem.getType("item_tag_weapon");
-		TAG_ARMOR = typeSystem.getType("item_tag_armor");
-		TAG_CURRENCY = typeSystem.getType("item_tag_currency");
-		TAG_READABLE = typeSystem.getType("item_tag_readable");
 		TAG_TAKEABLE = typeSystem.getType("item_tag_takeable");
 		TAG_CARRY_WEIGHT = typeSystem.getType("item_tag_carry_weight");
-		TAG_TICKABLE = typeSystem.getType("item_tag_tickable");
-		TAG_ENTITY_CREATED = typeSystem.getType("item_tag_entity_created");
-		TAG_LAST_TICK = typeSystem.getType("item_tag_last_tick");
+		TAG_OPEN = typeSystem.getType("item_tag_open");
 	}
 
 	/**

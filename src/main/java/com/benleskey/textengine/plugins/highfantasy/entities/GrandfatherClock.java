@@ -39,7 +39,7 @@ public class GrandfatherClock extends Item implements Tickable, DynamicDescripti
 		// Clock is too heavy to take
 		is.addTag(clock, is.TAG_TAKEABLE);
 		is.addTag(clock, is.TAG_WEIGHT, 100000L); // 100kg - too heavy to carry
-		is.addTag(clock, is.TAG_TICKABLE); // Receives tick updates
+		es.addTag(clock, es.TAG_TICKABLE); // Receives tick updates
 		
 		return clock;
 	}

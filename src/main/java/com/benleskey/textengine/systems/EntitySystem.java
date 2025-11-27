@@ -23,8 +23,14 @@ public class EntitySystem extends SingletonGameSystem implements OnSystemInitial
 	private PreparedStatement getStatement;
 	private final Map<UniqueType, Class<? extends Entity>> entityTypes = new HashMap<>();
 	private EntityTagSystem tagSystem;
-	private ItemSystem itemSystem;
 	private WorldSystem worldSystem;
+	private UniqueTypeSystem typeSystem;
+	
+	// Common entity tags (initialized in onSystemInitialize)
+	public UniqueType TAG_ENTITY_CREATED;  // Time when entity was created (in milliseconds)
+	public UniqueType TAG_TICKABLE;  // Entity receives periodic tick updates
+	public UniqueType TAG_LAST_TICK;  // Last time entity was ticked (in milliseconds)
+	public UniqueType TAG_ACTOR;  // Entity can perform actions (player, NPC)
 
 	public EntitySystem(Game game) {
 		super(game);
@@ -54,8 +60,14 @@ public class EntitySystem extends SingletonGameSystem implements OnSystemInitial
 		
 		// Get systems for storing creation time
 		tagSystem = game.getSystem(EntityTagSystem.class);
-		itemSystem = game.getSystem(ItemSystem.class);
 		worldSystem = game.getSystem(WorldSystem.class);
+		typeSystem = game.getSystem(UniqueTypeSystem.class);
+		
+		// Initialize entity tags
+		TAG_ENTITY_CREATED = typeSystem.getType("entity_tag_entity_created");
+		TAG_TICKABLE = typeSystem.getType("entity_tag_tickable");
+		TAG_LAST_TICK = typeSystem.getType("entity_tag_last_tick");
+		TAG_ACTOR = typeSystem.getType("entity_tag_actor");
 	}
 
 	@SuppressWarnings("null") // Generic type T will never be null
@@ -82,7 +94,7 @@ public class EntitySystem extends SingletonGameSystem implements OnSystemInitial
 			// Store entity creation time
 			T entity = get(newId, clazz);
 			DTime creationTime = worldSystem.getCurrentTime();
-			tagSystem.addTag(entity, itemSystem.TAG_ENTITY_CREATED, creationTime.toMilliseconds());
+			tagSystem.addTag(entity, TAG_ENTITY_CREATED, creationTime.toMilliseconds());
 			
 			return entity;
 		} catch (SQLException e) {
@@ -135,5 +147,33 @@ public class EntitySystem extends SingletonGameSystem implements OnSystemInitial
 		} catch (SQLException e) {
 			throw new DatabaseException("Could not check for entities of type " + entityType, e);
 		}
+	}
+	
+	/**
+	 * Get the numeric value of a tag on an entity.
+	 */
+	public Long getTagValue(Entity entity, UniqueType tag, DTime when) {
+		return tagSystem.getTagValue(entity, tag, when);
+	}
+	
+	/**
+	 * Add a tag to an entity.
+	 */
+	public com.benleskey.textengine.model.Reference addTag(Entity entity, UniqueType tag) {
+		return tagSystem.addTag(entity, tag);
+	}
+	
+	/**
+	 * Add a tag with a numeric value to an entity.
+	 */
+	public com.benleskey.textengine.model.Reference addTag(Entity entity, UniqueType tag, long value) {
+		return tagSystem.addTag(entity, tag, value);
+	}
+	
+	/**
+	 * Update a tag value (cancels old value and adds new one).
+	 */
+	public com.benleskey.textengine.model.Reference updateTagValue(Entity entity, UniqueType tag, long newValue, DTime when) {
+		return tagSystem.updateTagValue(entity, tag, newValue, when);
 	}
 }

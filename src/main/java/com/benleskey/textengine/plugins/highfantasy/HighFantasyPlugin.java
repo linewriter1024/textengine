@@ -89,10 +89,10 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 		ItemSystem is = game.getSystem(ItemSystem.class);
 		
 		// Register cutting interaction: TAG_CUT + TAG_CUTTABLE
-		tis.registerInteraction(is.TAG_CUT, is.TAG_CUTTABLE, (client, actor, tool, toolName, target, targetName) -> {
+		tis.registerInteraction(is.TAG_CUT, is.TAG_CUTTABLE, (actor, tool, toolName, target, targetName) -> {
 			// If target implements Cuttable interface, delegate to it
 			if (target instanceof Cuttable cuttable) {
-				return cuttable.onCut(client, actor, tool, toolName, targetName);
+				return cuttable.onCut(actor, tool, toolName, targetName);
 			}
 			
 			// Default behavior if target doesn't implement Cuttable

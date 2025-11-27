@@ -21,7 +21,7 @@ public class TickSystem extends SingletonGameSystem implements OnSystemInitializ
 	
 	private EntityTagSystem tagSystem;
 	private WorldSystem worldSystem;
-	private ItemSystem itemSystem;
+	private EntitySystem entitySystem;
 
 	public TickSystem(Game game) {
 		super(game);
@@ -31,7 +31,7 @@ public class TickSystem extends SingletonGameSystem implements OnSystemInitializ
 	public void onSystemInitialize() throws DatabaseException {
 		tagSystem = game.getSystem(EntityTagSystem.class);
 		worldSystem = game.getSystem(WorldSystem.class);
-		itemSystem = game.getSystem(ItemSystem.class);
+		entitySystem = game.getSystem(EntitySystem.class);
 		
 		int v = getSchema().getVersionNumber();
 		if (v == 0) {
@@ -48,7 +48,7 @@ public class TickSystem extends SingletonGameSystem implements OnSystemInitializ
 		DTime currentTime = worldSystem.getCurrentTime();
 		
 		// Validate TAG_TICKABLE exists
-		UniqueType tagTickable = itemSystem.TAG_TICKABLE;
+		UniqueType tagTickable = entitySystem.TAG_TICKABLE;
 		if (tagTickable == null) {
 			log.log("TAG_TICKABLE not initialized, skipping tick processing");
 			return;
@@ -74,12 +74,12 @@ public class TickSystem extends SingletonGameSystem implements OnSystemInitializ
 	 */
 	private void processEntityTick(Tickable tickable, Entity entity, DTime currentTime) {
 		// Get last tick time from tag, or use entity creation time if never ticked
-		Long lastTickMs = itemSystem.getTagValue(entity, itemSystem.TAG_LAST_TICK, currentTime);
+		Long lastTickMs = entitySystem.getTagValue(entity, entitySystem.TAG_LAST_TICK, currentTime);
 		DTime lastTick;
 		
 		if (lastTickMs == null) {
 			// Never ticked before - use entity creation time
-			Long creationMs = itemSystem.getTagValue(entity, itemSystem.TAG_ENTITY_CREATED, currentTime);
+			Long creationMs = entitySystem.getTagValue(entity, entitySystem.TAG_ENTITY_CREATED, currentTime);
 			if (creationMs != null) {
 				lastTick = new DTime(creationMs);
 			} else {
@@ -108,7 +108,7 @@ public class TickSystem extends SingletonGameSystem implements OnSystemInitializ
 			
 			// Update last tick time as a tag (persisted and temporal)
 			DTime newLastTick = new DTime(lastTick.toMilliseconds() + (tickCount * interval.toMilliseconds()));
-			itemSystem.updateTagValue(entity, itemSystem.TAG_LAST_TICK, newLastTick.toMilliseconds(), currentTime);
+			entitySystem.updateTagValue(entity, entitySystem.TAG_LAST_TICK, newLastTick.toMilliseconds(), currentTime);
 		}
 	}
 }

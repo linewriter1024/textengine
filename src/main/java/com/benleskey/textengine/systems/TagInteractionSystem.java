@@ -1,6 +1,5 @@
 package com.benleskey.textengine.systems;
 
-import com.benleskey.textengine.Client;
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.SingletonGameSystem;
 import com.benleskey.textengine.commands.CommandOutput;
@@ -22,21 +21,23 @@ public class TagInteractionSystem extends SingletonGameSystem implements OnSyste
 	/**
 	 * Functional interface for tag-based interaction handlers.
 	 * Takes the actor, tool, target, and their display names, and returns a CommandOutput.
+	 * 
+	 * Note: Does not include Client - these interactions can be performed by NPCs too.
+	 * The CommandOutput can be sent to relevant clients via broadcast or direct messaging.
 	 */
 	@FunctionalInterface
 	public interface TagInteractionHandler {
 		/**
 		 * Handle the interaction between tool and target.
 		 * 
-		 * @param client The client performing the action
-		 * @param actor The actor using the tool
-		 * @param tool The tool entity (has toolTag)
+		 * @param actor The actor using the tool (could be player or NPC)
+		 * @param tool The tool entity (has toolTag) - may be the same as actor for self-interactions
 		 * @param toolName Human-readable name of the tool
 		 * @param target The target entity (has targetTag)
 		 * @param targetName Human-readable name of the target
 		 * @return CommandOutput describing what happened, or null if interaction should fall through
 		 */
-		CommandOutput handle(Client client, Entity actor, Entity tool, String toolName, 
+		CommandOutput handle(Entity actor, Entity tool, String toolName, 
 		                     Entity target, String targetName);
 	}
 	
@@ -78,8 +79,7 @@ public class TagInteractionSystem extends SingletonGameSystem implements OnSyste
 	 * Find and execute a registered interaction between tool and target.
 	 * Checks all combinations of tags on both entities.
 	 * 
-	 * @param client The client performing the action
-	 * @param actor The actor using the tool
+	 * @param actor The actor using the tool (could be player or NPC)
 	 * @param tool The tool entity
 	 * @param toolName Human-readable name of the tool
 	 * @param target The target entity
@@ -87,7 +87,7 @@ public class TagInteractionSystem extends SingletonGameSystem implements OnSyste
 	 * @param currentTime The current game time
 	 * @return Optional containing CommandOutput if an interaction was found and executed, empty otherwise
 	 */
-	public Optional<CommandOutput> executeInteraction(Client client, Entity actor, 
+	public Optional<CommandOutput> executeInteraction(Entity actor, 
 	                                                   Entity tool, String toolName,
 	                                                   Entity target, String targetName,
 	                                                   com.benleskey.textengine.model.DTime currentTime) {
@@ -105,7 +105,7 @@ public class TagInteractionSystem extends SingletonGameSystem implements OnSyste
 				
 				if (handler != null) {
 					// Found a matching interaction!
-					CommandOutput output = handler.handle(client, actor, tool, toolName, target, targetName);
+					CommandOutput output = handler.handle(actor, tool, toolName, target, targetName);
 					if (output != null) {
 						return Optional.of(output);
 					}
@@ -114,6 +114,78 @@ public class TagInteractionSystem extends SingletonGameSystem implements OnSyste
 		}
 		
 		return Optional.empty();
+	}
+	
+	/**
+	 * Execute an interaction and broadcast to all observers at the same location.
+	 * Returns the primary output for the actor, and sends observer messages to all other actors.
+	 * 
+	 * @param actor The actor performing the interaction
+	 * @param actorName Human-readable name of the actor
+	 * @param tool The tool being used
+	 * @param toolName Human-readable name of the tool
+	 * @param target The target of the interaction
+	 * @param targetName Human-readable name of the target
+	 * @param currentTime The current game time
+	 * @return Optional containing CommandOutput for the actor, empty if no interaction found
+	 */
+	public Optional<CommandOutput> executeInteractionWithBroadcast(
+			Entity actor, String actorName,
+			Entity tool, String toolName,
+			Entity target, String targetName,
+			com.benleskey.textengine.model.DTime currentTime) {
+		
+		Optional<CommandOutput> actorOutput = executeInteraction(actor, tool, toolName, target, targetName, currentTime);
+		
+		if (actorOutput.isEmpty()) {
+			return Optional.empty();
+		}
+		
+		// Broadcast to observers at the same location
+		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
+		var actorContainers = rs.getProvidingRelationships(actor, rs.rvContains, currentTime);
+		
+		if (!actorContainers.isEmpty()) {
+			Entity location = actorContainers.get(0).getProvider();
+			
+			// Get all other actors at this location
+			var observers = rs.getReceivingRelationships(location, rs.rvContains, currentTime)
+				.stream()
+				.map(rd -> rd.getReceiver())
+				.filter(e -> e instanceof com.benleskey.textengine.entities.Actor && !e.equals(actor))
+				.toList();
+			
+			// Send observer version to each observer's client
+			for (Entity observer : observers) {
+				game.getClients().stream()
+					.filter(c -> c.getEntity().map(e -> e.equals(observer)).orElse(false))
+					.forEach(c -> {
+						// Get the command ID and text from the actor output
+						String commandId = actorOutput.get().get("output");
+						String originalText = actorOutput.get().getText().orElse("");
+						
+						// Convert "You X" to "ActorName Xs" for observers
+						String observerText = originalText
+							.replaceFirst("^You ", capitalize(actorName) + " ")
+							.replaceAll(" you ", " " + actorName + " ")
+							.replaceAll(" your ", " " + actorName + "'s ");
+						
+						c.sendOutput(CommandOutput.make(commandId)
+							.put("observer", true)
+							.put("actor", actor.getKeyId())
+							.text(com.benleskey.textengine.util.Markup.escape(observerText)));
+					});
+			}
+		}
+		
+		return actorOutput;
+	}
+	
+	private String capitalize(String str) {
+		if (str == null || str.isEmpty()) {
+			return str;
+		}
+		return str.substring(0, 1).toUpperCase() + str.substring(1);
 	}
 	
 	/**

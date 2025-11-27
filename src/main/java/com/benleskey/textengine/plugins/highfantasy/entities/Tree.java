@@ -1,6 +1,5 @@
 package com.benleskey.textengine.plugins.highfantasy.entities;
 
-import com.benleskey.textengine.Client;
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.entities.Item;
@@ -57,11 +56,9 @@ public class Tree extends Item implements Cuttable {
 	}
 	
 	@Override
-	public CommandOutput onCut(Client client, Entity actor, Entity tool, String toolName, String targetName) {
+	public CommandOutput onCut(Entity actor, Entity tool, String toolName, String targetName) {
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
-		EntitySystem es = game.getSystem(EntitySystem.class);
-		LookSystem ls = game.getSystem(LookSystem.class);
 		EventSystem evs = game.getSystem(EventSystem.class);
 		
 		// Find current location
@@ -75,9 +72,9 @@ public class Tree extends Item implements Cuttable {
 		
 		Entity currentLocation = containers.get(0).getProvider();
 		
-		// Generate wood item
-		Item wood = es.add(Item.class);
-		ls.addLook(wood, "basic", "a piece of wood");
+		// Generate wood item using Wood.create() for proper tags
+		Random random = new Random();
+		Wood wood = Wood.create(game, random);
 		
 		// Add wood to location
 		rs.add(currentLocation, wood, rs.rvContains);
@@ -88,6 +85,7 @@ public class Tree extends Item implements Cuttable {
 			evs.cancelEvent(treeContainment.get(0).getRelationship());
 		}
 		
+		// Return output for the actor (broadcasting handled by TagInteractionSystem)
 		return CommandOutput.make("use")
 			.put("success", true)
 			.put("item", tool.getKeyId())
