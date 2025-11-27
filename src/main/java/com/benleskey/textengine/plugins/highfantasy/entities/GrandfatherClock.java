@@ -11,6 +11,8 @@ import com.benleskey.textengine.systems.ItemSystem;
 import com.benleskey.textengine.systems.LookSystem;
 import com.benleskey.textengine.util.Markup;
 
+import java.util.Random;
+
 /**
  * A grandfather clock that ticks every minute and chimes on the hour.
  * Too heavy to move (100kg).
@@ -26,13 +28,13 @@ public class GrandfatherClock extends Item implements Tickable, DynamicDescripti
 	/**
 	 * Create a grandfather clock with proper tags and weight.
 	 */
-	public static GrandfatherClock create(Game game, String description) {
+	public static GrandfatherClock create(Game game, Random random) {
 		var es = game.getSystem(com.benleskey.textengine.systems.EntitySystem.class);
 		var ls = game.getSystem(LookSystem.class);
 		var is = game.getSystem(ItemSystem.class);
 		
 		GrandfatherClock clock = es.add(GrandfatherClock.class);
-		ls.addLook(clock, "basic", description);
+		ls.addLook(clock, "basic", "a grandfather clock");
 		
 		// Clock is too heavy to take
 		is.addTag(clock, is.TAG_TAKEABLE);

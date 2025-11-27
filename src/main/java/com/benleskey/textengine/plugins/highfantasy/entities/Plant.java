@@ -6,28 +6,41 @@ import com.benleskey.textengine.systems.EntitySystem;
 import com.benleskey.textengine.systems.ItemSystem;
 import com.benleskey.textengine.systems.LookSystem;
 
+import java.util.Random;
+
 /**
- * Generic plant item that can be customized with different descriptions.
+ * Generic plant item with variant descriptions.
  * Covers: grass, wildflowers, mushrooms, moss, leaves, feathers, etc.
  */
 public class Plant extends Item {
+	
+	private static final String[] DESCRIPTIONS = {
+		"some grass",
+		"a wildflower",
+		"some wild mushrooms",
+		"a bird's feather",
+		"a wet leaf",
+		"some scraggly moss",
+		"a dried herb"
+	};
 	
 	public Plant(long id, Game game) {
 		super(id, game);
 	}
 	
 	/**
-	 * Create a plant with the specified description.
-	 * Adds basic look automatically.
+	 * Create a plant with a randomly selected description variant.
 	 * 
 	 * @param game The game instance
-	 * @param description The description of the plant (e.g., "some grass", "a wildflower")
+	 * @param random Random instance for selecting description variant
 	 * @return The created and configured plant entity
 	 */
-	public static Plant create(Game game, String description) {
+	public static Plant create(Game game, Random random) {
 		EntitySystem es = game.getSystem(EntitySystem.class);
 		LookSystem ls = game.getSystem(LookSystem.class);
 		ItemSystem is = game.getSystem(ItemSystem.class);
+		
+		String description = DESCRIPTIONS[random.nextInt(DESCRIPTIONS.length)];
 		
 		Plant plant = es.add(Plant.class);
 		ls.addLook(plant, "basic", description);

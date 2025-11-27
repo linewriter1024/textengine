@@ -6,27 +6,36 @@ import com.benleskey.textengine.systems.EntitySystem;
 import com.benleskey.textengine.systems.ItemSystem;
 import com.benleskey.textengine.systems.LookSystem;
 
+import java.util.Random;
+
 /**
  * A weathered scroll with ancient writings.
  */
 public class WeatheredScroll extends Item {
+	
+	private static final String[] DESCRIPTIONS = {
+		"a weathered scroll",
+		"a torn parchment",
+		"a yellowed scroll"
+	};
 	
 	public WeatheredScroll(long id, Game game) {
 		super(id, game);
 	}
 	
 	/**
-	 * Create a weathered scroll with the specified description.
-	 * Adds basic look and TAG_READABLE automatically.
+	 * Create a weathered scroll with a randomly selected description variant.
 	 * 
 	 * @param game The game instance
-	 * @param description The description of the scroll (e.g., "a weathered scroll")
+	 * @param random Random instance for selecting description variant
 	 * @return The created and configured scroll entity
 	 */
-	public static WeatheredScroll create(Game game, String description) {
+	public static WeatheredScroll create(Game game, Random random) {
 		EntitySystem es = game.getSystem(EntitySystem.class);
 		LookSystem ls = game.getSystem(LookSystem.class);
 		ItemSystem is = game.getSystem(ItemSystem.class);
+		
+		String description = DESCRIPTIONS[random.nextInt(DESCRIPTIONS.length)];
 		
 		WeatheredScroll scroll = es.add(WeatheredScroll.class);
 		ls.addLook(scroll, "basic", description);

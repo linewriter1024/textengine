@@ -6,6 +6,8 @@ import com.benleskey.textengine.systems.EntitySystem;
 import com.benleskey.textengine.systems.ItemSystem;
 import com.benleskey.textengine.systems.LookSystem;
 
+import java.util.Random;
+
 /**
  * An axe that can cut down cuttable things (trees).
  * The axe has TAG_CUT and TAG_TOOL tags.
@@ -13,22 +15,29 @@ import com.benleskey.textengine.systems.LookSystem;
  */
 public class Axe extends Item {
 	
+	private static final String[] DESCRIPTIONS = {
+		"a rusty axe",
+		"a weathered hatchet",
+		"a chipped axe"
+	};
+	
 	public Axe(long id, Game game) {
 		super(id, game);
 	}
 	
 	/**
-	 * Create an axe with the specified description.
-	 * Adds basic look, TAG_CUT, and TAG_TOOL automatically.
+	 * Create an axe with a randomly selected description variant.
 	 * 
 	 * @param game The game instance
-	 * @param description The description of the axe (e.g., "a rusty axe")
+	 * @param random Random instance for selecting description variant
 	 * @return The created and configured axe entity
 	 */
-	public static Axe create(Game game, String description) {
+	public static Axe create(Game game, Random random) {
 		EntitySystem es = game.getSystem(EntitySystem.class);
 		LookSystem ls = game.getSystem(LookSystem.class);
 		ItemSystem is = game.getSystem(ItemSystem.class);
+		
+		String description = DESCRIPTIONS[random.nextInt(DESCRIPTIONS.length)];
 		
 		Axe axe = es.add(Axe.class);
 		ls.addLook(axe, "basic", description);

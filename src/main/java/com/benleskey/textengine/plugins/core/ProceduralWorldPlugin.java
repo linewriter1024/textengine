@@ -251,11 +251,13 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		log.log("Created new actor %d", actor.getId());
 		
 		// Give starting inventory (timepiece + grandfather clock)
-		var timepiece = com.benleskey.textengine.plugins.highfantasy.entities.Timepiece.create(game, "a pocket timepiece");
+		// Use a new Random instance for starting items (non-deterministic, per-session)
+		Random startingRandom = new Random();
+		var timepiece = com.benleskey.textengine.plugins.highfantasy.entities.Timepiece.create(game, startingRandom);
 		rs.add(actor, timepiece, rs.rvContains);
 		log.log("Gave player starting timepiece");
 		
-		var clock = com.benleskey.textengine.plugins.highfantasy.entities.GrandfatherClock.create(game, "a grandfather clock");
+		var clock = com.benleskey.textengine.plugins.highfantasy.entities.GrandfatherClock.create(game, startingRandom);
 		rs.add(startingPlace, clock, rs.rvContains);
 		log.log("Added grandfather clock to starting location");
 		
@@ -446,15 +448,8 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 			return;
 		}
 		
-		// Create item using factory if provided, otherwise use default creation
-		Item item;
-		if (itemData.factory() != null) {
-			// Use factory function (calls entity's create() method with proper tags/weight)
-			item = itemData.factory().create(game, itemData.name());
-		} else {
-			// Fallback for backward compatibility - shouldn't happen with new system
-			throw new InternalException("Item data must have a factory function");
-		}
+		// Create item using factory (passes Random for description variant selection)
+		Item item = itemData.factory().create(game, placeRandom);
 		
 		// Place the item in the location using the "contains" relationship
 		relationshipSystem.add(place, item, relationshipSystem.rvContains);
@@ -465,19 +460,8 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 			for (int i = 0; i < numContainedItems; i++) {
 				generateItemInContainer(item, biomeName, placeRandom);
 			}
-			log.log("Generated container '%s' in place %d with %d items", 
-				itemData.name(), place.getId(), numContainedItems);
-		} else {
-			log.log("Generated item '%s' in place %d", itemData.name(), place.getId());
 		}
 	}
-	
-	/**
-	 * Create the appropriate entity type based on item data.
-	 * Uses specific entity classes (Rattle, Axe, Tree) when appropriate,
-	 * falls back to generic Item otherwise.
-	 */
-	
 	
 	/**
 	 * Generate an item inside a container.
@@ -493,13 +477,8 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 			return;
 		}
 		
-		// Create item using factory
-		Item item;
-		if (itemData.factory() != null) {
-			item = itemData.factory().create(game, itemData.name());
-		} else {
-			throw new InternalException("Item data must have a factory function");
-		}
+		// Create item using factory (passes Random for description variant selection)
+		Item item = itemData.factory().create(game, placeRandom);
 		
 		// Skip containers inside containers
 		if (itemSystem.hasTag(item, itemSystem.TAG_CONTAINER, ws.getCurrentTime())) {

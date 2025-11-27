@@ -106,22 +106,19 @@ public class ItemTemplateSystem extends SingletonGameSystem implements OnSystemI
 	
 	/**
 	 * Functional interface for item factory - creates the actual item entity.
+	 * Takes Game and Random to allow for variant selection.
 	 */
 	@FunctionalInterface
 	public interface ItemFactory {
-		Item create(Game game, String description);
+		Item create(Game game, Random random);
 	}
 	
 	/**
-	 * Item data record - contains all information needed to create an item.
+	 * Item data record - contains factory function for creating items.
+	 * The factory is responsible for selecting description variants using Random.
 	 * 
-	 * @param name Item name/description
-	 * @param factory Factory function that creates the item with proper tags and weight
+	 * @param factory Factory function that creates the item with proper tags, weight, and description
 	 */
-	public record ItemData(String name, ItemFactory factory) {
-		
-		public ItemData(String name) {
-			this(name, null);
-		}
+	public record ItemData(ItemFactory factory) {
 	}
 }

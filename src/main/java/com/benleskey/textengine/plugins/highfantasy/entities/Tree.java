@@ -14,28 +14,38 @@ import com.benleskey.textengine.systems.RelationshipSystem;
 import com.benleskey.textengine.systems.WorldSystem;
 import com.benleskey.textengine.util.Markup;
 
+import java.util.Random;
+
 /**
  * A tree that can be cut down to produce wood.
  * Implements Cuttable to define what happens when cut (spawn wood, remove self).
  */
 public class Tree extends Item implements Cuttable {
 	
+	private static final String[] DESCRIPTIONS = {
+		"a tree",
+		"an oak tree",
+		"a pine tree",
+		"a birch tree"
+	};
+	
 	public Tree(long id, Game game) {
 		super(id, game);
 	}
 	
 	/**
-	 * Create a tree with the specified description.
-	 * Adds basic look and TAG_CUTTABLE automatically.
+	 * Create a tree with a randomly selected description variant.
 	 * 
 	 * @param game The game instance
-	 * @param description The description of the tree (e.g., "a tree", "an oak tree")
+	 * @param random Random instance for selecting description variant
 	 * @return The created and configured tree entity
 	 */
-	public static Tree create(Game game, String description) {
+	public static Tree create(Game game, Random random) {
 		EntitySystem es = game.getSystem(EntitySystem.class);
 		LookSystem ls = game.getSystem(LookSystem.class);
 		ItemSystem is = game.getSystem(ItemSystem.class);
+		
+		String description = DESCRIPTIONS[random.nextInt(DESCRIPTIONS.length)];
 		
 		Tree tree = es.add(Tree.class);
 		ls.addLook(tree, "basic", description);

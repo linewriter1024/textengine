@@ -14,28 +14,36 @@ import com.benleskey.textengine.systems.WorldSystem;
 import com.benleskey.textengine.util.Markup;
 
 import java.util.List;
+import java.util.Random;
 
 /**
  * A wooden toy rattle that makes a pleasant sound when used.
  */
 public class Rattle extends Item implements UsableItem {
 	
+	private static final String[] DESCRIPTIONS = {
+		"a wooden toy rattle",
+		"a painted rattle",
+		"a carved rattle"
+	};
+	
 	public Rattle(long id, Game game) {
 		super(id, game);
 	}
 	
 	/**
-	 * Create a rattle with the specified description.
-	 * Adds basic look and TAG_TOY automatically.
+	 * Create a rattle with a randomly selected description variant.
 	 * 
 	 * @param game The game instance
-	 * @param description The description of the rattle (e.g., "a wooden toy rattle")
+	 * @param random Random instance for selecting description variant
 	 * @return The created and configured rattle entity
 	 */
-	public static Rattle create(Game game, String description) {
+	public static Rattle create(Game game, Random random) {
 		EntitySystem es = game.getSystem(EntitySystem.class);
 		LookSystem ls = game.getSystem(LookSystem.class);
 		ItemSystem is = game.getSystem(ItemSystem.class);
+		
+		String description = DESCRIPTIONS[random.nextInt(DESCRIPTIONS.length)];
 		
 		Rattle rattle = es.add(Rattle.class);
 		ls.addLook(rattle, "basic", description);

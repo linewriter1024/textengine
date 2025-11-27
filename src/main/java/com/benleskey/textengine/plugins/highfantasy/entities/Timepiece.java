@@ -7,6 +7,8 @@ import com.benleskey.textengine.plugins.highfantasy.GameCalendar;
 import com.benleskey.textengine.systems.ItemSystem;
 import com.benleskey.textengine.systems.LookSystem;
 
+import java.util.Random;
+
 /**
  * A pocket timepiece that shows the current time.
  * Can be examined to see the current game time.
@@ -20,13 +22,13 @@ public class Timepiece extends Item implements DynamicDescription {
 	/**
 	 * Create a timepiece with proper tags and weight.
 	 */
-	public static Timepiece create(Game game, String description) {
+	public static Timepiece create(Game game, Random random) {
 		var es = game.getSystem(com.benleskey.textengine.systems.EntitySystem.class);
 		var ls = game.getSystem(LookSystem.class);
 		var is = game.getSystem(ItemSystem.class);
 		
 		Timepiece timepiece = es.add(Timepiece.class);
-		ls.addLook(timepiece, "basic", description);
+		ls.addLook(timepiece, "basic", "a pocket timepiece");
 		
 		// Timepiece is takeable and lightweight
 		is.addTag(timepiece, is.TAG_TAKEABLE);

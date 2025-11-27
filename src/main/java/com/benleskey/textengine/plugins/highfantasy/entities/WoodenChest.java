@@ -6,27 +6,36 @@ import com.benleskey.textengine.systems.EntitySystem;
 import com.benleskey.textengine.systems.ItemSystem;
 import com.benleskey.textengine.systems.LookSystem;
 
+import java.util.Random;
+
 /**
  * A wooden chest that can contain other items.
  */
 public class WoodenChest extends Item {
+	
+	private static final String[] DESCRIPTIONS = {
+		"a wooden chest",
+		"an old chest",
+		"a battered chest"
+	};
 	
 	public WoodenChest(long id, Game game) {
 		super(id, game);
 	}
 	
 	/**
-	 * Create a wooden chest with the specified description.
-	 * Adds basic look and TAG_CONTAINER automatically.
+	 * Create a wooden chest with a randomly selected description variant.
 	 * 
 	 * @param game The game instance
-	 * @param description The description of the chest (e.g., "a wooden chest")
+	 * @param random Random instance for selecting description variant
 	 * @return The created and configured chest entity
 	 */
-	public static WoodenChest create(Game game, String description) {
+	public static WoodenChest create(Game game, Random random) {
 		EntitySystem es = game.getSystem(EntitySystem.class);
 		LookSystem ls = game.getSystem(LookSystem.class);
 		ItemSystem is = game.getSystem(ItemSystem.class);
+		
+		String description = DESCRIPTIONS[random.nextInt(DESCRIPTIONS.length)];
 		
 		WoodenChest chest = es.add(WoodenChest.class);
 		ls.addLook(chest, "basic", description);
