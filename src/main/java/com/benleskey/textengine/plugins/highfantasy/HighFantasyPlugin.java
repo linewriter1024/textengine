@@ -165,73 +165,49 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 		ItemTemplateSystem its = game.getSystem(ItemTemplateSystem.class);
 		
 		// Forest items
-		its.registerItemGenerator("forest", 5, (g, r) -> 
-			new ItemTemplateSystem.ItemData(Wood::create));
-		its.registerItemGenerator("forest", 3, (g, r) -> 
-			new ItemTemplateSystem.ItemData(Plant::create));
-		its.registerItemGenerator("forest", 2, (g, r) -> 
-			new ItemTemplateSystem.ItemData(Plant::create));
+		its.registerItemGenerator("forest", 5, Wood::create);
+		its.registerItemGenerator("forest", 3, Plant::create);
+		its.registerItemGenerator("forest", 2, Plant::create);
 		// Trees (can be cut down with axe)
-		its.registerItemGenerator("forest", 4, (g, r) -> 
-			new ItemTemplateSystem.ItemData(Tree::create));
+		its.registerItemGenerator("forest", 4, Tree::create);
 		// Axes (tools for cutting trees)
-		its.registerItemGenerator("forest", 1, (g, r) -> 
-			new ItemTemplateSystem.ItemData(Axe::create));
+		its.registerItemGenerator("forest", 1, Axe::create);
 		
 		// Meadow items
-		its.registerItemGenerator("meadow", 5, (g, r) -> 
-			new ItemTemplateSystem.ItemData(Plant::create));
-		its.registerItemGenerator("meadow", 3, (g, r) -> 
-			new ItemTemplateSystem.ItemData(Plant::create));
-		its.registerItemGenerator("meadow", 2, (g, r) -> 
-			new ItemTemplateSystem.ItemData(Rock::create));
+		its.registerItemGenerator("meadow", 5, Plant::create);
+		its.registerItemGenerator("meadow", 3, Plant::create);
+		its.registerItemGenerator("meadow", 2, Rock::create);
 		// Toy rattles (make sound when used)
-		its.registerItemGenerator("meadow", 1, (g, r) -> 
-			new ItemTemplateSystem.ItemData(Rattle::create));
+		its.registerItemGenerator("meadow", 1, Rattle::create);
 		
 		// River items
-		its.registerItemGenerator("river", 5, (g, r) -> 
-			new ItemTemplateSystem.ItemData(Rock::create));
-		its.registerItemGenerator("river", 3, (g, r) -> 
-			new ItemTemplateSystem.ItemData(Wood::create));
-		its.registerItemGenerator("river", 2, (g, r) -> 
-			new ItemTemplateSystem.ItemData(Plant::create));
+		its.registerItemGenerator("river", 5, Rock::create);
+		its.registerItemGenerator("river", 3, Wood::create);
+		its.registerItemGenerator("river", 2, Plant::create);
 		
 		// Hills items
-		its.registerItemGenerator("hills", 5, (g, r) -> 
-			new ItemTemplateSystem.ItemData(Rock::create));
-		its.registerItemGenerator("hills", 3, (g, r) -> 
-			new ItemTemplateSystem.ItemData(Plant::create));
-		its.registerItemGenerator("hills", 2, (g, r) -> 
-			new ItemTemplateSystem.ItemData(Wood::create));
+		its.registerItemGenerator("hills", 5, Rock::create);
+		its.registerItemGenerator("hills", 3, Plant::create);
+		its.registerItemGenerator("hills", 2, Wood::create);
 		
 		// Ruins items
-		its.registerItemGenerator("ruins", 5, (g, r) -> 
-			new ItemTemplateSystem.ItemData(Rock::create));
-		its.registerItemGenerator("ruins", 4, (g, r) -> 
-			new ItemTemplateSystem.ItemData(AncientCoin::create));
-		its.registerItemGenerator("ruins", 3, (g, r) -> 
-			new ItemTemplateSystem.ItemData(RustySword::create));
-		its.registerItemGenerator("ruins", 2, (g, r) -> 
-			new ItemTemplateSystem.ItemData(TarnishedHelmet::create));
-		its.registerItemGenerator("ruins", 1, (g, r) -> 
-			new ItemTemplateSystem.ItemData(WeatheredScroll::create));
+		its.registerItemGenerator("ruins", 5, Rock::create);
+		its.registerItemGenerator("ruins", 4, AncientCoin::create);
+		its.registerItemGenerator("ruins", 3, RustySword::create);
+		its.registerItemGenerator("ruins", 2, TarnishedHelmet::create);
+		its.registerItemGenerator("ruins", 1, WeatheredScroll::create);
 		// Wooden chests (containers - can hold items)
-		its.registerItemGenerator("ruins", 2, (g, r) -> 
-			new ItemTemplateSystem.ItemData(WoodenChest::create));
+		its.registerItemGenerator("ruins", 2, WoodenChest::create);
 		// Grandfather clocks (tickable items that show time)
-		its.registerItemGenerator("ruins", 100, (g, r) -> 
-			new ItemTemplateSystem.ItemData(GrandfatherClock::create));
+		its.registerItemGenerator("ruins", 100, GrandfatherClock::create);
 		
 		// Add chests and axes to all biomes (low probability)
 		for (String biome : List.of("forest", "meadow", "river", "hills", "ruins")) {
 			if (!biome.equals("ruins")) {  // Already added to ruins above
-				its.registerItemGenerator(biome, 1, (g, r) -> 
-					new ItemTemplateSystem.ItemData(WoodenChest::create));
+				its.registerItemGenerator(biome, 1, WoodenChest::create);
 			}
 			if (!biome.equals("forest")) {  // Already added to forest above
-				its.registerItemGenerator(biome, 1, (g, r) -> 
-					new ItemTemplateSystem.ItemData(Axe::create));
+				its.registerItemGenerator(biome, 1, Axe::create);
 			}
 		}
 		

@@ -440,16 +440,16 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	private void generateItemForBiome(Entity place, String biomeName, Random placeRandom) throws InternalException {
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		
-		// Use ItemTemplateSystem to generate item data
-		ItemTemplateSystem.ItemData itemData = itemTemplateSystem.generateItem(biomeName, game, placeRandom);
+		// Use ItemTemplateSystem to generate item factory
+		ItemTemplateSystem.ItemFactory factory = itemTemplateSystem.generateItem(biomeName, game, placeRandom);
 		
-		if (itemData == null) {
+		if (factory == null) {
 			// No item generated for this biome
 			return;
 		}
 		
 		// Create item using factory (passes Random for description variant selection)
-		Item item = itemData.factory().create(game, placeRandom);
+		Item item = factory.create(game, placeRandom);
 		
 		// Place the item in the location using the "contains" relationship
 		relationshipSystem.add(place, item, relationshipSystem.rvContains);
@@ -469,16 +469,16 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	private void generateItemInContainer(Entity container, String biomeName, Random placeRandom) throws InternalException {
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		
-		// Generate item data (avoid generating another container inside)
-		ItemTemplateSystem.ItemData itemData = itemTemplateSystem.generateItem(biomeName, game, placeRandom);
+		// Generate item factory (avoid generating another container inside)
+		ItemTemplateSystem.ItemFactory factory = itemTemplateSystem.generateItem(biomeName, game, placeRandom);
 		
-		if (itemData == null) {
+		if (factory == null) {
 			// No item generated
 			return;
 		}
 		
 		// Create item using factory (passes Random for description variant selection)
-		Item item = itemData.factory().create(game, placeRandom);
+		Item item = factory.create(game, placeRandom);
 		
 		// Skip containers inside containers
 		if (itemSystem.hasTag(item, itemSystem.TAG_CONTAINER, ws.getCurrentTime())) {

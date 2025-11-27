@@ -34,29 +34,28 @@ public class ItemTemplateSystem extends SingletonGameSystem implements OnSystemI
 	 * 
 	 * @param biomeName The biome this generator applies to
 	 * @param weight Selection weight (higher = more common)
-	 * @param generator Function that takes (Game, Random) and returns generated item data
+	 * @param factory Factory function that creates items
 	 */
-	public void registerItemGenerator(String biomeName, int weight, 
-	                                   ItemGeneratorFunction generator) {
+	public void registerItemGenerator(String biomeName, int weight, ItemFactory factory) {
 		if (weight < 1) {
 			throw new IllegalArgumentException("Weight must be at least 1");
 		}
 		
 		generators.computeIfAbsent(biomeName, k -> new ArrayList<>())
-			.add(new ItemGenerator(weight, generator));
+			.add(new ItemGenerator(weight, factory));
 		
 		log.log("Registered item generator for biome: " + biomeName);
 	}
 	
 	/**
-	 * Generate item data for a place in a given biome.
+	 * Generate an item for a place in a given biome.
 	 * 
 	 * @param biomeName The biome
 	 * @param game The game instance
 	 * @param random Random number generator
-	 * @return Generated ItemData, or null if no items should be generated
+	 * @return ItemFactory to create the item, or null if no items should be generated
 	 */
-	public ItemData generateItem(String biomeName, Game game, Random random) {
+	public ItemFactory generateItem(String biomeName, Game game, Random random) {
 		List<ItemGenerator> biomeGenerators = generators.get(biomeName);
 		
 		if (biomeGenerators == null || biomeGenerators.isEmpty()) {
@@ -68,19 +67,19 @@ public class ItemTemplateSystem extends SingletonGameSystem implements OnSystemI
 			.mapToInt(ItemGenerator::weight)
 			.sum();
 		
-		// Select generator by weight
+		// Select factory by weight
 		int randomValue = random.nextInt(totalWeight);
 		int currentWeight = 0;
 		
 		for (ItemGenerator gen : biomeGenerators) {
 			currentWeight += gen.weight();
 			if (randomValue < currentWeight) {
-				return gen.generator().generate(game, random);
+				return gen.factory();
 			}
 		}
 		
 		// Fallback (shouldn't happen)
-		return biomeGenerators.get(0).generator().generate(game, random);
+		return biomeGenerators.get(0).factory();
 	}
 	
 	/**
@@ -92,17 +91,9 @@ public class ItemTemplateSystem extends SingletonGameSystem implements OnSystemI
 	}
 	
 	/**
-	 * Item generator record.
+	 * Item generator record - pairs weight with factory.
 	 */
-	private record ItemGenerator(int weight, ItemGeneratorFunction generator) {}
-	
-	/**
-	 * Functional interface for item generation.
-	 */
-	@FunctionalInterface
-	public interface ItemGeneratorFunction {
-		ItemData generate(Game game, Random random);
-	}
+	private record ItemGenerator(int weight, ItemFactory factory) {}
 	
 	/**
 	 * Functional interface for item factory - creates the actual item entity.
@@ -111,14 +102,5 @@ public class ItemTemplateSystem extends SingletonGameSystem implements OnSystemI
 	@FunctionalInterface
 	public interface ItemFactory {
 		Item create(Game game, Random random);
-	}
-	
-	/**
-	 * Item data record - contains factory function for creating items.
-	 * The factory is responsible for selecting description variants using Random.
-	 * 
-	 * @param factory Factory function that creates the item with proper tags, weight, and description
-	 */
-	public record ItemData(ItemFactory factory) {
 	}
 }
