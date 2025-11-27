@@ -339,9 +339,16 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		Item item = createItemEntity(itemData);
 		lookSystem.addLook(item, "basic", itemData.name());
 		
-		// Apply tags directly from item data
+		// Apply tags from ItemData (specified during world generation)
 		for (UniqueType tag : itemData.tags()) {
 			itemSystem.addTag(item, tag);
+		}
+		
+		// Apply tags from entity itself (if it implements TagProvider)
+		if (item instanceof com.benleskey.textengine.entities.TagProvider tagProvider) {
+			for (UniqueType tag : tagProvider.getRequiredTags()) {
+				itemSystem.addTag(item, tag);
+			}
 		}
 		
 		// Place the item in the location using the "contains" relationship
@@ -386,9 +393,16 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		Item item = createItemEntity(itemData);
 		lookSystem.addLook(item, "basic", itemData.name());
 		
-		// Apply tags directly from item data
+		// Apply tags from ItemData (specified during world generation)
 		for (UniqueType tag : itemData.tags()) {
 			itemSystem.addTag(item, tag);
+		}
+		
+		// Apply tags from entity itself (if it implements TagProvider)
+		if (item instanceof com.benleskey.textengine.entities.TagProvider tagProvider) {
+			for (UniqueType tag : tagProvider.getRequiredTags()) {
+				itemSystem.addTag(item, tag);
+			}
 		}
 		
 		// Place item inside the container using the "contains" relationship

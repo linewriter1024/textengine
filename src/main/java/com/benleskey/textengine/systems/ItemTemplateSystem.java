@@ -130,5 +130,9 @@ public class ItemTemplateSystem extends SingletonGameSystem implements OnSystemI
 		public ItemData(String name, List<UniqueType> tags, Class<? extends Item> entityClass) {
 			this(name, tags, Map.of(), entityClass);
 		}
+		
+		public ItemData(String name, Class<? extends Item> entityClass) {
+			this(name, List.of(), Map.of(), entityClass);
+		}
 	}
 }

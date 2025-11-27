@@ -526,6 +526,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		LookSystem ls = game.getSystem(LookSystem.class);
+		ItemSystem is = game.getSystem(ItemSystem.class);
 		
 		// Get item description
 		List<LookDescriptor> itemLooks = ls.getLooksFromEntity(item, ws.getCurrentTime());
@@ -590,7 +591,16 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		List<LookDescriptor> targetLooks = ls.getLooksFromEntity(target, ws.getCurrentTime());
 		String targetName = !targetLooks.isEmpty() ? targetLooks.get(0).getDescription() : "the target";
 		
-		// Check if item implements UsableOnTarget interface
+		// GENERIC TAG-BASED INTERACTIONS
+		
+		// Check for cutting interaction (TAG_CUT + TAG_CUTTABLE)
+		if (is.hasTag(item, is.TAG_CUT, ws.getCurrentTime()) && 
+		    is.hasTag(target, is.TAG_CUTTABLE, ws.getCurrentTime())) {
+			handleCuttingInteraction(client, actor, item, itemName, target, targetName);
+			return;
+		}
+		
+		// Check if item implements UsableOnTarget interface (legacy/custom interactions)
 		if (item instanceof UsableOnTarget usableOnTarget) {
 			CommandOutput output = usableOnTarget.useOn(client, actor, target, targetName);
 			if (output != null) {
@@ -711,5 +721,35 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 			.put(M_SUCCESS, false)
 			.put(M_ERROR, "ambiguous")
 			.text(Markup.concat(parts.toArray(new Markup.Safe[0]))));
+	}
+	
+	/**
+	 * Handle generic cutting interaction (TAG_CUT + TAG_CUTTABLE).
+	 * If target implements Cuttable interface, delegates to it.
+	 * Otherwise, provides default cutting behavior.
+	 */
+	private void handleCuttingInteraction(Client client, Entity actor, Entity tool, String toolName, 
+	                                      Entity target, String targetName) {
+		// If target implements Cuttable, let it define what happens when cut
+		if (target instanceof com.benleskey.textengine.entities.Cuttable cuttable) {
+			CommandOutput output = cuttable.onCut(client, actor, tool, toolName, targetName);
+			if (output != null) {
+				client.sendOutput(output);
+				return;
+			}
+		}
+		
+		// Default cutting behavior: just a message
+		client.sendOutput(CommandOutput.make(USE)
+			.put(M_SUCCESS, true)
+			.put(M_ITEM, tool.getKeyId())
+			.put(M_TARGET, target.getKeyId())
+			.text(Markup.concat(
+				Markup.raw("You use "),
+				Markup.em(toolName),
+				Markup.raw(" on "),
+				Markup.em(targetName),
+				Markup.raw(".")
+			)));
 	}
 }

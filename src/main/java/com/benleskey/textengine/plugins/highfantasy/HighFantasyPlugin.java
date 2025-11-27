@@ -127,10 +127,10 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 			new ItemTemplateSystem.ItemData("a bird's feather"));
 		// Trees (can be cut down with axe)
 		its.registerItemGenerator("forest", 4, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a tree", List.of(is.TAG_CUTTABLE), Tree.class));
+			new ItemTemplateSystem.ItemData("a tree", Tree.class));
 		// Axes (tools for cutting trees)
 		its.registerItemGenerator("forest", 1, (g, r) -> 
-			new ItemTemplateSystem.ItemData("a rusty axe", List.of(is.TAG_TOOL, is.TAG_CUT), Axe.class));
+			new ItemTemplateSystem.ItemData("a rusty axe", Axe.class));
 		
 		// Meadow items
 		its.registerItemGenerator("meadow", 5, (g, r) -> 
@@ -182,7 +182,7 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 			}
 			if (!biome.equals("forest")) {  // Already added to forest above
 				its.registerItemGenerator(biome, 1, (g, r) -> 
-					new ItemTemplateSystem.ItemData("a rusty axe", List.of(is.TAG_TOOL, is.TAG_CUT)));
+					new ItemTemplateSystem.ItemData("a rusty axe", Axe.class));
 			}
 		}
 		
