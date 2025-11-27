@@ -31,6 +31,8 @@ public class WoodenChest extends Item {
 		WoodenChest chest = es.add(WoodenChest.class);
 		ls.addLook(chest, "basic", description);
 		is.addTag(chest, is.TAG_CONTAINER);
+		is.addTag(chest, is.TAG_TAKEABLE);
+		is.addTag(chest, is.TAG_WEIGHT, 5000); // 5kg
 		
 		return chest;
 	}

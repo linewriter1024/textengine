@@ -40,6 +40,8 @@ public class Tree extends Item implements Cuttable {
 		Tree tree = es.add(Tree.class);
 		ls.addLook(tree, "basic", description);
 		is.addTag(tree, is.TAG_CUTTABLE);
+		is.addTag(tree, is.TAG_TAKEABLE);
+		is.addTag(tree, is.TAG_WEIGHT, 50000); // 50kg - too heavy to carry
 		
 		return tree;
 	}

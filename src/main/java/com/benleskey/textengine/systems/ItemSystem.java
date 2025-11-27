@@ -36,6 +36,8 @@ public class ItemSystem extends SingletonGameSystem implements OnSystemInitializ
 	public UniqueType TAG_ARMOR;  // Item is armor
 	public UniqueType TAG_CURRENCY;  // Item is currency (coins, gems)
 	public UniqueType TAG_READABLE;  // Item can be read (scrolls, books)
+	public UniqueType TAG_TAKEABLE;  // Item can be taken (picked up)
+	public UniqueType TAG_CARRY_WEIGHT;  // Maximum weight entity can carry (in grams)
 
 	public ItemSystem(Game game) {
 		super(game);
@@ -58,6 +60,8 @@ public class ItemSystem extends SingletonGameSystem implements OnSystemInitializ
 		TAG_ARMOR = typeSystem.getType("item_tag_armor");
 		TAG_CURRENCY = typeSystem.getType("item_tag_currency");
 		TAG_READABLE = typeSystem.getType("item_tag_readable");
+		TAG_TAKEABLE = typeSystem.getType("item_tag_takeable");
+		TAG_CARRY_WEIGHT = typeSystem.getType("item_tag_carry_weight");
 	}
 
 	/**

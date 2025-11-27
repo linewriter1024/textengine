@@ -3,6 +3,7 @@ package com.benleskey.textengine.plugins.highfantasy.entities;
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.entities.Item;
 import com.benleskey.textengine.systems.EntitySystem;
+import com.benleskey.textengine.systems.ItemSystem;
 import com.benleskey.textengine.systems.LookSystem;
 
 /**
@@ -26,9 +27,12 @@ public class Rock extends Item {
 	public static Rock create(Game game, String description) {
 		EntitySystem es = game.getSystem(EntitySystem.class);
 		LookSystem ls = game.getSystem(LookSystem.class);
+		ItemSystem is = game.getSystem(ItemSystem.class);
 		
 		Rock rock = es.add(Rock.class);
 		ls.addLook(rock, "basic", description);
+		is.addTag(rock, is.TAG_TAKEABLE);
+		is.addTag(rock, is.TAG_WEIGHT, 500); // 500g = 0.5kg
 		
 		return rock;
 	}

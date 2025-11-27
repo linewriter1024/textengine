@@ -40,6 +40,8 @@ public class Rattle extends Item implements UsableItem {
 		Rattle rattle = es.add(Rattle.class);
 		ls.addLook(rattle, "basic", description);
 		is.addTag(rattle, is.TAG_TOY);
+		is.addTag(rattle, is.TAG_TAKEABLE);
+		is.addTag(rattle, is.TAG_WEIGHT, 100); // 100g
 		
 		return rattle;
 	}

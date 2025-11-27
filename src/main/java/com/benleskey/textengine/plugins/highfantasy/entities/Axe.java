@@ -34,6 +34,8 @@ public class Axe extends Item {
 		ls.addLook(axe, "basic", description);
 		is.addTag(axe, is.TAG_CUT);
 		is.addTag(axe, is.TAG_TOOL);
+		is.addTag(axe, is.TAG_TAKEABLE);
+		is.addTag(axe, is.TAG_WEIGHT, 1200); // 1.2kg
 		
 		return axe;
 	}

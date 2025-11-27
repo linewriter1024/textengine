@@ -12,7 +12,6 @@ import com.benleskey.textengine.hooks.core.OnEntityTypesRegistered;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.hooks.core.OnStartClient;
 import com.benleskey.textengine.model.Entity;
-import com.benleskey.textengine.model.UniqueType;
 import com.benleskey.textengine.plugins.highfantasy.entities.Rattle;
 import com.benleskey.textengine.systems.*;
 
@@ -123,15 +122,14 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		// Create player actor
 		Actor actor = es.add(Actor.class);
 		ls.addLook(actor, "basic", "yourself");
+		is.addTag(actor, is.TAG_CARRY_WEIGHT, 10000); // Can carry up to 10kg
 		client.setEntity(actor);
 		
 		// Place actor in starting location
 		rs.add(startingPlace, actor, rs.rvContains);
 		
 		// Give player a starting rattle for testing
-		Rattle rattle = es.add(Rattle.class);
-		ls.addLook(rattle, "basic", "a wooden toy rattle");
-		is.addTag(rattle, is.TAG_TOY);
+		Rattle rattle = Rattle.create(game, "a wooden toy rattle");
 		rs.add(actor, rattle, rs.rvContains); // Put rattle in player's inventory
 		log.log("Gave player starting rattle for testing");
 		
@@ -327,6 +325,8 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	 * If the item is a container (chest), populate it with 2-3 random items.
 	 */
 	private void generateItemForBiome(Entity place, String biomeName) throws InternalException {
+		WorldSystem ws = game.getSystem(WorldSystem.class);
+		
 		// Use ItemTemplateSystem to generate item data
 		ItemTemplateSystem.ItemData itemData = itemTemplateSystem.generateItem(biomeName, game, random);
 		
@@ -335,21 +335,21 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 			return;
 		}
 		
-		// Create the appropriate entity type based on item characteristics
-		Item item = createItemEntity(itemData);
-		lookSystem.addLook(item, "basic", itemData.name());
-		
-		// Apply tags from ItemData (specified during world generation)
-		for (UniqueType tag : itemData.tags()) {
-			itemSystem.addTag(item, tag);
+		// Create item using factory if provided, otherwise use default creation
+		Item item;
+		if (itemData.factory() != null) {
+			// Use factory function (calls entity's create() method with proper tags/weight)
+			item = itemData.factory().create(game, itemData.name());
+		} else {
+			// Fallback for backward compatibility - shouldn't happen with new system
+			throw new InternalException("Item data must have a factory function");
 		}
-		// Note: Tags from entity type are now handled by create() methods
 		
 		// Place the item in the location using the "contains" relationship
 		relationshipSystem.add(place, item, relationshipSystem.rvContains);
 		
 		// If item is a container (chest), populate it with 2-3 items
-		if (itemData.tags().contains(itemSystem.TAG_CONTAINER)) {
+		if (itemSystem.hasTag(item, itemSystem.TAG_CONTAINER, ws.getCurrentTime())) {
 			int numContainedItems = 2 + random.nextInt(2); // 2-3 items
 			for (int i = 0; i < numContainedItems; i++) {
 				generateItemInContainer(item, biomeName);
@@ -366,32 +366,34 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	 * Uses specific entity classes (Rattle, Axe, Tree) when appropriate,
 	 * falls back to generic Item otherwise.
 	 */
-	private Item createItemEntity(ItemTemplateSystem.ItemData itemData) throws InternalException {
-		// Use the entity class specified in the item data
-		return entitySystem.add(itemData.entityClass());
-	}
+	
 	
 	/**
 	 * Generate an item inside a container.
 	 */
 	private void generateItemInContainer(Entity container, String biomeName) throws InternalException {
+		WorldSystem ws = game.getSystem(WorldSystem.class);
+		
 		// Generate item data (avoid generating another container inside)
 		ItemTemplateSystem.ItemData itemData = itemTemplateSystem.generateItem(biomeName, game, random);
 		
-		if (itemData == null || itemData.tags().contains(itemSystem.TAG_CONTAINER)) {
-			// Skip containers inside containers, or if no item generated
+		if (itemData == null) {
+			// No item generated
 			return;
 		}
 		
-		// Create the appropriate entity type
-		Item item = createItemEntity(itemData);
-		lookSystem.addLook(item, "basic", itemData.name());
-		
-		// Apply tags from ItemData (specified during world generation)
-		for (UniqueType tag : itemData.tags()) {
-			itemSystem.addTag(item, tag);
+		// Create item using factory
+		Item item;
+		if (itemData.factory() != null) {
+			item = itemData.factory().create(game, itemData.name());
+		} else {
+			throw new InternalException("Item data must have a factory function");
 		}
-		// Note: Tags from entity type are now handled by create() methods
+		
+		// Skip containers inside containers
+		if (itemSystem.hasTag(item, itemSystem.TAG_CONTAINER, ws.getCurrentTime())) {
+			return;
+		}
 		
 		// Place item inside the container using the "contains" relationship
 		relationshipSystem.add(container, item, relationshipSystem.rvContains);

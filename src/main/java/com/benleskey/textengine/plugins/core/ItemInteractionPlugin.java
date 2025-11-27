@@ -45,6 +45,8 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 	public static final String M_TARGET = "target";
 	public static final String M_CONTAINER = "container";
 	public static final String M_ITEMS = "items";
+	public static final String M_WEIGHT = "weight";
+	public static final String M_CARRY_WEIGHT = "carry_weight";
 	
 	public ItemInteractionPlugin(Game game) {
 		super(game);
@@ -114,6 +116,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		LookSystem ls = game.getSystem(LookSystem.class);
+		ItemSystem is = game.getSystem(ItemSystem.class);
 		
 		// Find current location
 		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
@@ -172,6 +175,45 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		// Get item description
 		List<LookDescriptor> looks = ls.getLooksFromEntity(targetItem, ws.getCurrentTime());
 		String itemName = !looks.isEmpty() ? looks.get(0).getDescription() : "the item";
+		
+		// Check if item is takeable
+		if (!is.hasTag(targetItem, is.TAG_TAKEABLE, ws.getCurrentTime())) {
+			client.sendOutput(CommandOutput.make(TAKE)
+				.put(M_SUCCESS, false)
+				.put(M_ERROR, "not_takeable")
+				.text(Markup.concat(
+					Markup.raw("You can't take "),
+					Markup.em(itemName),
+					Markup.raw(".")
+				)));
+			return;
+		}
+		
+		// Check weight constraints
+		Long itemWeightGrams = is.getTagValue(targetItem, is.TAG_WEIGHT, ws.getCurrentTime());
+		Long carryWeightGrams = is.getTagValue(actor, is.TAG_CARRY_WEIGHT, ws.getCurrentTime());
+		
+		if (itemWeightGrams != null && carryWeightGrams != null) {
+			com.benleskey.textengine.model.DWeight itemWeight = com.benleskey.textengine.model.DWeight.fromGrams(itemWeightGrams);
+			com.benleskey.textengine.model.DWeight carryWeight = com.benleskey.textengine.model.DWeight.fromGrams(carryWeightGrams);
+			
+			if (itemWeight.isGreaterThan(carryWeight)) {
+				client.sendOutput(CommandOutput.make(TAKE)
+					.put(M_SUCCESS, false)
+					.put(M_ERROR, "too_heavy")
+					.put(M_WEIGHT, itemWeightGrams)
+					.put(M_CARRY_WEIGHT, carryWeightGrams)
+					.text(Markup.concat(
+						Markup.em(itemName.substring(0, 1).toUpperCase() + itemName.substring(1)),
+						Markup.raw(" is too heavy to carry. It weighs "),
+						Markup.escape(itemWeight.toString()),
+						Markup.raw(", but you can only carry up to "),
+						Markup.escape(carryWeight.toString()),
+						Markup.raw(".")
+					)));
+				return;
+			}
+		}
 		
 		// Remove item from location, add to actor's inventory
 		var oldContainment = rs.getProvidingRelationships(targetItem, rs.rvContains, ws.getCurrentTime());
@@ -379,12 +421,13 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		}
 		
 		// Add weight if present
-		Long weight = is.getTagValue(targetItem, is.TAG_WEIGHT, ws.getCurrentTime());
-		if (weight != null) {
+		Long weightGrams = is.getTagValue(targetItem, is.TAG_WEIGHT, ws.getCurrentTime());
+		if (weightGrams != null) {
 			if (!tagDescriptions.isEmpty()) {
 				examineMarkup.add(Markup.raw(" ")); // Space before weight
 			}
-			examineMarkup.add(Markup.escape("Weight: " + weight));
+			com.benleskey.textengine.model.DWeight weight = com.benleskey.textengine.model.DWeight.fromGrams(weightGrams);
+			examineMarkup.add(Markup.escape("Weight: " + weight.toString()));
 		}
 		
 		// Check if it's a container with contents
@@ -528,7 +571,6 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		LookSystem ls = game.getSystem(LookSystem.class);
-		ItemSystem is = game.getSystem(ItemSystem.class);
 		
 		// Get item description
 		List<LookDescriptor> itemLooks = ls.getLooksFromEntity(item, ws.getCurrentTime());

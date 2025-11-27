@@ -4,7 +4,6 @@ import com.benleskey.textengine.Game;
 import com.benleskey.textengine.SingletonGameSystem;
 import com.benleskey.textengine.entities.Item;
 import com.benleskey.textengine.hooks.core.OnSystemInitialize;
-import com.benleskey.textengine.model.UniqueType;
 
 import java.util.*;
 
@@ -106,33 +105,23 @@ public class ItemTemplateSystem extends SingletonGameSystem implements OnSystemI
 	}
 	
 	/**
+	 * Functional interface for item factory - creates the actual item entity.
+	 */
+	@FunctionalInterface
+	public interface ItemFactory {
+		Item create(Game game, String description);
+	}
+	
+	/**
 	 * Item data record - contains all information needed to create an item.
 	 * 
 	 * @param name Item name/description
-	 * @param tags UniqueType tags to apply to the item
-	 * @param properties Optional additional properties
-	 * @param entityClass Optional specific entity class to instantiate (defaults to Item.class)
+	 * @param factory Factory function that creates the item with proper tags and weight
 	 */
-	public record ItemData(String name, List<UniqueType> tags, Map<String, Object> properties, Class<? extends Item> entityClass) {
+	public record ItemData(String name, ItemFactory factory) {
 		
 		public ItemData(String name) {
-			this(name, List.of(), Map.of(), Item.class);
-		}
-		
-		public ItemData(String name, List<UniqueType> tags) {
-			this(name, tags, Map.of(), Item.class);
-		}
-		
-		public ItemData(String name, List<UniqueType> tags, Map<String, Object> properties) {
-			this(name, tags, properties, Item.class);
-		}
-		
-		public ItemData(String name, List<UniqueType> tags, Class<? extends Item> entityClass) {
-			this(name, tags, Map.of(), entityClass);
-		}
-		
-		public ItemData(String name, Class<? extends Item> entityClass) {
-			this(name, List.of(), Map.of(), entityClass);
+			this(name, null);
 		}
 	}
 }
