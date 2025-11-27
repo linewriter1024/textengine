@@ -132,4 +132,55 @@ public class FuzzyMatcher {
 		// Then check substring match
 		return candidateStripped.contains(lowerInput);
 	}
+	
+	/**
+	 * Find all matches for user input against a list of objects.
+	 * Unlike match(), this returns ALL matches, not just unique ones.
+	 * 
+	 * @param userInput The user's input string
+	 * @param candidates List of candidate objects to match against
+	 * @param nameExtractor Function to extract the matchable string from each candidate
+	 * @param <T> The type of candidate objects
+	 * @return List of all matching candidates (empty if no matches)
+	 */
+	public static <T> List<T> findAllMatches(String userInput, List<T> candidates, Function<T, String> nameExtractor) {
+		List<T> matches = new java.util.ArrayList<>();
+		
+		if (candidates.isEmpty() || userInput == null) {
+			return matches;
+		}
+		
+		String lowerInput = userInput.toLowerCase().trim();
+		
+		// First pass: collect exact matches
+		for (T candidate : candidates) {
+			String name = nameExtractor.apply(candidate);
+			if (name == null) continue;
+			
+			String nameStripped = Markup.toPlainText(Markup.raw(name)).toLowerCase();
+			
+			if (nameStripped.equals(lowerInput)) {
+				matches.add(candidate);
+			}
+		}
+		
+		// If we have exact matches, return those
+		if (!matches.isEmpty()) {
+			return matches;
+		}
+		
+		// Second pass: collect substring matches
+		for (T candidate : candidates) {
+			String name = nameExtractor.apply(candidate);
+			if (name == null) continue;
+			
+			String nameStripped = Markup.toPlainText(Markup.raw(name)).toLowerCase();
+			
+			if (nameStripped.contains(lowerInput)) {
+				matches.add(candidate);
+			}
+		}
+		
+		return matches;
+	}
 }

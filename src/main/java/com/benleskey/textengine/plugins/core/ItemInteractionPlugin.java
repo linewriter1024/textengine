@@ -136,17 +136,19 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		String itemInput = input.get(M_ITEM);
 		DisambiguationSystem ds = game.getSystem(DisambiguationSystem.class);
 		
-		Entity targetItem = ds.resolveEntity(
+		java.util.function.Function<Entity, String> descExtractor = item -> {
+			List<LookDescriptor> looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
+			return !looks.isEmpty() ? looks.get(0).getDescription() : null;
+		};
+		
+		DisambiguationSystem.ResolutionResult<Entity> result = ds.resolveEntityWithAmbiguity(
 			client,
 			itemInput,
 			itemsHere,
-			item -> {
-				List<LookDescriptor> looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
-				return !looks.isEmpty() ? looks.get(0).getDescription() : null;
-			}
+			descExtractor
 		);
 		
-		if (targetItem == null) {
+		if (result.isNotFound()) {
 			client.sendOutput(CommandOutput.make(TAKE)
 				.put(M_SUCCESS, false)
 				.put(M_ERROR, "not_found")
@@ -157,6 +159,13 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 				)));
 			return;
 		}
+		
+		if (result.isAmbiguous()) {
+			handleAmbiguousMatch(client, TAKE, itemInput, result.getAmbiguousMatches(), descExtractor);
+			return;
+		}
+		
+		Entity targetItem = result.getUniqueMatch();
 		
 		// Get item description
 		List<LookDescriptor> looks = ls.getLooksFromEntity(targetItem, ws.getCurrentTime());
@@ -224,17 +233,19 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		String itemInput = input.get(M_ITEM);
 		DisambiguationSystem ds = game.getSystem(DisambiguationSystem.class);
 		
-		Entity targetItem = ds.resolveEntity(
+		java.util.function.Function<Entity, String> descExtractor = item -> {
+			List<LookDescriptor> looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
+			return !looks.isEmpty() ? looks.get(0).getDescription() : null;
+		};
+		
+		DisambiguationSystem.ResolutionResult<Entity> result = ds.resolveEntityWithAmbiguity(
 			client,
 			itemInput,
 			carriedItems,
-			item -> {
-				List<LookDescriptor> looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
-				return !looks.isEmpty() ? looks.get(0).getDescription() : null;
-			}
+			descExtractor
 		);
 		
-		if (targetItem == null) {
+		if (result.isNotFound()) {
 			client.sendOutput(CommandOutput.make(DROP)
 				.put(M_SUCCESS, false)
 				.put(M_ERROR, "not_carrying")
@@ -245,6 +256,13 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 				)));
 			return;
 		}
+		
+		if (result.isAmbiguous()) {
+			handleAmbiguousMatch(client, DROP, itemInput, result.getAmbiguousMatches(), descExtractor);
+			return;
+		}
+		
+		Entity targetItem = result.getUniqueMatch();
 		
 		// Get item description
 		List<LookDescriptor> looks = ls.getLooksFromEntity(targetItem, ws.getCurrentTime());
@@ -308,17 +326,19 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		String itemInput = input.get(M_ITEM);
 		DisambiguationSystem ds = game.getSystem(DisambiguationSystem.class);
 		
-		Entity targetItem = ds.resolveEntity(
+		java.util.function.Function<Entity, String> descExtractor = item -> {
+			List<LookDescriptor> looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
+			return !looks.isEmpty() ? looks.get(0).getDescription() : null;
+		};
+		
+		DisambiguationSystem.ResolutionResult<Entity> result = ds.resolveEntityWithAmbiguity(
 			client,
 			itemInput,
 			availableItems,
-			item -> {
-				List<LookDescriptor> looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
-				return !looks.isEmpty() ? looks.get(0).getDescription() : null;
-			}
+			descExtractor
 		);
 		
-		if (targetItem == null) {
+		if (result.isNotFound()) {
 			client.sendOutput(CommandOutput.make(EXAMINE)
 				.put(M_SUCCESS, false)
 				.put(M_ERROR, "not_found")
@@ -330,29 +350,39 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 			return;
 		}
 		
+		if (result.isAmbiguous()) {
+			handleAmbiguousMatch(client, EXAMINE, itemInput, result.getAmbiguousMatches(), descExtractor);
+			return;
+		}
+		
+		Entity targetItem = result.getUniqueMatch();
+		
 		// Get item description
 		List<LookDescriptor> looks = ls.getLooksFromEntity(targetItem, ws.getCurrentTime());
 		String itemName = !looks.isEmpty() ? looks.get(0).getDescription() : "something";
 		
-		// Build examination output
+		// Build examination output - all on one line
 		java.util.List<Markup.Safe> examineMarkup = new java.util.ArrayList<>();
 		examineMarkup.add(Markup.raw("You examine "));
 		examineMarkup.add(Markup.raw(itemName));
-		examineMarkup.add(Markup.raw("."));
+		examineMarkup.add(Markup.raw(". "));
 		
-		// Add tag-based descriptions
+		// Add tag-based descriptions on same line with space separation
 		List<String> tagDescriptions = ids.getDescriptions(targetItem, ws.getCurrentTime());
-		if (!tagDescriptions.isEmpty()) {
-			examineMarkup.add(Markup.raw("\n"));
-			for (String tagDesc : tagDescriptions) {
-				examineMarkup.add(Markup.escape(tagDesc));
+		for (int i = 0; i < tagDescriptions.size(); i++) {
+			if (i > 0) {
+				examineMarkup.add(Markup.raw(" ")); // Space between descriptions
 			}
+			examineMarkup.add(Markup.escape(tagDescriptions.get(i)));
 		}
 		
 		// Add weight if present
 		Long weight = is.getTagValue(targetItem, is.TAG_WEIGHT, ws.getCurrentTime());
 		if (weight != null) {
-			examineMarkup.add(Markup.escape("\nWeight: " + weight));
+			if (!tagDescriptions.isEmpty()) {
+				examineMarkup.add(Markup.raw(" ")); // Space before weight
+			}
+			examineMarkup.add(Markup.escape("Weight: " + weight));
 		}
 		
 		// Check if it's a container with contents
@@ -424,17 +454,19 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		String itemInput = input.get(M_ITEM);
 		DisambiguationSystem ds = game.getSystem(DisambiguationSystem.class);
 		
-		Entity targetItem = ds.resolveEntity(
+		java.util.function.Function<Entity, String> descExtractor = item -> {
+			List<LookDescriptor> looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
+			return !looks.isEmpty() ? looks.get(0).getDescription() : null;
+		};
+		
+		DisambiguationSystem.ResolutionResult<Entity> result = ds.resolveEntityWithAmbiguity(
 			client,
 			itemInput,
 			carriedItems,
-			item -> {
-				List<LookDescriptor> looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
-				return !looks.isEmpty() ? looks.get(0).getDescription() : null;
-			}
+			descExtractor
 		);
 		
-		if (targetItem == null) {
+		if (result.isNotFound()) {
 			client.sendOutput(CommandOutput.make(USE)
 				.put(M_SUCCESS, false)
 				.put(M_ERROR, "not_carrying")
@@ -445,6 +477,13 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 				)));
 			return;
 		}
+		
+		if (result.isAmbiguous()) {
+			handleAmbiguousMatch(client, USE, itemInput, result.getAmbiguousMatches(), descExtractor);
+			return;
+		}
+		
+		Entity targetItem = result.getUniqueMatch();
 		
 		// Check if using on a target
 		java.util.Optional<Object> targetOpt = input.getO(M_TARGET);
@@ -515,17 +554,20 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		
 		// Resolve target
 		DisambiguationSystem ds = game.getSystem(DisambiguationSystem.class);
-		Entity target = ds.resolveEntity(
+		
+		java.util.function.Function<Entity, String> descExtractor = entity -> {
+			List<LookDescriptor> looks = ls.getLooksFromEntity(entity, ws.getCurrentTime());
+			return !looks.isEmpty() ? looks.get(0).getDescription() : null;
+		};
+		
+		DisambiguationSystem.ResolutionResult<Entity> result = ds.resolveEntityWithAmbiguity(
 			client,
 			targetInput,
 			availableTargets,
-			entity -> {
-				List<LookDescriptor> looks = ls.getLooksFromEntity(entity, ws.getCurrentTime());
-				return !looks.isEmpty() ? looks.get(0).getDescription() : null;
-			}
+			descExtractor
 		);
 		
-		if (target == null) {
+		if (result.isNotFound()) {
 			client.sendOutput(CommandOutput.make(USE)
 				.put(M_SUCCESS, false)
 				.put(M_ERROR, "target_not_found")
@@ -536,6 +578,13 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 				)));
 			return;
 		}
+		
+		if (result.isAmbiguous()) {
+			handleAmbiguousMatch(client, USE, targetInput, result.getAmbiguousMatches(), descExtractor);
+			return;
+		}
+		
+		Entity target = result.getUniqueMatch();
 		
 		// Get target description
 		List<LookDescriptor> targetLooks = ls.getLooksFromEntity(target, ws.getCurrentTime());
@@ -589,38 +638,78 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 			return;
 		}
 		
-		// Build disambiguated list
-		DisambiguationSystem ds = game.getSystem(DisambiguationSystem.class);
-		DisambiguationSystem.DisambiguatedList itemList = ds.buildDisambiguatedList(
-			carriedItems,
-			item -> {
-				List<LookDescriptor> looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
-				return !looks.isEmpty() ? looks.get(0).getDescription() : null;
-			}
-		);
-		
-		// Format output
+		// Build simple list without numeric IDs
 		java.util.List<Markup.Safe> parts = new java.util.ArrayList<>();
 		parts.add(Markup.raw("You are carrying: "));
 		
-		List<Markup.Safe> itemParts = itemList.getMarkupParts();
+		for (int i = 0; i < carriedItems.size(); i++) {
+			if (i > 0) {
+				if (i == carriedItems.size() - 1) {
+					parts.add(Markup.raw(", and "));
+				} else {
+					parts.add(Markup.raw(", "));
+				}
+			}
+			
+			// Get item description
+			List<LookDescriptor> looks = ls.getLooksFromEntity(carriedItems.get(i), ws.getCurrentTime());
+			String description = !looks.isEmpty() ? looks.get(0).getDescription() : "something";
+			parts.add(Markup.em(description));
+		}
+		parts.add(Markup.raw("."));
+		
+		client.sendOutput(CommandOutput.make(INVENTORY)
+			.put(M_SUCCESS, true)
+			.text(Markup.concat(parts.toArray(new Markup.Safe[0]))));
+	}
+	
+	/**
+	 * Helper method to handle ambiguous entity resolution.
+	 * Creates a temporary numeric ID mapping and prompts the user to clarify.
+	 * 
+	 * @param client The client making the request
+	 * @param commandId The command ID (e.g., TAKE, DROP, EXAMINE)
+	 * @param userInput The original user input that was ambiguous
+	 * @param matches The list of matching entities
+	 * @param descriptionExtractor Function to extract description from entity
+	 */
+	private <T extends Entity> void handleAmbiguousMatch(
+			Client client,
+			String commandId,
+			String userInput,
+			List<T> matches,
+			java.util.function.Function<T, String> descriptionExtractor) {
+		
+		DisambiguationSystem ds = game.getSystem(DisambiguationSystem.class);
+		
+		// Build disambiguated list with numeric IDs
+		DisambiguationSystem.DisambiguatedList list = ds.buildDisambiguatedList(matches, descriptionExtractor);
+		
+		// Update client's numeric ID map so they can use numbers
+		client.setNumericIdMap(list.getNumericIdMap());
+		
+		// Format output
+		java.util.List<Markup.Safe> parts = new java.util.ArrayList<>();
+		parts.add(Markup.raw("Which "));
+		parts.add(Markup.em(userInput));
+		parts.add(Markup.raw(" did you mean? "));
+		
+		List<Markup.Safe> itemParts = list.getMarkupParts();
 		for (int i = 0; i < itemParts.size(); i++) {
 			if (i > 0) {
 				if (i == itemParts.size() - 1) {
-					parts.add(Markup.raw(", and "));
+					parts.add(Markup.raw(", or "));
 				} else {
 					parts.add(Markup.raw(", "));
 				}
 			}
 			parts.add(itemParts.get(i));
 		}
-		parts.add(Markup.raw("."));
+		parts.add(Markup.raw("?"));
 		
-		// Update client's numeric ID map
-		client.setNumericIdMap(itemList.getNumericIdMap());
-		
-		client.sendOutput(CommandOutput.make(INVENTORY)
-			.put(M_SUCCESS, true)
+		client.sendOutput(CommandOutput.make(commandId)
+			.put(M_SUCCESS, false)
+			.put(M_ERROR, "ambiguous")
 			.text(Markup.concat(parts.toArray(new Markup.Safe[0]))));
 	}
 }

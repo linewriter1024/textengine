@@ -9,6 +9,7 @@ import com.benleskey.textengine.util.Markup;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 
 /**
@@ -170,18 +171,86 @@ public class DisambiguationSystem extends SingletonGameSystem {
 	}
 	
 	/**
+	 * Result of attempting to resolve an entity from user input.
+	 * Can be a unique match, ambiguous (multiple matches), or not found.
+	 */
+	public static class ResolutionResult<T extends Entity> {
+		private final T uniqueMatch;
+		private final List<T> ambiguousMatches;
+		private final ResultType resultType;
+		
+		private enum ResultType {
+			UNIQUE, AMBIGUOUS, NOT_FOUND
+		}
+		
+		private ResolutionResult(T uniqueMatch, List<T> ambiguousMatches, ResultType resultType) {
+			this.uniqueMatch = uniqueMatch;
+			this.ambiguousMatches = ambiguousMatches;
+			this.resultType = resultType;
+		}
+		
+		public static <T extends Entity> ResolutionResult<T> unique(T entity) {
+			return new ResolutionResult<>(entity, List.of(), ResultType.UNIQUE);
+		}
+		
+		public static <T extends Entity> ResolutionResult<T> ambiguous(List<T> matches) {
+			// Use first match as placeholder for uniqueMatch field (won't be accessed)
+			@SuppressWarnings("null")
+			T placeholder = matches.isEmpty() ? null : matches.get(0);
+			return new ResolutionResult<>(placeholder, matches, ResultType.AMBIGUOUS);
+		}
+		
+		@SuppressWarnings("null")
+		public static <T extends Entity> ResolutionResult<T> notFound() {
+			// Use null placeholder - won't be accessed when resultType is NOT_FOUND
+			return new ResolutionResult<>(null, List.of(), ResultType.NOT_FOUND);
+		}
+		
+		public boolean isUnique() {
+			return resultType == ResultType.UNIQUE;
+		}
+		
+		public boolean isAmbiguous() {
+			return resultType == ResultType.AMBIGUOUS;
+		}
+		
+		public boolean isNotFound() {
+			return resultType == ResultType.NOT_FOUND;
+		}
+		
+		public T getUniqueMatch() {
+			if (resultType != ResultType.UNIQUE) {
+				throw new IllegalStateException("Cannot get unique match when result is " + resultType);
+			}
+			return uniqueMatch;
+		}
+		
+		public List<T> getAmbiguousMatches() {
+			if (resultType != ResultType.AMBIGUOUS) {
+				throw new IllegalStateException("Cannot get ambiguous matches when result is " + resultType);
+			}
+			return ambiguousMatches;
+		}
+	}
+	
+	/**
 	 * Try to resolve user input as either a numeric ID or fuzzy keyword match.
 	 * First checks if input is a number and maps to an entity.
 	 * If not, falls back to fuzzy matching by extracting keywords from descriptions.
+	 * 
+	 * Returns a ResolutionResult that indicates:
+	 * - Unique match (exactly one entity matched)
+	 * - Ambiguous (multiple entities matched - need user to clarify with numeric ID)
+	 * - Not found (no entities matched)
 	 * 
 	 * @param client The client making the request
 	 * @param userInput The user's input string
 	 * @param candidates List of candidate entities to match against
 	 * @param descriptionExtractor Function to extract plain text description from each entity
 	 * @param <T> The type of entity
-	 * @return The matched entity, or null if not found
+	 * @return ResolutionResult indicating the outcome
 	 */
-	public <T extends Entity> T resolveEntity(
+	public <T extends Entity> ResolutionResult<T> resolveEntityWithAmbiguity(
 			Client client,
 			String userInput,
 			List<T> candidates,
@@ -194,17 +263,48 @@ public class DisambiguationSystem extends SingletonGameSystem {
 			if (entityOpt.isPresent() && candidates.contains(entityOpt.get())) {
 				@SuppressWarnings("unchecked")
 				T entity = (T) entityOpt.get();
-				return entity;
+				return ResolutionResult.unique(entity);
 			}
 		} catch (NumberFormatException e) {
 			// Not a number, will do fuzzy match below
 		}
 		
 		// Fall back to fuzzy matching using extracted keywords
-		return com.benleskey.textengine.util.FuzzyMatcher.match(
+		List<T> matches = com.benleskey.textengine.util.FuzzyMatcher.findAllMatches(
 			userInput, candidates, entity -> {
 				String description = descriptionExtractor.apply(entity);
 				return description != null ? extractKeyword(description) : null;
 			});
+		
+		if (matches.isEmpty()) {
+			return ResolutionResult.notFound();
+		} else if (matches.size() == 1) {
+			return ResolutionResult.unique(matches.get(0));
+		} else {
+			return ResolutionResult.ambiguous(matches);
+		}
+	}
+	
+	/**
+	 * Try to resolve user input as either a numeric ID or fuzzy keyword match.
+	 * First checks if input is a number and maps to an entity.
+	 * If not, falls back to fuzzy matching by extracting keywords from descriptions.
+	 * 
+	 * @param client The client making the request
+	 * @param userInput The user's input string
+	 * @param candidates List of candidate entities to match against
+	 * @param descriptionExtractor Function to extract plain text description from each entity
+	 * @param <T> The type of entity
+	 * @return The matched entity, or null if not found or ambiguous
+	 */
+	@SuppressWarnings("null")
+	public <T extends Entity> T resolveEntity(
+			Client client,
+			String userInput,
+			List<T> candidates,
+			Function<T, String> descriptionExtractor) {
+		
+		ResolutionResult<T> result = resolveEntityWithAmbiguity(client, userInput, candidates, descriptionExtractor);
+		return result.isUnique() ? result.getUniqueMatch() : null;
 	}
 }
