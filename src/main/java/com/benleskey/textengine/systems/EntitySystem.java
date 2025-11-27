@@ -116,4 +116,24 @@ public class EntitySystem extends SingletonGameSystem implements OnSystemInitial
 			throw new DatabaseException("Could not get entity " + id, e);
 		}
 	}
+	
+	/**
+	 * Check if any entities of the given type exist.
+	 * @param entityType The entity type to check for
+	 * @return true if at least one entity of this type exists
+	 */
+	public synchronized boolean hasEntitiesOfType(UniqueType entityType) throws DatabaseException {
+		try {
+			var stmt = game.db().prepareStatement("SELECT COUNT(*) FROM entity WHERE type = ?");
+			stmt.setLong(1, entityType.type());
+			try (ResultSet rs = stmt.executeQuery()) {
+				if (rs.next()) {
+					return rs.getInt(1) > 0;
+				}
+			}
+			return false;
+		} catch (SQLException e) {
+			throw new DatabaseException("Could not check for entities of type " + entityType, e);
+		}
+	}
 }

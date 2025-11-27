@@ -13,6 +13,7 @@ import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.hooks.core.OnStartClient;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
+import com.benleskey.textengine.model.UniqueType;
 import com.benleskey.textengine.systems.*;
 
 import java.util.*;
@@ -138,10 +139,18 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		entitySystem.registerEntityType(Actor.class);
 		entitySystem.registerEntityType(Item.class);
 		
-		// Generate initial world (just starting place + planned exits)
-		startingPlace = generateInitialWorld(entitySystem, lookSystem, relationshipSystem, connectionSystem, ws);
+		// Check if world already exists by looking for any places
+		boolean worldExists = hasExistingWorld();
 		
-		log.log("Procedural world initialized with starting place. Places will generate on exploration.");
+		if (worldExists) {
+			// Load existing starting place from database
+			startingPlace = loadStartingPlace();
+			log.log("Loaded existing world with starting place at entity %d", startingPlace.getId());
+		} else {
+			// Generate initial world (starting place + neighbors + landmarks)
+			startingPlace = generateInitialWorld(entitySystem, lookSystem, relationshipSystem, connectionSystem, ws);
+			log.log("Generated new procedural world with seed %d", seed);
+		}
 	}
 	
 	@Override
@@ -150,36 +159,10 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		LookSystem ls = game.getSystem(LookSystem.class);
 		ItemSystem is = game.getSystem(ItemSystem.class);
-		WorldSystem ws = game.getSystem(WorldSystem.class);
 		
-		// Create player actor
-		Actor actor = es.add(Actor.class);
-		ls.addLook(actor, "basic", "yourself");
-		is.addTag(actor, is.TAG_CARRY_WEIGHT, 10000); // Can carry up to 10kg
+		// Try to find existing actor or create new one
+		Actor actor = findOrCreatePlayerActor(es, ls, is, rs);
 		client.setEntity(actor);
-		
-		// Place actor in starting location
-		rs.add(startingPlace, actor, rs.rvContains);
-		
-		// Give player a starting timepiece so they can see the time
-		var timepiece = com.benleskey.textengine.plugins.highfantasy.entities.Timepiece.create(game, "a pocket timepiece");
-		rs.add(actor, timepiece, rs.rvContains); // Put timepiece in player's inventory
-		log.log("Gave player starting timepiece");
-		
-		// Add a grandfather clock to the starting location for testing (only if none exists yet)
-		List<com.benleskey.textengine.model.RelationshipDescriptor> existingClocks = 
-			rs.getReceivingRelationships(startingPlace, rs.rvContains, ws.getCurrentTime())
-			.stream()
-			.filter(rd -> rd.getReceiver() instanceof com.benleskey.textengine.plugins.highfantasy.entities.GrandfatherClock)
-			.toList();
-		
-		if (existingClocks.isEmpty()) {
-			var clock = com.benleskey.textengine.plugins.highfantasy.entities.GrandfatherClock.create(game, "a grandfather clock");
-			rs.add(startingPlace, clock, rs.rvContains);
-			log.log("Added grandfather clock to starting location");
-		} else {
-			log.log("Grandfather clock already exists at starting location");
-		}
 		
 		// Send initial look command so player sees where they are
 		CommandInput lookCommand = game.inputLineToCommandInput("look");
@@ -223,6 +206,70 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		}
 		
 		return starting;
+	}
+	
+	/**
+	 * Check if a world already exists by looking for any Place entities.
+	 */
+	private boolean hasExistingWorld() throws InternalException {
+		UniqueType placeType = game.getSystem(UniqueTypeSystem.class).getType("entity_place");
+		return entitySystem.hasEntitiesOfType(placeType);
+	}
+	
+	/**
+	 * Load the starting place (position 0,0) from the database.
+	 */
+	private Entity loadStartingPlace() throws InternalException {
+		// Find place at position (0, 0) at continent scale
+		int[] originPos = new int[]{0, 0};
+		Entity place = spatialSystem.getEntityAt(SpatialSystem.SCALE_CONTINENT, originPos);
+		if (place == null) {
+			throw new InternalException("Starting place not found at origin (0, 0)");
+		}
+		
+		// Load existing landmarks
+		loadExistingLandmarks();
+		
+		return place;
+	}
+	
+	/**
+	 * Find existing player actor or create a new one with starting inventory.
+	 */
+	private Actor findOrCreatePlayerActor(EntitySystem es, LookSystem ls, ItemSystem is, RelationshipSystem rs) throws InternalException {
+		WorldSystem ws = game.getSystem(WorldSystem.class);
+		
+		// Try to find existing actor in the starting location
+		List<com.benleskey.textengine.model.RelationshipDescriptor> actorsInStartingPlace = 
+			rs.getReceivingRelationships(startingPlace, rs.rvContains, ws.getCurrentTime())
+			.stream()
+			.filter(rd -> rd.getReceiver() instanceof Actor)
+			.toList();
+		
+		if (!actorsInStartingPlace.isEmpty()) {
+			// Reuse existing actor
+			Actor existingActor = (Actor) actorsInStartingPlace.get(0).getReceiver();
+			log.log("Reconnecting to existing actor %d", existingActor.getId());
+			return existingActor;
+		}
+		
+		// Create new actor
+		Actor actor = es.add(Actor.class);
+		ls.addLook(actor, "basic", "yourself");
+		is.addTag(actor, is.TAG_CARRY_WEIGHT, 10000); // Can carry up to 10kg
+		rs.add(startingPlace, actor, rs.rvContains);
+		log.log("Created new actor %d", actor.getId());
+		
+		// Give starting inventory (timepiece + grandfather clock)
+		var timepiece = com.benleskey.textengine.plugins.highfantasy.entities.Timepiece.create(game, "a pocket timepiece");
+		rs.add(actor, timepiece, rs.rvContains);
+		log.log("Gave player starting timepiece");
+		
+		var clock = com.benleskey.textengine.plugins.highfantasy.entities.GrandfatherClock.create(game, "a grandfather clock");
+		rs.add(startingPlace, clock, rs.rvContains);
+		log.log("Added grandfather clock to starting location");
+		
+		return actor;
 	}
 	
 	/**
