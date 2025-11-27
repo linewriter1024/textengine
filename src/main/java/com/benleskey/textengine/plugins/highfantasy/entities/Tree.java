@@ -73,7 +73,8 @@ public class Tree extends Item implements Cuttable {
 		Entity currentLocation = containers.get(0).getProvider();
 		
 		// Generate wood item using Wood.create() for proper tags
-		Random random = new Random();
+		// Use deterministic random based on tree entity ID for consistent generation
+		Random random = new Random(this.getId());
 		Wood wood = Wood.create(game, random);
 		
 		// Add wood to location

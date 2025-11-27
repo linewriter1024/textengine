@@ -61,8 +61,9 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 	
 	@Override
 	public void onPluginInitialize() {
-		// Take/get item
+		// Take/get item (or take from container)
 		game.registerCommand(new Command(TAKE, this::handleTake,
+			new CommandVariant("take_from", "^(?:take|get)\\s+(.+?)\\s+from\\s+(.+?)\\s*$", this::parseTakeFrom),
 			new CommandVariant("take_item", "^(?:take|get|pickup|grab)\\s+(.+?)\\s*$", this::parseTake)
 		));
 		
@@ -110,6 +111,12 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		return CommandInput.makeNone().put(M_ITEM, matcher.group(1).trim());
 	}
 	
+	private CommandInput parseTakeFrom(Matcher matcher) {
+		return CommandInput.makeNone()
+			.put(M_ITEM, matcher.group(1).trim())
+			.put(M_CONTAINER, matcher.group(2).trim());
+	}
+	
 	private CommandInput parseDrop(Matcher matcher) {
 		return CommandInput.makeNone().put(M_ITEM, matcher.group(1).trim());
 	}
@@ -152,8 +159,79 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		
 		Entity currentLocation = containers.get(0).getProvider();
 		
-		// Get items at current location (not carried by actor)
-		List<Entity> itemsHere = rs.getReceivingRelationships(currentLocation, rs.rvContains, ws.getCurrentTime())
+		// Check if taking from a container
+		Entity sourceContainer = null;
+		if (input.getO(M_CONTAINER).isPresent()) {
+			// "take X from Y" syntax - get items from container
+			String containerInput = input.get(M_CONTAINER);
+			
+			// Get containers at current location
+			List<Entity> containersHere = rs.getReceivingRelationships(currentLocation, rs.rvContains, ws.getCurrentTime())
+				.stream()
+				.map(RelationshipDescriptor::getReceiver)
+				.filter(e -> e instanceof Item)
+				.filter(e -> is.hasTag(e, is.TAG_CONTAINER, ws.getCurrentTime()))
+				.collect(Collectors.toList());
+			
+			if (containersHere.isEmpty()) {
+				client.sendOutput(CommandOutput.make(TAKE)
+					.put(M_SUCCESS, false)
+					.put(M_ERROR, "no_containers")
+					.text(Markup.escape("There are no containers here.")));
+				return;
+			}
+			
+			DisambiguationSystem ds = game.getSystem(DisambiguationSystem.class);
+			java.util.function.Function<Entity, String> descExtractor = e -> {
+				List<LookDescriptor> looks = ls.getLooksFromEntity(e, ws.getCurrentTime());
+				return !looks.isEmpty() ? looks.get(0).getDescription() : null;
+			};
+			
+			DisambiguationSystem.ResolutionResult<Entity> containerResult = ds.resolveEntityWithAmbiguity(
+				client,
+				containerInput,
+				containersHere,
+				descExtractor
+			);
+			
+			if (containerResult.isNotFound()) {
+				client.sendOutput(CommandOutput.make(TAKE)
+					.put(M_SUCCESS, false)
+					.put(M_ERROR, "container_not_found")
+					.text(Markup.concat(
+						Markup.raw("You don't see "),
+						Markup.em(containerInput),
+						Markup.raw(" here.")
+					)));
+				return;
+			}
+			
+			if (containerResult.isAmbiguous()) {
+				handleAmbiguousMatch(client, TAKE, containerInput, containerResult.getAmbiguousMatches(), descExtractor);
+				return;
+			}
+			
+			sourceContainer = containerResult.getUniqueMatch();
+			
+			// Check if container is open
+			Long openValue = is.getTagValue(sourceContainer, is.TAG_OPEN, ws.getCurrentTime());
+			if (openValue == null || openValue == 0) {
+				List<LookDescriptor> looks = ls.getLooksFromEntity(sourceContainer, ws.getCurrentTime());
+				String containerName = !looks.isEmpty() ? looks.get(0).getDescription() : "the container";
+				client.sendOutput(CommandOutput.make(TAKE)
+					.put(M_SUCCESS, false)
+					.put(M_ERROR, "container_closed")
+					.text(Markup.concat(
+						Markup.em(containerName.substring(0, 1).toUpperCase() + containerName.substring(1)),
+						Markup.raw(" is closed.")
+					)));
+				return;
+			}
+		}
+		
+		// Get items from appropriate location (container or current location)
+		Entity itemSource = sourceContainer != null ? sourceContainer : currentLocation;
+		List<Entity> itemsHere = rs.getReceivingRelationships(itemSource, rs.rvContains, ws.getCurrentTime())
 			.stream()
 			.map(RelationshipDescriptor::getReceiver)
 			.filter(e -> e instanceof Item)
