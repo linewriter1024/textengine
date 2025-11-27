@@ -15,6 +15,7 @@ import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.LookDescriptor;
 import com.benleskey.textengine.model.RelationshipDescriptor;
 import com.benleskey.textengine.systems.DisambiguationSystem;
+import com.benleskey.textengine.systems.EntitySystem;
 import com.benleskey.textengine.systems.ItemDescriptionSystem;
 import com.benleskey.textengine.systems.ItemSystem;
 import com.benleskey.textengine.systems.LookSystem;
@@ -39,6 +40,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 	public static final String INVENTORY = "inventory";
 	
 	public static final String M_ITEM = "item";
+	public static final String M_ENTITY_ID = "entity_id";
 	public static final String M_ITEM_NAME = "item_name";
 	public static final String M_SUCCESS = "success";
 	public static final String M_ERROR = "error";
@@ -137,47 +139,67 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 			.filter(e -> e instanceof Item)
 			.collect(Collectors.toList());
 		
-		// Resolve which item the player wants
-		String itemInput = input.get(M_ITEM);
+		EntitySystem es = game.getSystem(EntitySystem.class);
 		DisambiguationSystem ds = game.getSystem(DisambiguationSystem.class);
 		
-		java.util.function.Function<Entity, String> descExtractor = item -> {
-			List<LookDescriptor> looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
+		// Check if entity_id is provided (machine-readable input)
+		Entity item = null;
+		if (input.getO(M_ENTITY_ID).isPresent()) {
+			String entityIdStr = input.get(M_ENTITY_ID);
+			try {
+				long entityId = Long.parseLong(entityIdStr);
+				item = es.get(entityId);
+				if (item == null || !itemsHere.contains(item)) {
+					item = null; // Entity not found or not at this location
+				}
+			} catch (NumberFormatException e) {
+				// Invalid entity ID
+			}
+		}
+		
+		// Fall back to keyword matching if no entity_id or entity not found
+		String itemInput = input.get(M_ITEM);
+		
+		java.util.function.Function<Entity, String> descExtractor = e -> {
+			List<LookDescriptor> looks = ls.getLooksFromEntity(e, ws.getCurrentTime());
 			return !looks.isEmpty() ? looks.get(0).getDescription() : null;
 		};
 		
-		DisambiguationSystem.ResolutionResult<Entity> result = ds.resolveEntityWithAmbiguity(
-			client,
-			itemInput,
-			itemsHere,
-			descExtractor
-		);
-		
-		if (result.isNotFound()) {
-			client.sendOutput(CommandOutput.make(TAKE)
-				.put(M_SUCCESS, false)
-				.put(M_ERROR, "not_found")
-				.text(Markup.concat(
-					Markup.raw("You don't see "),
-					Markup.em(itemInput),
-					Markup.raw(" here.")
-				)));
-			return;
+		// Only do resolution if we don't already have an item from entity_id
+		if (item == null) {
+			DisambiguationSystem.ResolutionResult<Entity> result = ds.resolveEntityWithAmbiguity(
+				client,
+				itemInput,
+				itemsHere,
+				descExtractor
+			);
+			
+			if (result.isNotFound()) {
+				client.sendOutput(CommandOutput.make(TAKE)
+					.put(M_SUCCESS, false)
+					.put(M_ERROR, "not_found")
+					.text(Markup.concat(
+						Markup.raw("You don't see "),
+						Markup.em(itemInput),
+						Markup.raw(" here.")
+					)));
+				return;
+			}
+			
+			if (result.isAmbiguous()) {
+				handleAmbiguousMatch(client, TAKE, itemInput, result.getAmbiguousMatches(), descExtractor);
+				return;
+			}
+			
+			item = result.getUniqueMatch();
 		}
-		
-		if (result.isAmbiguous()) {
-			handleAmbiguousMatch(client, TAKE, itemInput, result.getAmbiguousMatches(), descExtractor);
-			return;
-		}
-		
-		Entity targetItem = result.getUniqueMatch();
 		
 		// Get item description
-		List<LookDescriptor> looks = ls.getLooksFromEntity(targetItem, ws.getCurrentTime());
+		List<LookDescriptor> looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
 		String itemName = !looks.isEmpty() ? looks.get(0).getDescription() : "the item";
 		
 		// Check if item is takeable
-		if (!is.hasTag(targetItem, is.TAG_TAKEABLE, ws.getCurrentTime())) {
+		if (!is.hasTag(item, is.TAG_TAKEABLE, ws.getCurrentTime())) {
 			client.sendOutput(CommandOutput.make(TAKE)
 				.put(M_SUCCESS, false)
 				.put(M_ERROR, "not_takeable")
@@ -190,7 +212,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		}
 		
 		// Check weight constraints
-		Long itemWeightGrams = is.getTagValue(targetItem, is.TAG_WEIGHT, ws.getCurrentTime());
+		Long itemWeightGrams = is.getTagValue(item, is.TAG_WEIGHT, ws.getCurrentTime());
 		Long carryWeightGrams = is.getTagValue(actor, is.TAG_CARRY_WEIGHT, ws.getCurrentTime());
 		
 		if (itemWeightGrams != null && carryWeightGrams != null) {
@@ -216,17 +238,17 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		}
 		
 		// Remove item from location, add to actor's inventory
-		var oldContainment = rs.getProvidingRelationships(targetItem, rs.rvContains, ws.getCurrentTime());
+		var oldContainment = rs.getProvidingRelationships(item, rs.rvContains, ws.getCurrentTime());
 		if (!oldContainment.isEmpty()) {
 			game.getSystem(com.benleskey.textengine.systems.EventSystem.class)
 				.cancelEvent(oldContainment.get(0).getRelationship());
 		}
 		
-		rs.add(actor, targetItem, rs.rvContains);
+		rs.add(actor, item, rs.rvContains);
 		
 		client.sendOutput(CommandOutput.make(TAKE)
 			.put(M_SUCCESS, true)
-			.put(M_ITEM, targetItem.getKeyId())
+			.put(M_ENTITY_ID, String.valueOf(item.getId()))
 			.put(M_ITEM_NAME, itemName)
 			.text(Markup.concat(
 				Markup.raw("You take "),
@@ -323,7 +345,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		
 		client.sendOutput(CommandOutput.make(DROP)
 			.put(M_SUCCESS, true)
-			.put(M_ITEM, targetItem.getKeyId())
+			.put(M_ENTITY_ID, String.valueOf(targetItem.getId()))
 			.put(M_ITEM_NAME, itemName)
 			.text(Markup.concat(
 				Markup.raw("You drop "),
@@ -465,6 +487,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		
 		client.sendOutput(CommandOutput.make(EXAMINE)
 			.put(M_SUCCESS, true)
+			.put(M_ENTITY_ID, String.valueOf(targetItem.getId()))
 			.put(M_ITEM, targetItem)
 			.text(Markup.concat(examineMarkup.toArray(new Markup.Safe[0]))));
 	}
