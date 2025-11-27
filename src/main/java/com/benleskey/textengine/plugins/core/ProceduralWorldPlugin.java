@@ -13,7 +13,6 @@ import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.hooks.core.OnStartClient;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
-import com.benleskey.textengine.model.UniqueType;
 import com.benleskey.textengine.systems.*;
 
 import java.util.*;
@@ -139,16 +138,15 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		entitySystem.registerEntityType(Actor.class);
 		entitySystem.registerEntityType(Item.class);
 		
-		// Check if world already exists by looking for any places
-		boolean worldExists = hasExistingWorld();
-		
-		if (worldExists) {
+		// Check if world already exists
+		if (ws.isWorldInitialized()) {
 			// Load existing starting place from database
 			startingPlace = loadStartingPlace();
 			log.log("Loaded existing world with starting place at entity %d", startingPlace.getId());
 		} else {
 			// Generate initial world (starting place + neighbors + landmarks)
 			startingPlace = generateInitialWorld(entitySystem, lookSystem, relationshipSystem, connectionSystem, ws);
+			ws.setWorldInitialized();
 			log.log("Generated new procedural world with seed %d", seed);
 		}
 	}
@@ -206,14 +204,6 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		}
 		
 		return starting;
-	}
-	
-	/**
-	 * Check if a world already exists by looking for any Place entities.
-	 */
-	private boolean hasExistingWorld() throws InternalException {
-		UniqueType placeType = game.getSystem(UniqueTypeSystem.class).getType("entity_place");
-		return entitySystem.hasEntitiesOfType(placeType);
 	}
 	
 	/**

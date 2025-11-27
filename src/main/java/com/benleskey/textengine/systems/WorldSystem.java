@@ -10,6 +10,7 @@ public class WorldSystem extends SingletonGameSystem implements OnSystemInitiali
 
 	private final static long TIME_NOW = 0;
 	private final static long WORLD_SEED = 1;
+	private final static long WORLD_INITIALIZED = 2;
 	// Reserved for future use - may be used for temporal anchoring or waypoint system
 	@SuppressWarnings("unused")
 	private final GrouplessPropertiesSubSystem<String, Long> referencePoints;
@@ -59,5 +60,22 @@ public class WorldSystem extends SingletonGameSystem implements OnSystemInitiali
 	public synchronized void setSeed(long seed) throws DatabaseException {
 		time.set(WORLD_SEED, seed);
 		log.log("World seed set to %d", seed);
+	}
+	
+	/**
+	 * Check if the world has been initialized.
+	 * Returns true if world generation has been completed.
+	 */
+	public synchronized boolean isWorldInitialized() throws DatabaseException {
+		return time.get(WORLD_INITIALIZED).orElse(0L) == 1L;
+	}
+	
+	/**
+	 * Mark the world as initialized.
+	 * Should be called after initial world generation is complete.
+	 */
+	public synchronized void setWorldInitialized() throws DatabaseException {
+		time.set(WORLD_INITIALIZED, 1L);
+		log.log("World marked as initialized");
 	}
 }
