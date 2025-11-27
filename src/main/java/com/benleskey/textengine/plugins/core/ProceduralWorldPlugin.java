@@ -12,6 +12,9 @@ import com.benleskey.textengine.hooks.core.OnCoreSystemsReady;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.hooks.core.OnStartClient;
 import com.benleskey.textengine.model.Entity;
+import com.benleskey.textengine.plugins.highfantasy.entities.Axe;
+import com.benleskey.textengine.plugins.highfantasy.entities.Rattle;
+import com.benleskey.textengine.plugins.highfantasy.entities.Tree;
 import com.benleskey.textengine.systems.*;
 
 import java.util.*;
@@ -126,7 +129,7 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		rs.add(startingPlace, actor, rs.rvContains);
 		
 		// Give player a starting rattle for testing
-		Item rattle = es.add(Item.class);
+		Rattle rattle = es.add(Rattle.class);
 		ls.addLook(rattle, "basic", "a wooden toy rattle");
 		is.setItemType(rattle, ItemSystem.ItemType.RESOURCE);
 		is.setQuantity(rattle, 1);
@@ -334,8 +337,8 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 			return;
 		}
 		
-		// Create the item entity
-		Item item = entitySystem.add(Item.class);
+		// Create the appropriate entity type based on item characteristics
+		Item item = createItemEntity(itemData);
 		lookSystem.addLook(item, "basic", itemData.name());
 		
 		// Set default item properties (type, quantity, weight can be in itemData.properties if needed)
@@ -375,6 +378,33 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	}
 	
 	/**
+	 * Create the appropriate entity type based on item data.
+	 * Uses specific entity classes (Rattle, Axe, Tree) when appropriate,
+	 * falls back to generic Item otherwise.
+	 */
+	private Item createItemEntity(ItemTemplateSystem.ItemData itemData) {
+		String name = itemData.name().toLowerCase();
+		
+		// Check for rattle
+		if (name.contains("rattle") || itemData.tags().contains("toy")) {
+			return entitySystem.add(Rattle.class);
+		}
+		
+		// Check for axe
+		if (name.contains("axe") || itemData.tags().contains("tool")) {
+			return entitySystem.add(Axe.class);
+		}
+		
+		// Check for tree
+		if (name.contains("tree") || itemData.tags().contains("cuttable")) {
+			return entitySystem.add(Tree.class);
+		}
+		
+		// Default: generic item
+		return entitySystem.add(Item.class);
+	}
+	
+	/**
 	 * Generate an item inside a container.
 	 */
 	private void generateItemInContainer(Entity container, String biomeName) throws InternalException {
@@ -386,8 +416,8 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 			return;
 		}
 		
-		// Create the item entity
-		Item item = entitySystem.add(Item.class);
+		// Create the appropriate entity type
+		Item item = createItemEntity(itemData);
 		lookSystem.addLook(item, "basic", itemData.name());
 		
 		// Set default properties

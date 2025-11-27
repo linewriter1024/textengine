@@ -2,7 +2,11 @@ package com.benleskey.textengine.plugins.highfantasy;
 
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.Plugin;
+import com.benleskey.textengine.hooks.core.OnCoreSystemsReady;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
+import com.benleskey.textengine.plugins.highfantasy.entities.Axe;
+import com.benleskey.textengine.plugins.highfantasy.entities.Rattle;
+import com.benleskey.textengine.plugins.highfantasy.entities.Tree;
 import com.benleskey.textengine.systems.*;
 
 import java.util.*;
@@ -13,7 +17,7 @@ import java.util.*;
  * 
  * Separated from ProceduralWorldPlugin to demonstrate genre-specific content registration.
  */
-public class HighFantasyPlugin extends Plugin implements OnPluginInitialize {
+public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnCoreSystemsReady {
 	
 	public HighFantasyPlugin(Game game) {
 		super(game);
@@ -38,6 +42,24 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize {
 		registerLandmarks();
 		
 		log.log("High fantasy content registered");
+	}
+	
+	@Override
+	public void onCoreSystemsReady() {
+		log.log("Registering high fantasy entity types...");
+		registerEntityTypes();
+		log.log("High fantasy entity types registered");
+	}
+	
+	private void registerEntityTypes() {
+		EntitySystem es = game.getSystem(EntitySystem.class);
+		
+		// Register custom entity types for high fantasy items
+		es.registerEntityType(Rattle.class);
+		es.registerEntityType(Axe.class);
+		es.registerEntityType(Tree.class);
+		
+		log.log("Registered 3 high fantasy entity types");
 	}
 	
 	private void registerBiomes() {

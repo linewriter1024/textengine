@@ -8,12 +8,13 @@ import com.benleskey.textengine.commands.CommandInput;
 import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.commands.CommandVariant;
 import com.benleskey.textengine.entities.Item;
+import com.benleskey.textengine.entities.UsableItem;
+import com.benleskey.textengine.entities.UsableOnTarget;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.LookDescriptor;
 import com.benleskey.textengine.model.RelationshipDescriptor;
 import com.benleskey.textengine.systems.DisambiguationSystem;
-import com.benleskey.textengine.systems.EntitySystem;
 import com.benleskey.textengine.systems.LookSystem;
 import com.benleskey.textengine.systems.RelationshipSystem;
 import com.benleskey.textengine.systems.WorldSystem;
@@ -453,18 +454,13 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		List<LookDescriptor> looks = ls.getLooksFromEntity(item, game.getSystem(WorldSystem.class).getCurrentTime());
 		String itemName = !looks.isEmpty() ? looks.get(0).getDescription() : "the item";
 		
-		// Check if this is a rattle (toy that makes sound)
-		if (itemName.contains("rattle")) {
-			client.sendOutput(CommandOutput.make(USE)
-				.put(M_SUCCESS, true)
-				.put(M_ITEM, item.getKeyId())
-				.put(M_ITEM_NAME, itemName)
-				.text(Markup.concat(
-					Markup.raw("You shake "),
-					Markup.em(itemName),
-					Markup.raw(". It makes a pleasant rattling sound.")
-				)));
-			return;
+		// Check if item implements UsableItem interface
+		if (item instanceof UsableItem usableItem) {
+			CommandOutput output = usableItem.useSolo(client, actor);
+			if (output != null) {
+				client.sendOutput(output);
+				return;
+			}
 		}
 		
 		// Default: item has no solo use
@@ -482,7 +478,6 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		LookSystem ls = game.getSystem(LookSystem.class);
-		EntitySystem es = game.getSystem(EntitySystem.class);
 		
 		// Get item description
 		List<LookDescriptor> itemLooks = ls.getLooksFromEntity(item, ws.getCurrentTime());
@@ -537,36 +532,13 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		List<LookDescriptor> targetLooks = ls.getLooksFromEntity(target, ws.getCurrentTime());
 		String targetName = !targetLooks.isEmpty() ? targetLooks.get(0).getDescription() : "the target";
 		
-		// Check for axe + tree interaction
-		if (itemName.contains("axe") && targetName.contains("tree")) {
-			// Generate wood item
-			Item wood = es.add(Item.class);
-			ls.addLook(wood, "basic", "a piece of wood");
-			
-			// Add wood to location
-			rs.add(currentLocation, wood, rs.rvContains);
-			
-			client.sendOutput(CommandOutput.make(USE)
-				.put(M_SUCCESS, true)
-				.put(M_ITEM, item.getKeyId())
-				.put(M_TARGET, target.getKeyId())
-				.text(Markup.concat(
-					Markup.raw("You swing "),
-					Markup.em(itemName),
-					Markup.raw(" at "),
-					Markup.em(targetName),
-					Markup.raw(". After some effort, you cut it down and produce "),
-					Markup.em("a piece of wood"),
-					Markup.raw(".")
-				)));
-			
-			// Remove the tree
-			var treeContainment = rs.getProvidingRelationships(target, rs.rvContains, ws.getCurrentTime());
-			if (!treeContainment.isEmpty()) {
-				game.getSystem(com.benleskey.textengine.systems.EventSystem.class)
-					.cancelEvent(treeContainment.get(0).getRelationship());
+		// Check if item implements UsableOnTarget interface
+		if (item instanceof UsableOnTarget usableOnTarget) {
+			CommandOutput output = usableOnTarget.useOn(client, actor, target, targetName);
+			if (output != null) {
+				client.sendOutput(output);
+				return;
 			}
-			return;
 		}
 		
 		// Default: no interaction defined
