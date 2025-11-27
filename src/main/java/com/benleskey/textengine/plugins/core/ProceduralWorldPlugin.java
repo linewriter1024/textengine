@@ -115,6 +115,7 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		EntitySystem es = game.getSystem(EntitySystem.class);
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		LookSystem ls = game.getSystem(LookSystem.class);
+		ItemSystem is = game.getSystem(ItemSystem.class);
 		
 		// Create player actor
 		Actor actor = es.add(Actor.class);
@@ -123,6 +124,15 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		
 		// Place actor in starting location
 		rs.add(startingPlace, actor, rs.rvContains);
+		
+		// Give player a starting rattle for testing
+		Item rattle = es.add(Item.class);
+		ls.addLook(rattle, "basic", "a wooden toy rattle");
+		is.setItemType(rattle, ItemSystem.ItemType.RESOURCE);
+		is.setQuantity(rattle, 1);
+		is.setWeight(rattle, 1);
+		rs.add(actor, rattle, rs.rvContains); // Put rattle in player's inventory
+		log.log("Gave player starting rattle for testing");
 		
 		// Send initial look command so player sees where they are
 		CommandInput lookCommand = game.inputLineToCommandInput("look");
