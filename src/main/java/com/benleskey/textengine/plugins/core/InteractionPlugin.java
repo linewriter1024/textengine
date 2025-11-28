@@ -11,7 +11,6 @@ import com.benleskey.textengine.entities.Item;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.LookDescriptor;
-import com.benleskey.textengine.model.VisibilityDescriptor;
 import com.benleskey.textengine.model.ConnectionDescriptor;
 import com.benleskey.textengine.systems.LookSystem;
 import com.benleskey.textengine.systems.VisibilitySystem;
@@ -26,8 +25,6 @@ import com.benleskey.textengine.util.RawMessage;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.StringJoiner;
 import java.util.stream.Collectors;
 
 public class InteractionPlugin extends Plugin implements OnPluginInitialize {
@@ -48,37 +45,6 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 		super(game);
 	}
 
-	private CommandOutput buildLookOutput(Map<Entity, List<LookDescriptor>> groupedLooks) {
-		CommandOutput output = CommandOutput.make(M_LOOK);
-		StringJoiner overallText = new StringJoiner("\n");
-
-		RawMessage entities = Message.make();
-		for (Entity entity : groupedLooks.keySet()) {
-
-			RawMessage entityMessage = Message.make();
-			RawMessage entityLooks = Message.make();
-			StringJoiner entityText = new StringJoiner(", ");
-
-			for (LookDescriptor lookDescriptor : groupedLooks.get(entity)) {
-				RawMessage lookMessage = Message.make()
-					.put(M_LOOK_TYPE, lookDescriptor.getType())
-					.put(M_LOOK_DESCRIPTION, lookDescriptor.getDescription());
-				entityLooks.put(lookDescriptor.getLook().getKeyId(), lookMessage);
-				entityText.add(lookDescriptor.getDescription());
-			}
-
-			entityMessage.put(M_LOOK_ENTITY_LOOKS, entityLooks);
-
-			overallText.add(entityText.toString());
-			entities.put(entity.getKeyId(), entityMessage);
-		}
-
-		output.text(Markup.escape(overallText.toString()));
-		output.put(M_LOOK_ENTITIES, entities);
-
-		return output;
-	}
-
 	@Override
 	public void onPluginInitialize() {
 		game.registerCommand(new Command(LOOK, (client, input) -> {
@@ -86,8 +52,7 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 			if (entity != null) {
 				RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 				WorldSystem ws = game.getSystem(WorldSystem.class);
-				LookSystem ls = game.getSystem(LookSystem.class);
-
+				
 				// Get current location
 				var containers = rs.getProvidingRelationships(entity, rs.rvContains, ws.getCurrentTime());
 				
@@ -105,8 +70,9 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 					performNormalLook(client, entity, currentLocation);
 				}
 				} else {
-					client.sendOutput(buildLookOutput(ls.getSeenLooks(entity).stream()
-						.collect(Collectors.groupingBy(LookDescriptor::getEntity))));
+					// Entity has no location
+					client.sendOutput(CommandOutput.make(M_LOOK)
+						.text(Markup.escape("You are nowhere. This should not happen.")));
 				}
 			} else {
 				client.sendOutput(Client.NO_ENTITY);
@@ -278,73 +244,48 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 	
 	/**
 	 * Perform a normal look at the current location.
+	 * Uses LookSystem.getLookEnvironment() for consistent observation logic with NPCs.
 	 */
 	private void performNormalLook(Client client, Entity entity, Entity currentLocation) {
 		
 		LookSystem ls = game.getSystem(LookSystem.class);
-		VisibilitySystem vs = game.getSystem(VisibilitySystem.class);
 		ConnectionSystem cs = game.getSystem(ConnectionSystem.class);
-		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		
-		// Get current location description
-		List<LookDescriptor> locationLooks = ls.getLooksFromEntity(currentLocation, ws.getCurrentTime());
+		// Use LookSystem's shared environment observation (same as NPCs)
+		LookSystem.LookEnvironment env = ls.getLookEnvironment(entity);
+		if (env == null) {
+			client.sendOutput(CommandOutput.make(M_LOOK)
+				.text(Markup.escape("You are nowhere. This should not happen.")));
+			return;
+		}
 		
-		// Get exits (connections to generated places)
+		// Get exits as ConnectionDescriptors (for compatibility with existing output builder)
 		List<ConnectionDescriptor> exits = cs.getConnections(currentLocation, ws.getCurrentTime());
 		
-		// Get visible entities
-		List<VisibilityDescriptor> visible = vs.getVisibleEntities(entity);
-		
-		// Get items directly carried by the observer (to exclude from location display)
-		Set<Long> carriedItemIds = rs.getReceivingRelationships(entity, rs.rvContains, ws.getCurrentTime())
-			.stream()
-			.map(rd -> rd.getReceiver().getId())
-			.collect(Collectors.toSet());
-		
-		// Group visible entities by distance
-		Map<VisibilitySystem.VisibilityLevel, List<VisibilityDescriptor>> byDistance = 
-			visible.stream().collect(Collectors.groupingBy(VisibilityDescriptor::getDistanceLevel));
-		
-		// Separate items from other entities, excluding items we're carrying
-		List<Entity> nearbyItems = byDistance
-			.getOrDefault(VisibilitySystem.VisibilityLevel.NEARBY, List.of())
-			.stream()
-			.map(VisibilityDescriptor::getEntity)
-			.filter(e -> e instanceof Item)
-			.filter(e -> !carriedItemIds.contains(e.getId()))  // Exclude items we're carrying
-			.collect(Collectors.toList());
-		
-		List<Entity> nearbyNonItems = byDistance
-			.getOrDefault(VisibilitySystem.VisibilityLevel.NEARBY, List.of())
-			.stream()
-			.map(VisibilityDescriptor::getEntity)
-			.filter(e -> !(e instanceof Item))
-			.collect(Collectors.toList());
-		
-		// Get looks for all visible entities
-		Map<Entity, List<LookDescriptor>> nearbyLooks = nearbyNonItems.stream()
+		// Convert environment data to the format expected by buildEnhancedLookOutput
+		// nearbyLooks: non-item entities (actors, etc.)
+		Map<Entity, List<LookDescriptor>> nearbyLooks = env.actorsHere.stream()
 			.collect(Collectors.toMap(
 				e -> e,
 				e -> ls.getLooksFromEntity(e, ws.getCurrentTime())
 			));
 		
-		Map<Entity, List<LookDescriptor>> itemLooks = nearbyItems.stream()
+		// itemLooks: items at location (already excludes containers in some contexts)
+		Map<Entity, List<LookDescriptor>> itemLooks = env.itemsHere.stream()
 			.collect(Collectors.toMap(
 				e -> e,
 				e -> ls.getLooksFromEntity(e, ws.getCurrentTime())
 			));
 		
-		Map<Entity, List<LookDescriptor>> distantLooks = byDistance
-			.getOrDefault(VisibilitySystem.VisibilityLevel.DISTANT, List.of())
-			.stream()
-			.map(VisibilityDescriptor::getEntity)
+		// distantLooks: landmarks visible from distance
+		Map<Entity, List<LookDescriptor>> distantLooks = env.distantLandmarks.stream()
 			.collect(Collectors.toMap(
 				e -> e,
 				e -> ls.getLooksFromEntity(e, ws.getCurrentTime())
 			));
 		
-		client.sendOutput(buildEnhancedLookOutput(client, locationLooks, exits, nearbyLooks, itemLooks, distantLooks));
+		client.sendOutput(buildEnhancedLookOutput(client, env.locationLooks, exits, nearbyLooks, itemLooks, distantLooks));
 	}
 
 	private CommandOutput buildEnhancedLookOutput(

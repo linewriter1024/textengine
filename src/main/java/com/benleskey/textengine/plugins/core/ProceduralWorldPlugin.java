@@ -231,12 +231,14 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	 */
 	private Actor findOrCreatePlayerActor(EntitySystem es, LookSystem ls, ItemSystem is, RelationshipSystem rs) throws InternalException {
 		WorldSystem ws = game.getSystem(WorldSystem.class);
+		EntityTagSystem ets = game.getSystem(EntityTagSystem.class);
 		
-		// Try to find existing actor in the starting location
+		// Try to find existing avatar (player-controlled actor) in the starting location
 		List<com.benleskey.textengine.model.RelationshipDescriptor> actorsInStartingPlace = 
 			rs.getReceivingRelationships(startingPlace, rs.rvContains, ws.getCurrentTime())
 			.stream()
 			.filter(rd -> rd.getReceiver() instanceof Actor)
+			.filter(rd -> ets.getTagValue(rd.getReceiver(), es.TAG_AVATAR, ws.getCurrentTime()) != null) // Only avatars
 			.toList();
 		
 		if (!actorsInStartingPlace.isEmpty()) {
@@ -250,6 +252,7 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	Actor actor = es.add(Actor.class);
 	ls.addLook(actor, "basic", "yourself");
 	es.addTag(actor, es.TAG_ACTOR); // Mark as an actor (can perform actions)
+	es.addTag(actor, es.TAG_AVATAR); // Mark as player-controlled
 	is.addTag(actor, is.TAG_CARRY_WEIGHT, 10000); // Can carry up to 10kg
 	rs.add(startingPlace, actor, rs.rvContains);
 	log.log("Created new actor %d", actor.getId());		// Give starting inventory (timepiece + grandfather clock)
@@ -283,45 +286,15 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	}
 	
 	/**
-	 * Spawn a goblin NPC that wanders between two rooms near the starting location.
+	 * Spawn a goblin NPC that wanders randomly near the starting location.
 	 */
 	private void spawnGoblinNPC(EntitySystem es, LookSystem ls, RelationshipSystem rs, Entity startingPlace) {
-		WorldSystem ws = game.getSystem(WorldSystem.class);
-		
-		// Get starting location position
-		int[] startPos = spatialSystem.getPosition(startingPlace, SpatialSystem.SCALE_CONTINENT);
-		if (startPos == null) {
-			log.log("Cannot spawn goblin: starting place has no position");
-			return;
-		}
-		
-		// Get exits from starting place
-		List<com.benleskey.textengine.model.ConnectionDescriptor> exits = 
-			connectionSystem.getConnections(startingPlace, ws.getCurrentTime());
-		
-		if (exits.size() < 2) {
-			log.log("Cannot spawn goblin: need at least 2 exits from starting place");
-			return;
-		}
-		
-		// Pick first two neighboring rooms for the goblin to wander between
-		Entity roomA = exits.get(0).getTo();
-		Entity roomB = exits.get(1).getTo();
-		
-		int[] posA = spatialSystem.getPosition(roomA, SpatialSystem.SCALE_CONTINENT);
-		int[] posB = spatialSystem.getPosition(roomB, SpatialSystem.SCALE_CONTINENT);
-		
-		if (posA == null || posB == null) {
-			log.log("Cannot spawn goblin: neighbor rooms have no positions");
-			return;
-		}
-		
-		// Spawn goblin in roomA
+		// Spawn goblin in starting place (will wander to connected places randomly)
 		var goblin = com.benleskey.textengine.plugins.highfantasy.entities.Goblin.create(
-			game, roomA, posA, posB);
+			game, startingPlace);
 		
-		log.log("Spawned goblin %d in room at (%d, %d), will wander to (%d, %d)", 
-			goblin.getId(), posA[0], posA[1], posB[0], posB[1]);
+		log.log("Spawned goblin %d in place %d (will wander randomly)", 
+			goblin.getId(), startingPlace.getId());
 	}
 	
 	/**

@@ -10,6 +10,7 @@ import com.benleskey.textengine.commands.CommandVariant;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
+import com.benleskey.textengine.systems.ActorActionSystem;
 import com.benleskey.textengine.systems.ConnectionSystem;
 import com.benleskey.textengine.systems.DisambiguationSystem;
 import com.benleskey.textengine.systems.RelationshipSystem;
@@ -196,18 +197,21 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		Entity destination = matchedExit.getTo();
 		worldGen.ensurePlaceHasNeighbors(destination);
 
-		// Move the actor: remove from current location, add to new location
-		// We cancel the old containment and create a new one
-		var oldContainment = containers.get(0).getRelationship();
+		// Use ActorActionSystem to move the actor (handles broadcasts automatically)
+		ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
+		boolean moved = aas.moveActor((com.benleskey.textengine.entities.Actor) actor, destination, DTime.fromSeconds(60));
 		
-		// Cancel old relationship
-		game.getSystem(com.benleskey.textengine.systems.EventSystem.class)
-			.cancelEvent(oldContainment);
+		if (!moved) {
+			client.sendOutput(CommandOutput.make(M_GO_FAIL)
+				.put(M_GO_ERROR, "nowhere")
+				.text(Markup.escape("You are nowhere. This should not happen.")));
+			return;
+		}
 		
-		// Create new relationship
-		rs.add(destination, actor, rs.rvContains);
+		// Player actions increment world time (affects all entities)
+		ws.incrementCurrentTime(DTime.fromSeconds(60));
 
-		// Build the navigation message
+		// Build the navigation message for the player
 		Markup.Safe message;
 		
 		if (isLandmark) {
@@ -244,9 +248,6 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		var destinationLooks = game.getSystem(com.benleskey.textengine.systems.LookSystem.class)
 			.getLooksFromEntity(destination, ws.getCurrentTime());
 		String exitDescription = !destinationLooks.isEmpty() ? destinationLooks.get(0).getDescription() : "unknown";
-
-		// Movement takes 1 minute
-		ws.incrementCurrentTime(DTime.fromSeconds(60));
 
 		client.sendOutput(CommandOutput.make(M_GO_SUCCESS)
 			.put(M_GO_DESTINATION, destination.getKeyId())

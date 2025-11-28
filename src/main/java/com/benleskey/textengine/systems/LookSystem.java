@@ -11,10 +11,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 public class LookSystem extends SingletonGameSystem implements OnSystemInitialize {
 	public UniqueType etEntityLook;
@@ -97,28 +94,90 @@ public class LookSystem extends SingletonGameSystem implements OnSystemInitializ
 		}
 	}
 
-	public synchronized List<LookDescriptor> getSeenLooks(Entity looker) {
+	/**
+	 * Get comprehensive environment observation for an entity.
+	 * Used by both player look commands and NPC AI decision-making.
+	 * Returns structured data about current location, exits, items, and nearby entities.
+	 */
+	public static class LookEnvironment {
+		public final Entity currentLocation;
+		public final List<LookDescriptor> locationLooks;
+		public final List<Entity> exits;
+		public final List<Entity> itemsHere;
+		public final List<Entity> itemsCarried;
+		public final List<Entity> actorsHere;
+		public final List<Entity> distantLandmarks;
+		
+		public LookEnvironment(Entity currentLocation, List<LookDescriptor> locationLooks,
+		                       List<Entity> exits, List<Entity> itemsHere, List<Entity> itemsCarried,
+		                       List<Entity> actorsHere, List<Entity> distantLandmarks) {
+			this.currentLocation = currentLocation;
+			this.locationLooks = locationLooks;
+			this.exits = exits;
+			this.itemsHere = itemsHere;
+			this.itemsCarried = itemsCarried;
+			this.actorsHere = actorsHere;
+			this.distantLandmarks = distantLandmarks;
+		}
+	}
+	
+	/**
+	 * Observe the environment from an entity's perspective.
+	 * This is the shared implementation used by both player look commands and NPC AI.
+	 * 
+	 * @param observer The entity observing their environment
+	 * @return LookEnvironment with all observable information, or null if observer has no location
+	 */
+	public LookEnvironment getLookEnvironment(Entity observer) {
 		DTime when = worldSystem.getCurrentTime();
-
-		// Get everything that currently contains the looker.
-		Set<Entity> containingEntities = relationshipSystem.getProvidingEntitiesRecursive(looker, relationshipSystem.rvContains, when);
-
-		// Get those container's direct current children.
-		Set<Entity> children = containingEntities
-			.stream()
-			.flatMap(entity -> relationshipSystem.getReceivingRelationships(entity, relationshipSystem.rvContains, when).stream())
-			.map(RelationshipDescriptor::getReceiver)
-			.collect(Collectors.toSet());
-
-		// Get containers and children all in one.
-		Set<Entity> allEntities = new HashSet<>();
-		allEntities.addAll(containingEntities);
-		allEntities.addAll(children);
-
-		// Get all looks from all entities.
-		return allEntities
-			.stream()
-			.flatMap(entity -> getLooksFromEntity(entity, when).stream())
+		
+		// Get current location
+		var containers = relationshipSystem.getProvidingRelationships(observer, relationshipSystem.rvContains, when);
+		if (containers.isEmpty()) {
+			return null; // Observer has no location
+		}
+		
+		Entity currentLocation = containers.get(0).getProvider();
+		
+		// Get location descriptions
+		List<LookDescriptor> locationLooks = getLooksFromEntity(currentLocation, when);
+		
+		// Get available exits
+		ConnectionSystem cs = game.getSystem(ConnectionSystem.class);
+		List<Entity> exits = cs.getConnections(currentLocation, when).stream()
+			.map(cd -> cd.getTo())
 			.toList();
+		
+		// Get items at current location (all items - filtering happens in calling code)
+		List<Entity> itemsHere = relationshipSystem.getReceivingRelationships(currentLocation, relationshipSystem.rvContains, when)
+			.stream()
+			.map(rd -> rd.getReceiver())
+			.filter(e -> e instanceof com.benleskey.textengine.entities.Item)
+			.toList();
+		
+		// Get items carried by observer
+		List<Entity> itemsCarried = relationshipSystem.getReceivingRelationships(observer, relationshipSystem.rvContains, when)
+			.stream()
+			.map(rd -> rd.getReceiver())
+			.filter(e -> e instanceof com.benleskey.textengine.entities.Item)
+			.toList();
+		
+		// Get other actors at current location
+		List<Entity> actorsHere = relationshipSystem.getReceivingRelationships(currentLocation, relationshipSystem.rvContains, when)
+			.stream()
+			.map(rd -> rd.getReceiver())
+			.filter(e -> e instanceof com.benleskey.textengine.entities.Actor)
+			.filter(e -> !e.equals(observer)) // Don't include self
+			.toList();
+		
+		// Get distant landmarks (visible but not adjacent)
+		VisibilitySystem vs = game.getSystem(VisibilitySystem.class);
+		List<Entity> distantLandmarks = vs.getVisibleEntities(observer).stream()
+			.filter(vd -> vd.getDistanceLevel() == VisibilitySystem.VisibilityLevel.DISTANT)
+			.map(vd -> vd.getEntity())
+			.toList();
+		
+		return new LookEnvironment(currentLocation, locationLooks, exits, itemsHere,
+		                           itemsCarried, actorsHere, distantLandmarks);
 	}
 }

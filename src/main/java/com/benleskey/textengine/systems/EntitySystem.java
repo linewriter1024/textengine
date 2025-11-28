@@ -31,6 +31,7 @@ public class EntitySystem extends SingletonGameSystem implements OnSystemInitial
 	public UniqueType TAG_TICKABLE;  // Entity receives periodic tick updates
 	public UniqueType TAG_LAST_TICK;  // Last time entity was ticked (in milliseconds)
 	public UniqueType TAG_ACTOR;  // Entity can perform actions (player, NPC)
+	public UniqueType TAG_AVATAR;  // Entity is controlled by a player/client
 
 	public EntitySystem(Game game) {
 		super(game);
@@ -68,6 +69,7 @@ public class EntitySystem extends SingletonGameSystem implements OnSystemInitial
 		TAG_TICKABLE = typeSystem.getType("entity_tag_tickable");
 		TAG_LAST_TICK = typeSystem.getType("entity_tag_last_tick");
 		TAG_ACTOR = typeSystem.getType("entity_tag_actor");
+		TAG_AVATAR = typeSystem.getType("entity_tag_avatar");
 	}
 
 	@SuppressWarnings("null") // Generic type T will never be null
