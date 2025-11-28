@@ -11,6 +11,7 @@ import com.benleskey.textengine.exceptions.InternalException;
 import com.benleskey.textengine.hooks.core.OnEntityTypesRegistered;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.hooks.core.OnStartClient;
+import com.benleskey.textengine.model.ConnectionDescriptor;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.systems.*;
@@ -203,8 +204,18 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 			updateDistantVisibility(place);
 		}
 		
-		// Spawn a goblin NPC in a neighboring room for testing
-		spawnGoblinNPC(es, ls, rs, starting);
+		// Spawn a goblin NPC that patrols between starting and a neighbor
+		if (!allPlaces.isEmpty()) {
+			List<Entity> neighbors = cs.getConnections(starting, ws.getCurrentTime()).stream()
+				.map(ConnectionDescriptor::getTo)
+				.toList();
+			if (!neighbors.isEmpty()) {
+				Entity neighbor = neighbors.get(0); // Pick first neighbor
+				log.log("Spawning goblin to patrol between starting %d and neighbor %d", 
+					starting.getId(), neighbor.getId());
+				spawnGoblinNPC(es, ls, rs, starting, starting, neighbor);
+			}
+		}
 		
 		return starting;
 	}
@@ -286,15 +297,16 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	}
 	
 	/**
-	 * Spawn a goblin NPC that wanders randomly near the starting location.
+	 * Spawn a goblin NPC that patrols between two rooms.
 	 */
-	private void spawnGoblinNPC(EntitySystem es, LookSystem ls, RelationshipSystem rs, Entity startingPlace) {
-		// Spawn goblin in starting place (will wander to connected places randomly)
+	private void spawnGoblinNPC(EntitySystem es, LookSystem ls, RelationshipSystem rs, 
+								Entity startingPlace, Entity roomA, Entity roomB) {
+		// Spawn goblin in starting place (will patrol between roomA and roomB)
 		var goblin = com.benleskey.textengine.plugins.highfantasy.entities.Goblin.create(
-			game, startingPlace);
+			game, startingPlace, roomA, roomB);
 		
-		log.log("Spawned goblin %d in place %d (will wander randomly)", 
-			goblin.getId(), startingPlace.getId());
+		log.log("Spawned goblin %d in place %d (will patrol between %d and %d)", 
+			goblin.getId(), startingPlace.getId(), roomA.getId(), roomB.getId());
 	}
 	
 	/**

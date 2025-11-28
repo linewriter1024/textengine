@@ -82,3 +82,27 @@ sqlite3 "$DB" "SELECT * FROM unique_type;"
 3. Self-documenting (command sequences = examples)
 4. CI/CD friendly
 
+## Debug Logging
+
+When debugging or developing new features, **always add detailed log statements** to trace execution flow:
+
+```java
+game.log.log("EntityName %d doing action: param1=%s, param2=%d", 
+    getId(), someString, someNumber);
+```
+
+**Benefits**:
+- Trace execution flow without debugger
+- Verify timing and state changes
+- Understand NPC behavior
+- Diagnose why actions aren't executing
+
+**Usage**: Add `--showlog` to see all log output:
+```bash
+printf "look\nquit\n" | mvn -q exec:java ... -Dexec.args="--seed 12345 --showlog"
+```
+
+Log statements are essential for understanding complex interactions between systems, especially for timing-sensitive operations like NPC ticks and action queueing.
+
+**Important Note on Entity Lifecycle**: Entity instances are recreated from the database frequently (not singletons). Any state stored in instance fields will be lost unless persisted using PropertiesSubSystem or similar. Use logging to trace when constructors are called to debug state loss issues.
+

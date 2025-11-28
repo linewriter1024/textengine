@@ -142,4 +142,21 @@ printf "look\ngo north\nlook\nquit\n" | mvn -q exec:java ...
 5. Use seeds for reproducible worlds
 6. Test with scripted input
 7. Use plugin log for context
+8. **Never store state in entity instance fields - use relationships/properties**
+
+## Entity Lifecycle
+
+**Critical**: Entity instances are constantly reconstructed from the database, NOT singletons.
+
+**Why this matters**:
+- Entities are loaded from DB on demand
+- Constructor called many times per entity
+- Instance fields reset to initial values
+- Only database state (relationships, properties, tags) persists
+
+**Use for persistence**:
+- Relationships: Entity-to-entity connections
+- Properties: Entity key-value data
+- Tags: Entity boolean flags
+- Event system: Temporal state changes
 
