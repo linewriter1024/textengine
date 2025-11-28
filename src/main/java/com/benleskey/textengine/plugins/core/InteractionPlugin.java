@@ -12,6 +12,7 @@ import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.LookDescriptor;
 import com.benleskey.textengine.model.ConnectionDescriptor;
+import com.benleskey.textengine.systems.ActorActionSystem;
 import com.benleskey.textengine.systems.LookSystem;
 import com.benleskey.textengine.systems.VisibilitySystem;
 import com.benleskey.textengine.systems.ConnectionSystem;
@@ -486,6 +487,8 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 			java.util.List<Markup.Safe> nearbyParts = new java.util.ArrayList<>();
 			RawMessage nearbyEntities = Message.make();
 			
+			ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
+			
 			for (Map.Entry<Entity, List<LookDescriptor>> entry : nearbyLooks.entrySet()) {
 				Entity entity = entry.getKey();
 				List<LookDescriptor> looks = entry.getValue();
@@ -504,13 +507,34 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 
 				entityMessage.put(M_LOOK_ENTITY_LOOKS, entityLooks);
 				
+				// Check if this actor has a pending action
+				String pendingAction = null;
+				if (entity instanceof com.benleskey.textengine.entities.Actor) {
+					pendingAction = aas.getPendingActionDescription((com.benleskey.textengine.entities.Actor) entity);
+					if (pendingAction != null) {
+						entityMessage.put("pending_action", pendingAction);
+					}
+				}
+				
 				// Join entity looks with commas
 				java.util.List<Markup.Safe> joinedEntity = new java.util.ArrayList<>();
 				for (int i = 0; i < entityParts.size(); i++) {
 					if (i > 0) joinedEntity.add(Markup.raw(", "));
 					joinedEntity.add(entityParts.get(i));
 				}
-				nearbyParts.add(Markup.concat(joinedEntity.toArray(new Markup.Safe[0])));
+				
+				// Add pending action to display
+				if (pendingAction != null) {
+					nearbyParts.add(Markup.concat(
+						Markup.concat(joinedEntity.toArray(new Markup.Safe[0])),
+						Markup.raw(" ("),
+						Markup.escape(pendingAction),
+						Markup.raw(")")
+					));
+				} else {
+					nearbyParts.add(Markup.concat(joinedEntity.toArray(new Markup.Safe[0])));
+				}
+				
 				nearbyEntities.put(entity.getKeyId(), entityMessage);
 			}
 			

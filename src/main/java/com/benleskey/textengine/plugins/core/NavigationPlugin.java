@@ -197,9 +197,13 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		Entity destination = matchedExit.getTo();
 		worldGen.ensurePlaceHasNeighbors(destination);
 
-		// Use ActorActionSystem to move the actor (handles broadcasts automatically)
+		// Use ActorActionSystem to execute the move action
 		ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
-		boolean moved = aas.moveActor((com.benleskey.textengine.entities.Actor) actor, destination, DTime.fromSeconds(60));
+		DTime moveTime = DTime.fromSeconds(60);
+		
+		// Queue and execute the action (for players, time auto-advances)
+		aas.queueAction((com.benleskey.textengine.entities.Actor) actor, aas.ACTION_MOVE, destination, moveTime);
+		boolean moved = aas.executeAction((com.benleskey.textengine.entities.Actor) actor, aas.ACTION_MOVE, destination, moveTime);
 		
 		if (!moved) {
 			client.sendOutput(CommandOutput.make(M_GO_FAIL)
@@ -207,9 +211,6 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 				.text(Markup.escape("You are nowhere. This should not happen.")));
 			return;
 		}
-		
-		// Player actions increment world time (affects all entities)
-		ws.incrementCurrentTime(DTime.fromSeconds(60));
 
 		// Build the navigation message for the player
 		Markup.Safe message;

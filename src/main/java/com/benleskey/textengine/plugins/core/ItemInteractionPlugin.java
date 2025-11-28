@@ -343,13 +343,20 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 			}
 		}
 		
-		// Use ActorActionSystem to take the item (handles broadcasts automatically)
+		// Calculate time for action - base 5s + 1s per kg
+		ItemSystem itemSystem = game.getSystem(ItemSystem.class);
+		Long weightGrams = itemSystem.getTagValue(item, itemSystem.TAG_WEIGHT, ws.getCurrentTime());
+		long timeSeconds = 5;
+		if (weightGrams != null) {
+			long weightKg = weightGrams / 1000;
+			timeSeconds = 5 + weightKg;
+		}
+		DTime actionTime = DTime.fromSeconds(timeSeconds);
+		
+		// Use ActorActionSystem to execute the take action
 		ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
-		boolean success = aas.takeItem(
-			(com.benleskey.textengine.entities.Actor) actor, 
-			(Item) item, 
-			null  // Taking from ground, not from container
-		);
+		aas.queueAction((com.benleskey.textengine.entities.Actor) actor, aas.ACTION_ITEM_TAKE, item, actionTime);
+		boolean success = aas.executeAction((com.benleskey.textengine.entities.Actor) actor, aas.ACTION_ITEM_TAKE, item, actionTime);
 		
 		if (!success) {
 			client.sendOutput(CommandOutput.make(TAKE)
@@ -362,16 +369,6 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 				)));
 			return;
 		}
-		
-		// Player actions increment world time - base 5s + 1s per kg
-		ItemSystem itemSystem = game.getSystem(ItemSystem.class);
-		Long weightGrams = itemSystem.getTagValue(item, itemSystem.TAG_WEIGHT, ws.getCurrentTime());
-		long timeSeconds = 5;
-		if (weightGrams != null) {
-			long weightKg = weightGrams / 1000;
-			timeSeconds = 5 + weightKg;
-		}
-		ws.incrementCurrentTime(DTime.fromSeconds(timeSeconds));
 		
 		client.sendOutput(CommandOutput.make(TAKE)
 			.put(M_SUCCESS, true)
@@ -459,9 +456,12 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		List<LookDescriptor> looks = ls.getLooksFromEntity(targetItem, ws.getCurrentTime());
 		String itemName = !looks.isEmpty() ? looks.get(0).getDescription() : "the item";
 		
-		// Use ActorActionSystem to drop the item (handles broadcasts automatically)
+		// Use ActorActionSystem to execute the drop action
 		ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
-		boolean success = aas.dropItem((com.benleskey.textengine.entities.Actor) actor, (Item) targetItem);
+		DTime dropTime = DTime.fromSeconds(5);
+		
+		aas.queueAction((com.benleskey.textengine.entities.Actor) actor, aas.ACTION_ITEM_DROP, targetItem, dropTime);
+		boolean success = aas.executeAction((com.benleskey.textengine.entities.Actor) actor, aas.ACTION_ITEM_DROP, targetItem, dropTime);
 		
 		if (!success) {
 			client.sendOutput(CommandOutput.make(DROP)
@@ -474,9 +474,6 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 				)));
 			return;
 		}
-		
-		// Player actions increment world time
-		ws.incrementCurrentTime(DTime.fromSeconds(5));
 		
 		client.sendOutput(CommandOutput.make(DROP)
 			.put(M_SUCCESS, true)

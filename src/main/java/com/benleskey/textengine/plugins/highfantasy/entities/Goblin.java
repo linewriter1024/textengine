@@ -2,7 +2,6 @@ package com.benleskey.textengine.plugins.highfantasy.entities;
 
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.entities.Actor;
-import com.benleskey.textengine.entities.Item;
 import com.benleskey.textengine.entities.Tickable;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
@@ -13,13 +12,21 @@ import com.benleskey.textengine.systems.PendingActionSystem.PendingAction;
 import java.util.List;
 import java.util.Random;
 
+/**
+ * Goblin NPC - patrols between locations and interacts with items.
+ * 
+ * Simplified NPC that delegates all action logic to ActorActionSystem.
+ * Only responsible for:
+ * - Deciding what action to take (AI logic)
+ * - Queueing actions via ActorActionSystem
+ * - Reacting when actions complete
+ */
 public class Goblin extends Actor implements Tickable {
 	
 	private final Random random;
 	
 	public Goblin(long id, Game game) {
 		super(id, game);
-		log.log("Goblin %d constructor called", id);
 		this.random = new Random(id);
 	}
 	
@@ -51,43 +58,53 @@ public class Goblin extends Actor implements Tickable {
 	public void onTick(DTime currentTime, DTime timeSinceLastTick) {
 		PendingActionSystem pas = game.getSystem(PendingActionSystem.class);
 		ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
-		LookSystem ls = game.getSystem(LookSystem.class);
-		EntitySystem es = game.getSystem(EntitySystem.class);
 		
+		// Check if we have a pending action
 		PendingAction pending = pas.getPendingAction(this);
 		
 		if (pending != null) {
+			// Wait for action to be ready
 			if (pending.isReady(currentTime)) {
-				log.log("Goblin %d executing %s action", getId(), pending.type);
-				executeAction(pending, aas, es);
+				log.log("Goblin %d: action %s ready, executing", getId(), pending.type);
+				
+				EntitySystem es = game.getSystem(EntitySystem.class);
+				Entity target = es.get(pending.targetEntityId);
+				
+				// Execute via ActorActionSystem
+				boolean success = aas.executeAction(this, pending.type, target, pending.timeRequired);
+				
+				// Clear the action
 				pas.clearPendingAction(this);
+				
+				log.log("Goblin %d: action completed: %s", getId(), success ? "success" : "failed");
 			} else {
-				log.log("Goblin %d still working on %s", getId(), pending.type);
-				return;
+				log.log("Goblin %d: still working on %s", getId(), pending.type);
 			}
-		} else {
-			// Check if we already have a pending action before queueing a new one
-			PendingActionSystem.PendingAction existingAction = pas.getPendingAction(this);
-			if (existingAction != null) {
-				log.log("Goblin %d already has pending action %s, skipping new action", getId(), existingAction.type);
-				return;
-			}
+			return;
 		}
 		
+		// No pending action - decide what to do next
+		LookSystem ls = game.getSystem(LookSystem.class);
 		LookSystem.LookEnvironment env = ls.getLookEnvironment(this);
+		
 		if (env == null) {
 			log.log("Goblin %d has no location", getId());
 			return;
 		}
 		
+		// Randomly choose between moving and item actions
 		if (random.nextBoolean()) {
-			queueMove(env, pas);
+			decideMove(env, aas);
 		} else {
-			queueItemAction(env, pas);
+			decideItemAction(env, aas);
 		}
 	}
 	
-	private void queueMove(LookSystem.LookEnvironment env, PendingActionSystem pas) {
+	/**
+	 * AI: Decide where to move.
+	 * Prefers patrol targets, falls back to random exits.
+	 */
+	private void decideMove(LookSystem.LookEnvironment env, ActorActionSystem aas) {
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		UniqueTypeSystem uts = game.getSystem(UniqueTypeSystem.class);
@@ -96,65 +113,49 @@ public class Goblin extends Actor implements Tickable {
 		List<Entity> patrolTargets = rs.getReceivingRelationships(this, patrolTarget, ws.getCurrentTime())
 			.stream()
 			.map(rd -> rd.getReceiver())
-			.toList();		Entity destination;
-		if (patrolTargets.isEmpty()) {
-			if (env.exits.isEmpty()) {
-				log.log("Goblin %d has no exits", getId());
-				return;
-			}
+			.filter(t -> t.getId() != env.currentLocation.getId()) // Don't go to current location
+			.toList();
+		
+		Entity destination;
+		if (!patrolTargets.isEmpty()) {
+			destination = patrolTargets.get(random.nextInt(patrolTargets.size()));
+			log.log("Goblin %d: queueing patrol move to %d", getId(), destination.getId());
+		} else if (!env.exits.isEmpty()) {
 			destination = env.exits.get(random.nextInt(env.exits.size()));
-			log.log("Goblin %d queueing random move to %d", getId(), destination.getId());
+			log.log("Goblin %d: queueing random move to %d", getId(), destination.getId());
 		} else {
-			List<Entity> validTargets = patrolTargets.stream()
-				.filter(t -> t.getId() != env.currentLocation.getId())
-				.toList();
-			
-			if (!validTargets.isEmpty()) {
-				destination = validTargets.get(random.nextInt(validTargets.size()));
-				log.log("Goblin %d queueing patrol move to %d", getId(), destination.getId());
-			} else {
-				log.log("Goblin %d already at all patrol targets", getId());
-				return;
-			}
+			log.log("Goblin %d: no exits available", getId());
+			return;
 		}
 		
-		pas.queueAction(this, pas.ACTION_MOVE, DTime.fromSeconds(60), destination);
+		// Queue move via ActorActionSystem
+		aas.queueAction(this, aas.ACTION_MOVE, destination, DTime.fromSeconds(60));
 	}
 	
-	private void queueItemAction(LookSystem.LookEnvironment env, PendingActionSystem pas) {
+	/**
+	 * AI: Decide what to do with items.
+	 * Randomly takes or drops items.
+	 */
+	private void decideItemAction(LookSystem.LookEnvironment env, ActorActionSystem aas) {
 		ItemSystem is = game.getSystem(ItemSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		
+		// Filter out containers from items we can pick up
 		List<Entity> pickupableItems = env.itemsHere.stream()
 			.filter(e -> !is.hasTag(e, is.TAG_CONTAINER, ws.getCurrentTime()))
 			.toList();
 		
+		// Decide: drop if carrying items, otherwise take
 		if (!env.itemsCarried.isEmpty() && (pickupableItems.isEmpty() || random.nextBoolean())) {
 			Entity itemToDrop = env.itemsCarried.get(random.nextInt(env.itemsCarried.size()));
-			log.log("Goblin %d queueing drop of item %d", getId(), itemToDrop.getId());
-			pas.queueAction(this, pas.ACTION_ITEM_DROP, DTime.fromSeconds(30), itemToDrop);
+			log.log("Goblin %d: queueing drop of item %d", getId(), itemToDrop.getId());
+			aas.queueAction(this, aas.ACTION_ITEM_DROP, itemToDrop, DTime.fromSeconds(30));
 		} else if (!pickupableItems.isEmpty()) {
 			Entity itemToTake = pickupableItems.get(random.nextInt(pickupableItems.size()));
-			log.log("Goblin %d queueing take of item %d", getId(), itemToTake.getId());
-			pas.queueAction(this, pas.ACTION_ITEM_TAKE, DTime.fromSeconds(30), itemToTake);
+			log.log("Goblin %d: queueing take of item %d", getId(), itemToTake.getId());
+			aas.queueAction(this, aas.ACTION_ITEM_TAKE, itemToTake, DTime.fromSeconds(30));
 		} else {
-			log.log("Goblin %d has nothing to do with items", getId());
-		}
-	}
-	
-	private void executeAction(PendingAction action, ActorActionSystem aas, EntitySystem es) {
-		Entity target = es.get(action.targetEntityId);
-		PendingActionSystem pas = game.getSystem(PendingActionSystem.class);
-		
-		if (action.type.equals(pas.ACTION_MOVE)) {
-			log.log("Goblin %d moving to %d", getId(), target.getId());
-			aas.moveActor(this, target, action.timeRequired);
-		} else if (action.type.equals(pas.ACTION_ITEM_TAKE)) {
-			log.log("Goblin %d taking item %d", getId(), target.getId());
-			aas.takeItem(this, (Item) target, null);
-		} else if (action.type.equals(pas.ACTION_ITEM_DROP)) {
-			log.log("Goblin %d dropping item %d", getId(), target.getId());
-			aas.dropItem(this, (Item) target);
+			log.log("Goblin %d: nothing to do with items", getId());
 		}
 	}
 }

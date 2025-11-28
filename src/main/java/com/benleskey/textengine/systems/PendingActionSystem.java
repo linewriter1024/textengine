@@ -20,20 +20,18 @@ import java.util.List;
  * Generic system for managing pending actions that take time to complete.
  * Stores actions as events - created when queued, canceled when completed.
  * 
+ * Action types are defined in ActorActionSystem.
+ * 
  * Players: Auto-increment world time to complete actions instantly
  * NPCs: Accumulate time over ticks until action completes
  */
 public class PendingActionSystem extends SingletonGameSystem implements OnSystemInitialize {
 	
-	public UniqueType ACTION_MOVE;
-	public UniqueType ACTION_ITEM_TAKE;
-	public UniqueType ACTION_ITEM_DROP;
-	
 	private EventSystem eventSystem;
 	private WorldSystem worldSystem;
 	private EntitySystem entitySystem;
 	private EntityTagSystem entityTagSystem;
-	private UniqueTypeSystem uniqueTypeSystem;
+	private ActorActionSystem actorActionSystem;
 	
 	public static class PendingAction {
 		public final long actionId;
@@ -83,11 +81,7 @@ public class PendingActionSystem extends SingletonGameSystem implements OnSystem
 		worldSystem = game.getSystem(WorldSystem.class);
 		entitySystem = game.getSystem(EntitySystem.class);
 		entityTagSystem = game.getSystem(EntityTagSystem.class);
-		uniqueTypeSystem = game.getSystem(UniqueTypeSystem.class);
-		
-		ACTION_MOVE = uniqueTypeSystem.getType("action_move");
-		ACTION_ITEM_TAKE = uniqueTypeSystem.getType("action_item_take");
-		ACTION_ITEM_DROP = uniqueTypeSystem.getType("action_item_drop");
+		actorActionSystem = game.getSystem(ActorActionSystem.class);
 	}
 	
 	/**
@@ -148,7 +142,7 @@ actor.getId(), actionType, actionId, timeRequired.toMilliseconds());
 			"LIMIT 1")) {
 			
 			ps.setLong(1, actor.getId());
-			eventSystem.setValidEventsSubqueryParameters(ps, 2, ACTION_MOVE, currentTime);
+			eventSystem.setValidEventsSubqueryParameters(ps, 2, actorActionSystem.ACTION_MOVE, currentTime);
 			
 			try (ResultSet rs = ps.executeQuery()) {
 				if (rs.next()) {
@@ -158,7 +152,7 @@ actor.getId(), actionType, actionId, timeRequired.toMilliseconds());
 					long timeRequiredMs = rs.getLong("time_required_ms");
 					long createdAtMs = rs.getLong("time");
 					
-					UniqueType actionType = new UniqueType(actionTypeId, uniqueTypeSystem);
+					UniqueType actionType = new UniqueType(actionTypeId, game.getSystem(UniqueTypeSystem.class));
 					
 					return new PendingAction(actionId, actionType, DTime.fromMilliseconds(timeRequiredMs), targetId, DTime.fromMilliseconds(createdAtMs));
 				}
@@ -187,7 +181,7 @@ actor.getId(), actionType, actionId, timeRequired.toMilliseconds());
 			" ORDER BY event.time ASC")) {
 			
 			ps.setLong(1, actor.getId());
-			eventSystem.setValidEventsSubqueryParameters(ps, 2, ACTION_MOVE, currentTime);
+			eventSystem.setValidEventsSubqueryParameters(ps, 2, actorActionSystem.ACTION_MOVE, currentTime);
 			
 			try (ResultSet rs = ps.executeQuery()) {
 				while (rs.next()) {
@@ -197,7 +191,7 @@ actor.getId(), actionType, actionId, timeRequired.toMilliseconds());
 					long timeRequiredMs = rs.getLong("time_required_ms");
 					long createdAtMs = rs.getLong("time");
 					
-					UniqueType actionType = new UniqueType(actionTypeId, uniqueTypeSystem);
+					UniqueType actionType = new UniqueType(actionTypeId, game.getSystem(UniqueTypeSystem.class));
 					
 					actions.add(new PendingAction(actionId, actionType, DTime.fromMilliseconds(timeRequiredMs), targetId, DTime.fromMilliseconds(createdAtMs)));
 				}
