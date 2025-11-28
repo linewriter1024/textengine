@@ -15,10 +15,9 @@ public interface Acting {
 	/**
 	 * Called when this actor has no pending action and should decide what to do next.
 	 * The implementation should call ActorActionSystem.queueAction() to queue an action.
-	 * 
-	 * @param currentTime The current game time
+	 * Use game.getSystem(WorldSystem.class).getCurrentTime() to get current time.
 	 */
-	void onActionReady(DTime currentTime);
+	void onActionReady();
 	
 	/**
 	 * How often to check if this actor is ready for a new action.

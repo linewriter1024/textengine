@@ -1,12 +1,14 @@
 package com.benleskey.textengine.plugins.highfantasy.entities;
 
 import com.benleskey.textengine.Game;
+import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.entities.Acting;
 import com.benleskey.textengine.entities.Actor;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.UniqueType;
 import com.benleskey.textengine.systems.*;
+import com.benleskey.textengine.util.Markup;
 
 import java.util.List;
 import java.util.Random;
@@ -51,14 +53,19 @@ public class Goblin extends Actor implements Acting {
 	
 	@Override
 	public DTime getActionInterval() {
-		return DTime.fromSeconds(120);
+		return DTime.fromSeconds(600); // 10 minutes
 	}
 	
 	@Override
-	public void onActionReady(DTime currentTime) {
+	public void onActionReady() {
 		// AI: Decide what to do (no pending action, ready for new action)
 		LookSystem ls = game.getSystem(LookSystem.class);
 		ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
+		BroadcastSystem bs = game.getSystem(BroadcastSystem.class);
+		WorldSystem ws = game.getSystem(WorldSystem.class);
+		
+		DTime currentTime = ws.getCurrentTime();
+		log.log("Goblin %d onActionReady called at time %d", getId(), currentTime.toMilliseconds());
 		
 		LookSystem.LookEnvironment env = ls.getLookEnvironment(this);
 		
@@ -67,10 +74,21 @@ public class Goblin extends Actor implements Acting {
 			return;
 		}
 		
+		// Announce the time (instant action)
+		long hours = (currentTime.toMilliseconds() / (1000 * 60 * 60)) % 24;
+		long minutes = (currentTime.toMilliseconds() / (1000 * 60)) % 60;
+		String timeStr = String.format("%02d:%02d", hours, minutes);
+		
+		CommandOutput announcement = new CommandOutput();
+		announcement.text(Markup.raw(String.format("The goblin mutters '%s'.", timeStr)));
+		bs.broadcast(this, announcement);
+		
+		log.log("Goblin %d announced time: %s", getId(), timeStr);
+		
 		// Randomly choose between moving and item actions
 		if (random.nextBoolean()) {
 			decideMove(env, aas);
-		} else {
+		} else{
 			decideItemAction(env, aas);
 		}
 	}

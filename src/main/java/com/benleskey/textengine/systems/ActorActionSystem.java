@@ -183,7 +183,7 @@ Game.class, Actor.class, Entity.class, DTime.class);
 			// Players execute immediately with time auto-advance
 			worldSystem.incrementCurrentTime(timeRequired);
 			log.log("Player %d action %s completed instantly (advanced time by %d ms)", 
-actor.getId(), actionType, timeRequired.toMilliseconds());
+				actor.getId(), actionType, timeRequired.toMilliseconds());
 		} else {
 			// NPCs queue action in database
 			long actionId = game.getNewGlobalId();
@@ -202,12 +202,11 @@ actor.getId(), actionType, timeRequired.toMilliseconds());
 			
 			eventSystem.addEvent(actionType, currentTime, new Reference(actionId, game));
 			
-			log.log("NPC %d queued action %s (id=%d, requires %d ms)", 
-actor.getId(), actionType, actionId, timeRequired.toMilliseconds());
+			log.log("NPC %d queued action %s (id=%d, requires %d ms) at time %d, will be ready at %d", 
+				actor.getId(), actionType, actionId, timeRequired.toMilliseconds(), 
+				currentTime.toMilliseconds(), currentTime.toMilliseconds() + timeRequired.toMilliseconds());
 		}
-	}
-	
-	/**
+	}	/**
 	 * Execute an action.
 	 */
 	public boolean executeAction(Actor actor, UniqueType actionType, Entity target, DTime timeRequired) {
@@ -253,14 +252,14 @@ actor.getId(), actionType, actionId, timeRequired.toMilliseconds());
 	}
 	
 	/**
-	 * Check if an action is ready to execute.
+	 * Get the time when an action will be ready to execute.
 	 */
-	public boolean isActionReady(Reference actionRef, DTime currentTime) throws DatabaseException {
+	public long getActionReadyTime(Reference actionRef) throws DatabaseException {
 		try (PreparedStatement ps = game.db().prepareStatement(
-"SELECT event.time, time_required_ms " +
-"FROM action " +
-"JOIN event ON event.reference = action.action_id " +
-"WHERE action.action_id = ?")) {
+			"SELECT event.time, time_required_ms " +
+			"FROM action " +
+			"JOIN event ON event.reference = action.action_id " +
+			"WHERE action.action_id = ?")) {
 			
 			ps.setLong(1, actionRef.getId());
 			
@@ -268,18 +267,23 @@ actor.getId(), actionType, actionId, timeRequired.toMilliseconds());
 				if (rs.next()) {
 					long createdAtMs = rs.getLong("time");
 					long timeRequiredMs = rs.getLong("time_required_ms");
-					
-					return currentTime.toMilliseconds() - createdAtMs >= timeRequiredMs;
+					return createdAtMs + timeRequiredMs;
 				}
 			}
 		} catch (SQLException e) {
-			throw new DatabaseException("Unable to check action readiness", e);
+			throw new DatabaseException("Unable to get action ready time", e);
 		}
 		
-		return false;
+		return Long.MAX_VALUE; // Action not found
 	}
 	
 	/**
+	 * Check if an action is ready to execute.
+	 */
+	public boolean isActionReady(Reference actionRef, DTime currentTime) throws DatabaseException {
+		long readyTime = getActionReadyTime(actionRef);
+		return readyTime != Long.MAX_VALUE && currentTime.toMilliseconds() >= readyTime;
+	}	/**
 	 * Execute and clear a pending action.
 	 */
 	public boolean executePendingAction(Actor actor, Reference actionRef, DTime currentTime) throws DatabaseException {
@@ -311,9 +315,39 @@ actor.getId(), actionType, actionId, timeRequired.toMilliseconds());
 	}
 	
 	/**
+	 * Process a single tick for an Acting entity (called by TickSystem for fair time-ordered processing).
+	 * This processes one decision/action cycle:
+	 * 1. If has pending action and it's ready, execute it
+	 * 2. If no pending action (or just executed one), make a new decision
+	 */
+	public void processActingEntitySingleTick(Actor actor, Acting acting, DTime tickTime, DTime currentTime) throws DatabaseException {
+		// Check if entity has pending action
+		Reference pendingAction = getPendingAction(actor);
+		
+		if (pendingAction != null) {
+			// Has pending action - check if ready to execute
+			if (isActionReady(pendingAction, tickTime)) {
+				log.log("Acting entity %d: action ready at %d, executing", actor.getId(), tickTime.toMilliseconds());
+				executePendingAction(actor, pendingAction, currentTime);
+				// After execution, fall through to make new decision
+			} else {
+				// Action not ready yet - skip this tick
+				log.log("Acting entity %d: waiting for action to be ready", actor.getId());
+				return;
+			}
+		}
+		
+		// No pending action (or just finished one) - make decision
+		log.log("Acting entity %d: ready for new action", actor.getId());
+		acting.onActionReady();
+	}
+	
+	/**
 	 * Tick Acting entities - check if ready for new action.
 	 * Called by TickSystem.
+	 * @deprecated Use TickSystem's unified time-ordered processing instead
 	 */
+	@Deprecated
 	public void tickActingEntities(DTime currentTime, DTime timeSinceLastTick) throws DatabaseException {
 		// Get all Acting entities
 		List<Entity> actingEntities = new ArrayList<>();
@@ -359,18 +393,81 @@ actor.getId(), actionType, actionId, timeRequired.toMilliseconds());
 		} else {
 			// No pending action - check if time to decide on new action
 			Long lastCheckMs = entityTagSystem.getTagValue(actor, TAG_LAST_ACTION_CHECK, currentTime);
-			DTime lastCheck = lastCheckMs != null ? DTime.fromMilliseconds(lastCheckMs) : DTime.fromMilliseconds(0);
-			DTime interval = acting.getActionInterval();
+			DTime lastCheck;
 			
-			if (currentTime.toMilliseconds() - lastCheck.toMilliseconds() >= interval.toMilliseconds()) {
-				log.log("Acting entity %d: ready for new action", actor.getId());
+			if (lastCheckMs == null) {
+				// Never checked before - use entity creation time
+				Long creationMs = entityTagSystem.getTagValue(actor, entitySystem.TAG_ENTITY_CREATED, currentTime);
+				if (creationMs != null) {
+					lastCheck = DTime.fromMilliseconds(creationMs);
+				} else {
+					// Fallback: entity created before creation time tracking
+					lastCheck = DTime.fromMilliseconds(0);
+				}
+			} else {
+				lastCheck = DTime.fromMilliseconds(lastCheckMs);
+			}
+			
+			DTime interval = acting.getActionInterval();
+			DTime timeSinceLastCheck = DTime.fromMilliseconds(currentTime.toMilliseconds() - lastCheck.toMilliseconds());
+			
+			// Check if enough time has passed for action decision(s)
+			if (timeSinceLastCheck.toMilliseconds() >= interval.toMilliseconds()) {
+				// Calculate how many action decisions should have occurred
+				long decisionCount = timeSinceLastCheck.toMilliseconds() / interval.toMilliseconds();
 				
-				// Call entity to decide what action to take
-				acting.onActionReady(currentTime);
+				// Trigger action decision(s) with correct time for each check
+			for (int i = 0; i < decisionCount; i++) {
+				log.log("Acting entity %d: ready for new action (decision %d/%d)", 
+					actor.getId(), i + 1, decisionCount);					// Call entity to decide what action to take
+					acting.onActionReady();
+					
+					// If entity queued an action, stop - don't make multiple decisions
+					Reference newAction = getPendingAction(actor);
+					if (newAction != null) {
+						log.log("Acting entity %d: action queued, stopping decision loop", actor.getId());
+						break;
+					}
+				}
 				
-				// Update last check time
-				entityTagSystem.updateTagValue(actor, TAG_LAST_ACTION_CHECK, currentTime.toMilliseconds(), currentTime);
+				// Update last check time to account for all processed intervals
+				DTime newLastCheck = DTime.fromMilliseconds(lastCheck.toMilliseconds() + (decisionCount * interval.toMilliseconds()));
+				entityTagSystem.updateTagValue(actor, TAG_LAST_ACTION_CHECK, newLastCheck.toMilliseconds(), currentTime);
 			}
 		}
+	}
+	
+	/**
+	 * Process a single tick for an Acting entity.
+	 * Uses worldSystem.getCurrentTime() for all time references.
+	 * Returns true if processed successfully.
+	 */
+	public boolean processActingEntitySingleTick(Acting acting, Actor actor, DTime interval) throws DatabaseException {
+		DTime currentTime = worldSystem.getCurrentTime();
+		log.log("processActingEntitySingleTick: actor=%d, currentTime=%d, interval=%d", 
+			actor.getId(), currentTime.toMilliseconds(), interval.toMilliseconds());
+		
+		// Check if entity has pending action
+		Reference pendingAction = getPendingAction(actor);
+		
+		if (pendingAction != null) {
+			log.log("Actor %d has pending action %d", actor.getId(), pendingAction.getId());
+			// Has pending action - check if ready to execute
+			if (isActionReady(pendingAction, currentTime)) {
+				log.log("Actor %d pending action %d is ready, executing", actor.getId(), pendingAction.getId());
+				executePendingAction(actor, pendingAction, currentTime);
+				// Action completed - continue to potentially queue new action
+			} else {
+				log.log("Actor %d pending action %d not ready yet, waiting", actor.getId(), pendingAction.getId());
+				// Action not ready yet, wait
+				return true;
+			}
+		}
+		
+		// No pending action (or action just completed) - call entity to decide
+		log.log("Actor %d calling onActionReady", actor.getId());
+		acting.onActionReady();
+		
+		return true;
 	}
 }
