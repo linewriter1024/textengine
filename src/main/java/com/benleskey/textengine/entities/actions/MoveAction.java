@@ -24,10 +24,8 @@ public class MoveAction extends Action {
 	public static final String ERR_DESTINATION_NOT_FOUND = "destination_not_found";
 	public static final String BROADCAST_LEAVES = "actor_leaves";
 	public static final String BROADCAST_ARRIVES = "actor_arrives";
-	public static final String M_ACTOR_ID = "actor_id";
-	public static final String M_ACTOR_NAME = "actor_name";
-	public static final String M_FROM = "from";
-	public static final String M_TO = "to";
+	// Note: M_ACTOR_ID, M_ACTOR_NAME defined in EntitySystem
+	// Note: M_FROM, M_TO defined in RelationshipSystem
 	
 	public MoveAction(Game game, Actor actor, Entity destination, DTime timeRequired) {
 		super(game, actor, destination, timeRequired);
@@ -86,9 +84,9 @@ public class MoveAction extends Action {
 		
 		// Broadcast departure to entities in current location
 		bs.broadcast(actor, CommandOutput.make(BROADCAST_LEAVES)
-			.put(M_ACTOR_ID, actor.getKeyId())
-			.put(M_ACTOR_NAME, actorDesc)
-			.put(M_FROM, currentLocation.getKeyId())
+			.put(EntitySystem.M_ACTOR_ID, actor.getKeyId())
+			.put(EntitySystem.M_ACTOR_NAME, actorDesc)
+			.put(RelationshipSystem.M_FROM, currentLocation.getKeyId())
 			.text(Markup.concat(
 				Markup.escape(capitalize(actorDesc)),
 				Markup.raw(" leaves.")
@@ -103,9 +101,9 @@ public class MoveAction extends Action {
 		
 		// Broadcast arrival to entities in destination
 		CommandOutput arrivalBroadcast = CommandOutput.make(BROADCAST_ARRIVES)
-			.put(M_ACTOR_ID, actor.getKeyId())
-			.put(M_ACTOR_NAME, actorDesc)
-			.put(M_TO, target.getKeyId())
+			.put(EntitySystem.M_ACTOR_ID, actor.getKeyId())
+			.put(EntitySystem.M_ACTOR_NAME, actorDesc)
+			.put(RelationshipSystem.M_TO, target.getKeyId())
 			.text(Markup.concat(
 				Markup.escape(capitalize(actorDesc)),
 				Markup.raw(" arrives.")

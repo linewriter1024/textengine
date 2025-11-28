@@ -26,6 +26,11 @@ public class EntitySystem extends SingletonGameSystem implements OnSystemInitial
 	private WorldSystem worldSystem;
 	private UniqueTypeSystem typeSystem;
 	
+	// Common message field constants for entity-related data
+	public static final String M_ENTITY_ID = "entity_id";
+	public static final String M_ACTOR_ID = "actor_id";
+	public static final String M_ACTOR_NAME = "actor_name";
+	
 	// Common entity tags (initialized in onSystemInitialize)
 	public UniqueType TAG_ENTITY_CREATED;  // Time when entity was created (in milliseconds)
 	public UniqueType TAG_TICKABLE;  // Entity receives periodic tick updates

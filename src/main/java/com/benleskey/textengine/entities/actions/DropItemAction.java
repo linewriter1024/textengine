@@ -23,11 +23,12 @@ public class DropItemAction extends Action {
 	public static final String ERR_NOT_CARRYING = "not_carrying";
 	public static final String ERR_NOWHERE = "nowhere";
 	public static final String BROADCAST_DROPS = "actor_drops";
-	public static final String M_ACTOR_ID = "actor_id";
-	public static final String M_ACTOR_NAME = "actor_name";
-	public static final String M_ITEM_ID = "item_id";
-	public static final String M_ITEM_NAME = "item_name";
-	
+	// Note: EntitySystem.M_ACTOR_ID, EntitySystem.M_ACTOR_NAME defined in EntitySystem
+
+
+	// Note: ItemSystem.M_ITEM_ID, ItemSystem.M_ITEM_NAME, ItemSystem.M_WEIGHT, ItemSystem.M_CARRY_WEIGHT defined in ItemSystem
+
+
 	public DropItemAction(Game game, Actor actor, Entity item, DTime timeRequired) {
 		super(game, actor, item, timeRequired);
 	}
@@ -103,10 +104,10 @@ public class DropItemAction extends Action {
 		
 		// Broadcast to all entities including the actor
 		CommandOutput broadcast = CommandOutput.make(BROADCAST_DROPS)
-			.put(M_ACTOR_ID, actor.getKeyId())
-			.put(M_ACTOR_NAME, actorDesc)
-			.put(M_ITEM_ID, target.getKeyId())
-			.put(M_ITEM_NAME, itemDesc)
+			.put(EntitySystem.M_ACTOR_ID, actor.getKeyId())
+			.put(EntitySystem.M_ACTOR_NAME, actorDesc)
+			.put(ItemSystem.M_ITEM_ID, target.getKeyId())
+			.put(ItemSystem.M_ITEM_NAME, itemDesc)
 			.text(Markup.concat(
 				Markup.escape(capitalize(actorDesc)),
 				Markup.raw(" drops "),

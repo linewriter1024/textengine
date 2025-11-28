@@ -23,6 +23,14 @@ public class RelationshipSystem extends SingletonGameSystem implements OnSystemI
 	private PreparedStatement addStatement;
 	private PreparedStatement getProviderStatement;
 	private PreparedStatement getReceiverStatement;
+	
+	// Common message field constants for relationship-related data
+	public static final String M_CONTAINER = "container";
+	public static final String M_CONTAINER_ID = "container_id";
+	public static final String M_CONTAINER_NAME = "container_name";
+	public static final String M_TARGET = "target";
+	public static final String M_FROM = "from";
+	public static final String M_TO = "to";
 
 	public RelationshipSystem(Game game) {
 		super(game);

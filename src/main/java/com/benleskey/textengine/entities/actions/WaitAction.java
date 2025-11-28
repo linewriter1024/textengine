@@ -9,6 +9,7 @@ import com.benleskey.textengine.model.UniqueType;
 import com.benleskey.textengine.systems.ActorActionSystem;
 import com.benleskey.textengine.systems.BroadcastSystem;
 import com.benleskey.textengine.systems.EntityDescriptionSystem;
+import com.benleskey.textengine.systems.EntitySystem;
 import com.benleskey.textengine.systems.WorldSystem;
 import com.benleskey.textengine.util.Markup;
 
@@ -22,10 +23,11 @@ public class WaitAction extends Action {
 	// Command and message constants
 	public static final String CMD_WAIT = "wait";
 	public static final String BROADCAST_WAITS = "actor_waits";
-	public static final String M_ACTOR_ID = "actor_id";
-	public static final String M_ACTOR_NAME = "actor_name";
-	public static final String M_DURATION = "duration";
-	
+	// Note: EntitySystem.M_ACTOR_ID, EntitySystem.M_ACTOR_NAME defined in EntitySystem
+
+
+	// Note: WorldSystem.M_DURATION defined in WorldSystem
+
 	public WaitAction(Game game, Actor actor, Entity unused, DTime timeRequired) {
 		super(game, actor, unused, timeRequired);
 	}
@@ -52,9 +54,9 @@ public class WaitAction extends Action {
 		
 		// Broadcast to all entities including the actor
 		CommandOutput broadcast = CommandOutput.make(BROADCAST_WAITS)
-			.put(M_ACTOR_ID, actor.getKeyId())
-			.put(M_ACTOR_NAME, actorDesc)
-			.put(M_DURATION, timeRequired.toMilliseconds())
+			.put(EntitySystem.M_ACTOR_ID, actor.getKeyId())
+			.put(EntitySystem.M_ACTOR_NAME, actorDesc)
+			.put(WorldSystem.M_DURATION, timeRequired.toMilliseconds())
 			.text(Markup.concat(
 				Markup.escape(capitalize(actorDesc)),
 				Markup.raw(" waits for "),

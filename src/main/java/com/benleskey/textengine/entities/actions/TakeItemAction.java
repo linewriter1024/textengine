@@ -24,18 +24,20 @@ public class TakeItemAction extends Action {
 	public static final String ERR_ITEM_NOT_FOUND = "item_not_found";
 	public static final String ERR_NOT_TAKEABLE = "not_takeable";
 	public static final String ERR_TOO_HEAVY = "too_heavy";
-	public static final String M_ENTITY_ID = "entity_id";
-	public static final String M_ITEM_NAME = "item_name";
-	public static final String M_WEIGHT = "weight";
-	public static final String M_CARRY_WEIGHT = "carry_weight";
-	public static final String M_CONTAINER_ID = "container_id";
-	public static final String M_CONTAINER_NAME = "container_name";
+	// Note: EntitySystem.M_ENTITY_ID defined in EntitySystem
+
+
+
+	// Note: RelationshipSystem.M_CONTAINER, RelationshipSystem.M_CONTAINER_ID, RelationshipSystem.M_CONTAINER_NAME, RelationshipSystem.M_TARGET defined in RelationshipSystem
+
+
 	public static final String BROADCAST_TAKES = "actor_takes";
 	public static final String BROADCAST_TAKES_FROM = "actor_takes_from";
-	public static final String M_ACTOR_ID = "actor_id";
-	public static final String M_ACTOR_NAME = "actor_name";
-	public static final String M_ITEM_ID = "item_id";
-	
+	// Note: EntitySystem.M_ACTOR_ID, EntitySystem.M_ACTOR_NAME defined in EntitySystem
+
+
+	// Note: ItemSystem.M_ITEM_ID, ItemSystem.M_ITEM_NAME, ItemSystem.M_WEIGHT, ItemSystem.M_CARRY_WEIGHT defined in ItemSystem
+
 	public TakeItemAction(Game game, Actor actor, Entity item, DTime timeRequired) {
 		super(game, actor, item, timeRequired);
 	}
@@ -91,8 +93,8 @@ public class TakeItemAction extends Action {
 				return ActionValidation.failure(
 					CommandOutput.make(CMD_TAKE)
 						.error(ERR_TOO_HEAVY)
-						.put(M_WEIGHT, itemWeightGrams)
-						.put(M_CARRY_WEIGHT, carryWeightGrams)
+						.put(ItemSystem.M_WEIGHT, itemWeightGrams)
+						.put(ItemSystem.M_CARRY_WEIGHT, carryWeightGrams)
 						.text(Markup.concat(
 							Markup.em(capitalize(itemName)),
 							Markup.raw(" is too heavy to carry. It weighs "),
@@ -141,12 +143,12 @@ public class TakeItemAction extends Action {
 		if (isFromContainer) {
 			String containerDesc = getEntityDescription(fromContainer);
 			broadcast = CommandOutput.make(BROADCAST_TAKES_FROM)
-				.put(M_ACTOR_ID, actor.getKeyId())
-				.put(M_ACTOR_NAME, actorDesc)
-				.put(M_ITEM_ID, target.getKeyId())
-				.put(M_ITEM_NAME, itemDesc)
-				.put(M_CONTAINER_ID, fromContainer.getKeyId())
-				.put(M_CONTAINER_NAME, containerDesc)
+				.put(EntitySystem.M_ACTOR_ID, actor.getKeyId())
+				.put(EntitySystem.M_ACTOR_NAME, actorDesc)
+				.put(ItemSystem.M_ITEM_ID, target.getKeyId())
+				.put(ItemSystem.M_ITEM_NAME, itemDesc)
+				.put(RelationshipSystem.M_CONTAINER_ID, fromContainer.getKeyId())
+				.put(RelationshipSystem.M_CONTAINER_NAME, containerDesc)
 				.text(Markup.concat(
 					Markup.escape(capitalize(actorDesc)),
 					Markup.raw(" takes "),
@@ -157,10 +159,10 @@ public class TakeItemAction extends Action {
 				));
 		} else {
 			broadcast = CommandOutput.make(BROADCAST_TAKES)
-				.put(M_ACTOR_ID, actor.getKeyId())
-				.put(M_ACTOR_NAME, actorDesc)
-				.put(M_ITEM_ID, target.getKeyId())
-				.put(M_ITEM_NAME, itemDesc)
+				.put(EntitySystem.M_ACTOR_ID, actor.getKeyId())
+				.put(EntitySystem.M_ACTOR_NAME, actorDesc)
+				.put(ItemSystem.M_ITEM_ID, target.getKeyId())
+				.put(ItemSystem.M_ITEM_NAME, itemDesc)
 				.text(Markup.concat(
 					Markup.escape(capitalize(actorDesc)),
 					Markup.raw(" takes "),

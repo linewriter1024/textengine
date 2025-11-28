@@ -73,7 +73,7 @@ public class AvatarBroadcastSystem extends SingletonGameSystem implements OnSyst
 	private void registerDefaultFilters() {
 		// Filter out player's own "leaves" messages
 		registerFilter(MoveAction.BROADCAST_LEAVES, (avatar, broadcast) -> {
-			Object actorIdObj = broadcast.getO(MoveAction.M_ACTOR_ID).orElse(null);
+			Object actorIdObj = broadcast.getO(EntitySystem.M_ACTOR_ID).orElse(null);
 			String actorId = actorIdObj != null ? actorIdObj.toString() : null;
 			if (actorId != null && actorId.equals(avatar.getKeyId())) {
 				// Suppress own leave message
@@ -84,11 +84,11 @@ public class AvatarBroadcastSystem extends SingletonGameSystem implements OnSyst
 		
 		// Transform player's own "arrives" into "You go to..."
 		registerFilter(MoveAction.BROADCAST_ARRIVES, (avatar, broadcast) -> {
-			Object actorIdObj = broadcast.getO(MoveAction.M_ACTOR_ID).orElse(null);
+			Object actorIdObj = broadcast.getO(EntitySystem.M_ACTOR_ID).orElse(null);
 			String actorId = actorIdObj != null ? actorIdObj.toString() : null;
 			if (actorId != null && actorId.equals(avatar.getKeyId())) {
 				// Transform to "You go to <destination>"
-				Object destinationIdObj = broadcast.getO(MoveAction.M_TO).orElse(null);
+				Object destinationIdObj = broadcast.getO(RelationshipSystem.M_TO).orElse(null);
 				String destinationId = destinationIdObj != null ? destinationIdObj.toString() : null;
 				if (destinationId != null) {
 					try {
@@ -102,7 +102,7 @@ public class AvatarBroadcastSystem extends SingletonGameSystem implements OnSyst
 						);
 						
 						return CommandOutput.make(MoveAction.BROADCAST_ARRIVES)
-							.put(MoveAction.M_TO, destinationId)
+							.put(RelationshipSystem.M_TO, destinationId)
 							.text(Markup.concat(
 								Markup.raw("You go to "),
 								Markup.em(destDesc),

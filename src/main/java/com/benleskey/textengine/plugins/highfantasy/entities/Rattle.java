@@ -24,10 +24,11 @@ public class Rattle extends Item implements UsableItem {
 	// Command constants
 	public static final String CMD_USE_RATTLE = "use_rattle";
 	public static final String BROADCAST_USE_RATTLE = "use_rattle";
-	public static final String M_ACTOR_ID = "actor_id";
-	public static final String M_ITEM_ID = "item_id";
-	public static final String M_ITEM_NAME = "item_name";
-	
+	// Note: EntitySystem.M_ACTOR_ID, EntitySystem.M_ACTOR_NAME defined in EntitySystem
+
+	// Note: ItemSystem.M_ITEM_ID, ItemSystem.M_ITEM_NAME, ItemSystem.M_WEIGHT, ItemSystem.M_CARRY_WEIGHT defined in ItemSystem
+
+
 	private static final String[] DESCRIPTIONS = {
 		"a wooden toy rattle",
 		"a painted rattle",
@@ -72,9 +73,9 @@ public class Rattle extends Item implements UsableItem {
 		
 		// Broadcast to all entities in the same location
 		CommandOutput broadcast = CommandOutput.make(BROADCAST_USE_RATTLE)
-			.put(M_ACTOR_ID, actor.getKeyId())
-			.put(M_ITEM_ID, this.getKeyId())
-			.put(M_ITEM_NAME, itemName)
+			.put(EntitySystem.M_ACTOR_ID, actor.getKeyId())
+			.put(ItemSystem.M_ITEM_ID, this.getKeyId())
+			.put(ItemSystem.M_ITEM_NAME, itemName)
 			.text(Markup.concat(
 				Markup.escape(capitalize(actorDesc)),
 				Markup.raw(" shakes "),

@@ -11,6 +11,10 @@ public class WorldSystem extends SingletonGameSystem implements OnSystemInitiali
 	private final static long TIME_NOW = 0;
 	private final static long WORLD_SEED = 1;
 	private final static long WORLD_INITIALIZED = 2;
+	
+	// Common message field constants for time/world-related data
+	public static final String M_DURATION = "duration";
+	
 	// Reserved for future use - may be used for temporal anchoring or waypoint system
 	@SuppressWarnings("unused")
 	private final GrouplessPropertiesSubSystem<String, Long> referencePoints;

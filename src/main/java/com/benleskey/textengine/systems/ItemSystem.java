@@ -24,6 +24,14 @@ public class ItemSystem extends SingletonGameSystem implements OnSystemInitializ
 	private EntityTagSystem tagSystem;
 	private UniqueTypeSystem typeSystem;
 	
+	// Common message field constants for item-related data
+	public static final String M_ITEM = "item";
+	public static final String M_ITEM_ID = "item_id";
+	public static final String M_ITEM_NAME = "item_name";
+	public static final String M_ITEMS = "items";
+	public static final String M_WEIGHT = "weight";
+	public static final String M_CARRY_WEIGHT = "carry_weight";
+	
 	// Common item tags (initialized in onSystemInitialize)
 	public UniqueType TAG_TOOL;
 	public UniqueType TAG_CONTAINER;

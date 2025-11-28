@@ -51,16 +51,11 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 	public static final String CLOSE = "close";
 	public static final String PUT = "put";
 	
-	public static final String M_ITEM = "item";
-	public static final String M_ENTITY_ID = "entity_id";
-	public static final String M_ITEM_NAME = "item_name";
-	public static final String M_TARGET = "target";
-	public static final String M_CONTAINER = "container";
-	public static final String M_ITEMS = "items";
-	public static final String M_WEIGHT = "weight";
-	public static final String M_CARRY_WEIGHT = "carry_weight";
-	public static final String M_CONTAINER_NAME = "container_name";
-	
+
+	// Note: EntitySystem.M_ENTITY_ID defined in EntitySystem
+
+
+
 	// Error codes
 	public static final String ERR_PLAYER_NOWHERE = "player_nowhere";
 	public static final String ERR_NO_CONTAINERS = "no_containers";
@@ -168,31 +163,31 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 	}
 	
 	private CommandInput parseTake(Matcher matcher) {
-		return CommandInput.makeNone().put(M_ITEM, matcher.group(1).trim());
+		return CommandInput.makeNone().put(ItemSystem.M_ITEM, matcher.group(1).trim());
 	}
 	
 	private CommandInput parseTakeFrom(Matcher matcher) {
 		return CommandInput.makeNone()
-			.put(M_ITEM, matcher.group(1).trim())
-			.put(M_CONTAINER, matcher.group(2).trim());
+			.put(ItemSystem.M_ITEM, matcher.group(1).trim())
+			.put(RelationshipSystem.M_CONTAINER, matcher.group(2).trim());
 	}
 	
 	private CommandInput parseDrop(Matcher matcher) {
-		return CommandInput.makeNone().put(M_ITEM, matcher.group(1).trim());
+		return CommandInput.makeNone().put(ItemSystem.M_ITEM, matcher.group(1).trim());
 	}
 	
 	private CommandInput parseExamine(Matcher matcher) {
-		return CommandInput.makeNone().put(M_ITEM, matcher.group(1).trim());
+		return CommandInput.makeNone().put(ItemSystem.M_ITEM, matcher.group(1).trim());
 	}
 	
 	private CommandInput parseUse(Matcher matcher) {
-		return CommandInput.makeNone().put(M_ITEM, matcher.group(1).trim());
+		return CommandInput.makeNone().put(ItemSystem.M_ITEM, matcher.group(1).trim());
 	}
 	
 	private CommandInput parseUseOn(Matcher matcher) {
 		return CommandInput.makeNone()
-			.put(M_ITEM, matcher.group(1).trim())
-			.put(M_TARGET, matcher.group(2).trim());
+			.put(ItemSystem.M_ITEM, matcher.group(1).trim())
+			.put(RelationshipSystem.M_TARGET, matcher.group(2).trim());
 	}
 	
 	private void handleTake(Client client, CommandInput input) {
@@ -215,9 +210,9 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		
 		// Check if taking from a container
 		Entity sourceContainer = null;
-		if (input.getO(M_CONTAINER).isPresent()) {
+		if (input.getO(RelationshipSystem.M_CONTAINER).isPresent()) {
 			// "take X from Y" syntax - get items from container
-			String containerInput = input.get(M_CONTAINER);
+			String containerInput = input.get(RelationshipSystem.M_CONTAINER);
 			
 			// Get containers at current location
 			List<Entity> containersHere = relationshipSystem.getReceivingRelationships(currentLocation, relationshipSystem.rvContains, worldSystem.getCurrentTime())
@@ -285,8 +280,8 @@ java.util.function.Function<Entity, String> descExtractor = e -> entityDescripti
 
 		// Check if entity_id is provided (machine-readable input)
 		Entity item = null;
-		if (input.getO(M_ENTITY_ID).isPresent()) {
-			String entityIdStr = input.get(M_ENTITY_ID);
+		if (input.getO(EntitySystem.M_ENTITY_ID).isPresent()) {
+			String entityIdStr = input.get(EntitySystem.M_ENTITY_ID);
 			try {
 				long entityId = Long.parseLong(entityIdStr);
 				item = entitySystem.get(entityId);
@@ -299,7 +294,7 @@ java.util.function.Function<Entity, String> descExtractor = e -> entityDescripti
 		}
 		
 		// Fall back to keyword matching if no entity_id or entity not found
-		String itemInput = input.get(M_ITEM);
+		String itemInput = input.get(ItemSystem.M_ITEM);
 
 java.util.function.Function<Entity, String> descExtractor = e -> entityDescriptionSystem.getSimpleDescription(e, worldSystem.getCurrentTime());
 		
@@ -383,7 +378,7 @@ java.util.function.Function<Entity, String> descExtractor = e -> entityDescripti
 		}
 		
 		// Resolve which item to drop
-		String itemInput = input.get(M_ITEM);
+		String itemInput = input.get(ItemSystem.M_ITEM);
 
 		java.util.function.Function<Entity, String> descExtractor = item -> {
 			List<LookDescriptor> looks = lookSystem.getLooksFromEntity(item, worldSystem.getCurrentTime());
@@ -458,7 +453,7 @@ java.util.function.Function<Entity, String> descExtractor = e -> entityDescripti
 		}
 		
 		// Resolve which item to examine
-		String itemInput = input.get(M_ITEM);
+		String itemInput = input.get(ItemSystem.M_ITEM);
 
 		java.util.function.Function<Entity, String> descExtractor = item -> {
 			List<LookDescriptor> looks = lookSystem.getLooksFromEntity(item, worldSystem.getCurrentTime());
@@ -567,15 +562,15 @@ java.util.function.Function<Entity, String> descExtractor = e -> entityDescripti
 			String desc = !itemLooks.isEmpty() ? itemLooks.get(0).getDescription() : "something";
 			
 			Map<String, Object> itemData = new java.util.HashMap<>();
-			itemData.put(M_ENTITY_ID, item.getKeyId());
-			itemData.put(M_ITEM_NAME, desc);
+			itemData.put(EntitySystem.M_ENTITY_ID, item.getKeyId());
+			itemData.put(ItemSystem.M_ITEM_NAME, desc);
 			itemsList.add(itemData);
 		}
 		
 		client.sendOutput(CommandOutput.make(EXAMINE)
-			.put(M_ENTITY_ID, String.valueOf(targetItem.getId()))
-			.put(M_ITEM, targetItem)
-			.put(M_ITEMS, itemsList)
+			.put(EntitySystem.M_ENTITY_ID, String.valueOf(targetItem.getId()))
+			.put(ItemSystem.M_ITEM, targetItem)
+			.put(ItemSystem.M_ITEMS, itemsList)
 			.text(Markup.concat(examineMarkup.toArray(new Markup.Safe[0]))));
 	}
 	
@@ -601,7 +596,7 @@ java.util.function.Function<Entity, String> descExtractor = e -> entityDescripti
 		}
 		
 		// Resolve which item to use
-		String itemInput = input.get(M_ITEM);
+		String itemInput = input.get(ItemSystem.M_ITEM);
 
 		java.util.function.Function<Entity, String> descExtractor = item -> {
 			List<LookDescriptor> looks = lookSystem.getLooksFromEntity(item, worldSystem.getCurrentTime());
@@ -634,7 +629,7 @@ java.util.function.Function<Entity, String> descExtractor = e -> entityDescripti
 		Entity targetItem = result.getUniqueMatch();
 		
 		// Check if using on a target
-		java.util.Optional<Object> targetOpt = input.getO(M_TARGET);
+		java.util.Optional<Object> targetOpt = input.getO(RelationshipSystem.M_TARGET);
 		
 		if (targetOpt.isPresent()) {
 			// Using item on target - delegate to ItemActionSystem
@@ -785,7 +780,7 @@ java.util.function.Function<Entity, String> descExtractor = e -> entityDescripti
 		
 		if (carriedItems.isEmpty()) {
 			client.sendOutput(CommandOutput.make(INVENTORY)
-				.put(M_ITEMS, new java.util.ArrayList<String>())
+				.put(ItemSystem.M_ITEMS, new java.util.ArrayList<String>())
 				.text(Markup.escape("You aren't carrying anything.")));
 			return;
 		}
@@ -835,17 +830,17 @@ java.util.function.Function<Entity, String> descExtractor = e -> entityDescripti
 	}
 	
 	private CommandInput parseOpen(Matcher matcher) {
-		return CommandInput.makeNone().put(M_CONTAINER, matcher.group(1).trim());
+		return CommandInput.makeNone().put(RelationshipSystem.M_CONTAINER, matcher.group(1).trim());
 	}
 	
 	private CommandInput parseClose(Matcher matcher) {
-		return CommandInput.makeNone().put(M_CONTAINER, matcher.group(1).trim());
+		return CommandInput.makeNone().put(RelationshipSystem.M_CONTAINER, matcher.group(1).trim());
 	}
 	
 	private CommandInput parsePut(Matcher matcher) {
 		return CommandInput.makeNone()
-			.put(M_ITEM, matcher.group(1).trim())
-			.put(M_CONTAINER, matcher.group(2).trim());
+			.put(ItemSystem.M_ITEM, matcher.group(1).trim())
+			.put(RelationshipSystem.M_CONTAINER, matcher.group(2).trim());
 	}
 	
 	private void handleOpen(Client client, CommandInput input) {
@@ -895,7 +890,7 @@ java.util.function.Function<Entity, String> descExtractor = e -> entityDescripti
 			return;
 		}
 		
-		String containerInput = input.get(M_CONTAINER);
+		String containerInput = input.get(RelationshipSystem.M_CONTAINER);
 		
 		// Resolve which container
 		var result = disambiguationSystem.resolveEntityWithAmbiguity(client, containerInput, availableContainers,
@@ -933,8 +928,8 @@ java.util.function.Function<Entity, String> descExtractor = e -> entityDescripti
 		if (openValue != null && openValue == 1) {
 			client.sendOutput(CommandOutput.make(OPEN)
 				.error(ERR_ALREADY_OPEN)
-				.put(M_CONTAINER, container.getKeyId())
-				.put(M_CONTAINER_NAME, containerName)
+				.put(RelationshipSystem.M_CONTAINER, container.getKeyId())
+				.put(RelationshipSystem.M_CONTAINER_NAME, containerName)
 				.text(Markup.concat(
 					Markup.em(containerName.substring(0, 1).toUpperCase() + containerName.substring(1)),
 					Markup.raw(" is already open.")
@@ -954,9 +949,9 @@ java.util.function.Function<Entity, String> descExtractor = e -> entityDescripti
 		
 		if (contents.isEmpty()) {
 			client.sendOutput(CommandOutput.make(OPEN)
-				.put(M_CONTAINER, container.getKeyId())
-				.put(M_CONTAINER_NAME, containerName)
-				.put(M_ITEMS, new java.util.ArrayList<String>())
+				.put(RelationshipSystem.M_CONTAINER, container.getKeyId())
+				.put(RelationshipSystem.M_CONTAINER_NAME, containerName)
+				.put(ItemSystem.M_ITEMS, new java.util.ArrayList<String>())
 				.text(Markup.concat(
 					Markup.raw("You open "),
 					Markup.em(containerName),
@@ -979,8 +974,8 @@ java.util.function.Function<Entity, String> descExtractor = e -> entityDescripti
 				
 				// Add to machine-readable list
 				Map<String, Object> itemData = new java.util.HashMap<>();
-				itemData.put(M_ENTITY_ID, item.getKeyId());
-				itemData.put(M_ITEM_NAME, desc);
+				itemData.put(EntitySystem.M_ENTITY_ID, item.getKeyId());
+				itemData.put(ItemSystem.M_ITEM_NAME, desc);
 				itemsList.add(itemData);
 				
 				// Add to human-readable text
@@ -996,9 +991,9 @@ java.util.function.Function<Entity, String> descExtractor = e -> entityDescripti
 			contentParts.add(Markup.raw("."));
 			
 			client.sendOutput(CommandOutput.make(OPEN)
-				.put(M_CONTAINER, container.getKeyId())
-				.put(M_CONTAINER_NAME, containerName)
-				.put(M_ITEMS, itemsList)
+				.put(RelationshipSystem.M_CONTAINER, container.getKeyId())
+				.put(RelationshipSystem.M_CONTAINER_NAME, containerName)
+				.put(ItemSystem.M_ITEMS, itemsList)
 				.text(Markup.concat(contentParts.toArray(new Markup.Safe[0]))));
 		}
 	}
@@ -1045,7 +1040,7 @@ java.util.function.Function<Entity, String> descExtractor = e -> entityDescripti
 			return;
 		}
 		
-		String containerInput = input.get(M_CONTAINER);
+		String containerInput = input.get(RelationshipSystem.M_CONTAINER);
 		
 		var result = disambiguationSystem.resolveEntityWithAmbiguity(client, containerInput, availableContainers,
 			container -> {
@@ -1082,8 +1077,8 @@ java.util.function.Function<Entity, String> descExtractor = e -> entityDescripti
 		if (openValue == null || openValue == 0) {
 			client.sendOutput(CommandOutput.make(CLOSE)
 				.error(ERR_ALREADY_CLOSED)
-				.put(M_CONTAINER, container.getKeyId())
-				.put(M_CONTAINER_NAME, containerName)
+				.put(RelationshipSystem.M_CONTAINER, container.getKeyId())
+				.put(RelationshipSystem.M_CONTAINER_NAME, containerName)
 				.text(Markup.concat(
 					Markup.em(containerName.substring(0, 1).toUpperCase() + containerName.substring(1)),
 					Markup.raw(" is already closed.")
@@ -1095,8 +1090,8 @@ java.util.function.Function<Entity, String> descExtractor = e -> entityDescripti
 		itemSystem.updateTagValue(container, itemSystem.TAG_OPEN, 0, worldSystem.getCurrentTime());
 		
 		client.sendOutput(CommandOutput.make(CLOSE)
-			.put(M_CONTAINER, container.getKeyId())
-			.put(M_CONTAINER_NAME, containerName)
+			.put(RelationshipSystem.M_CONTAINER, container.getKeyId())
+			.put(RelationshipSystem.M_CONTAINER_NAME, containerName)
 			.text(Markup.concat(
 				Markup.raw("You close "),
 				Markup.em(containerName),
@@ -1136,7 +1131,7 @@ java.util.function.Function<Entity, String> descExtractor = e -> entityDescripti
 			return;
 		}
 		
-		String itemInput = input.get(M_ITEM);
+		String itemInput = input.get(ItemSystem.M_ITEM);
 		
 		// Resolve which item to put
 		var itemResult = disambiguationSystem.resolveEntityWithAmbiguity(client, itemInput, inventory,
@@ -1189,7 +1184,7 @@ java.util.function.Function<Entity, String> descExtractor = e -> entityDescripti
 			return;
 		}
 		
-		String containerInput = input.get(M_CONTAINER);
+		String containerInput = input.get(RelationshipSystem.M_CONTAINER);
 		
 		// Resolve which container
 		var containerResult = disambiguationSystem.resolveEntityWithAmbiguity(client, containerInput, availableContainers,
@@ -1227,8 +1222,8 @@ java.util.function.Function<Entity, String> descExtractor = e -> entityDescripti
 		if (openValue == null || openValue == 0) {
 			client.sendOutput(CommandOutput.make(PUT)
 				.error(ERR_CONTAINER_CLOSED)
-				.put(M_CONTAINER, container.getKeyId())
-				.put(M_CONTAINER_NAME, containerName)
+				.put(RelationshipSystem.M_CONTAINER, container.getKeyId())
+				.put(RelationshipSystem.M_CONTAINER_NAME, containerName)
 				.text(Markup.concat(
 					Markup.em(containerName.substring(0, 1).toUpperCase() + containerName.substring(1)),
 					Markup.raw(" is closed.")
@@ -1255,10 +1250,10 @@ java.util.function.Function<Entity, String> descExtractor = e -> entityDescripti
 		relationshipSystem.add(container, item, relationshipSystem.rvContains);
 		
 		client.sendOutput(CommandOutput.make(PUT)
-			.put(M_ITEM, item.getKeyId())
-			.put(M_ITEM_NAME, itemName)
-			.put(M_CONTAINER, container.getKeyId())
-			.put(M_CONTAINER_NAME, containerName)
+			.put(ItemSystem.M_ITEM, item.getKeyId())
+			.put(ItemSystem.M_ITEM_NAME, itemName)
+			.put(RelationshipSystem.M_CONTAINER, container.getKeyId())
+			.put(RelationshipSystem.M_CONTAINER_NAME, containerName)
 			.text(Markup.concat(
 				Markup.raw("You put "),
 				Markup.em(itemName),
