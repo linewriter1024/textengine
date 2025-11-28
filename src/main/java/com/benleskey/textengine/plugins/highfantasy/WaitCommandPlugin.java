@@ -30,6 +30,9 @@ public class WaitCommandPlugin extends Plugin implements OnCoreSystemsReady {
 	private static final String M_WAIT = "wait";
 	private static final String M_DURATION = "duration";
 	
+	// Error codes
+	private static final String ERR_INVALID_DURATION = "invalid_duration";
+	
 	// Pattern for parsing durations like "1 minute", "2 hours", "30 seconds", "30"
 	private static final Pattern DURATION_PATTERN = Pattern.compile(
 		"^(\\d+)\\s*(second|seconds|minute|minutes|hour|hours|s|m|h)?$",
@@ -104,7 +107,7 @@ public class WaitCommandPlugin extends Plugin implements OnCoreSystemsReady {
 				}
 			} else {
 				client.sendOutput(CommandOutput.make(M_WAIT)
-					.put("error", "invalid_duration")
+					.put(CommandOutput.M_ERROR, ERR_INVALID_DURATION)
 					.text(Markup.escape("Invalid duration format. Use: wait, wait 30, wait 1 minute, wait 2 hours")));
 				return;
 			}

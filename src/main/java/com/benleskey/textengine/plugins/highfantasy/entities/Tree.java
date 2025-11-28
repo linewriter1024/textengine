@@ -21,6 +21,9 @@ import java.util.Random;
  */
 public class Tree extends Item implements Cuttable {
 	
+	// Error codes
+	private static final String ERR_TREE_NOWHERE = "tree_nowhere";
+	
 	private static final String[] DESCRIPTIONS = {
 		"a tree",
 		"an oak tree",
@@ -65,7 +68,7 @@ public class Tree extends Item implements Cuttable {
 		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
 		if (containers.isEmpty()) {
 			return CommandOutput.make("use")
-				.put("error", "nowhere")
+				.put(CommandOutput.M_ERROR, ERR_TREE_NOWHERE)
 				.text(Markup.escape("You are nowhere."));
 		}
 		

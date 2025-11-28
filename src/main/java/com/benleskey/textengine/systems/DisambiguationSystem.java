@@ -24,6 +24,9 @@ import java.util.function.Function;
  */
 public class DisambiguationSystem extends SingletonGameSystem {
 	
+	// Error codes
+	public static final String ERR_AMBIGUOUS = "ambiguous";
+	
 	public DisambiguationSystem(Game game) {
 		super(game);
 	}
@@ -368,7 +371,7 @@ public class DisambiguationSystem extends SingletonGameSystem {
 		parts.add(Markup.raw("?"));
 		
 		client.sendOutput(CommandOutput.make(commandId)
-			.error("ambiguous")
+			.error(ERR_AMBIGUOUS)
 			.text(Markup.concat(parts.toArray(new Markup.Safe[0]))));
 	}
 }

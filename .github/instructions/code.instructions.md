@@ -103,7 +103,16 @@ Markup.em("emphasized");       // <em>emphasized</em>
 
 **Success = no error field. Failure = error field present.**
 
+**Error codes must be constants**, defined where they're used (like M_ constants).
+
 ```java
+// Define error codes in the plugin/system where they're used
+public class ItemInteractionPlugin extends Plugin {
+    public static final String ERR_ITEM_NOT_FOUND = "item_not_found";
+    public static final String ERR_TOO_HEAVY = "too_heavy";
+    // ...
+}
+
 // ✅ Success
 client.sendOutput(CommandOutput.make(TAKE)
     .put(M_ITEM, item.getKeyId())
@@ -111,8 +120,11 @@ client.sendOutput(CommandOutput.make(TAKE)
 
 // ✅ Failure
 client.sendOutput(CommandOutput.make(TAKE)
-    .error("not_found")
+    .error(ERR_ITEM_NOT_FOUND)
     .text(...));
+
+// ❌ BAD - don't use magic strings
+.error("not_found")
 
 // ❌ BAD - don't use M_SUCCESS or "success" fields
 ```
