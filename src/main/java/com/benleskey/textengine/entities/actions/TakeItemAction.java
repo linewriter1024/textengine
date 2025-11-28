@@ -6,12 +6,10 @@ import com.benleskey.textengine.entities.Actor;
 import com.benleskey.textengine.entities.Item;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
-import com.benleskey.textengine.model.LookDescriptor;
 import com.benleskey.textengine.model.UniqueType;
 import com.benleskey.textengine.systems.*;
 import com.benleskey.textengine.util.Markup;
-
-import java.util.List;
+import com.benleskey.textengine.util.StringUtils;
 
 /**
  * Action for taking an item from the ground or a container.
@@ -96,7 +94,7 @@ public class TakeItemAction extends Action {
 						.put(ItemSystem.M_WEIGHT, itemWeightGrams)
 						.put(ItemSystem.M_CARRY_WEIGHT, carryWeightGrams)
 						.text(Markup.concat(
-							Markup.em(capitalize(itemName)),
+							Markup.em(StringUtils.capitalize(itemName)),
 							Markup.raw(" is too heavy to carry. It weighs "),
 							Markup.escape(itemWeight.toString()),
 							Markup.raw(", but you can only carry up to "),
@@ -150,8 +148,10 @@ public class TakeItemAction extends Action {
 				.put(RelationshipSystem.M_CONTAINER_ID, fromContainer.getKeyId())
 				.put(RelationshipSystem.M_CONTAINER_NAME, containerDesc)
 				.text(Markup.concat(
-					Markup.escape(capitalize(actorDesc)),
-					Markup.raw(" takes "),
+					Markup.entity(actor.getKeyId(), actorDesc),
+					Markup.raw(" "),
+					Markup.verb("take"),
+					Markup.raw(" "),
 					Markup.em(itemDesc),
 					Markup.raw(" from "),
 					Markup.em(containerDesc),
@@ -164,8 +164,10 @@ public class TakeItemAction extends Action {
 				.put(ItemSystem.M_ITEM_ID, target.getKeyId())
 				.put(ItemSystem.M_ITEM_NAME, itemDesc)
 				.text(Markup.concat(
-					Markup.escape(capitalize(actorDesc)),
-					Markup.raw(" takes "),
+					Markup.entity(actor.getKeyId(), actorDesc),
+					Markup.raw(" "),
+					Markup.verb("take"),
+					Markup.raw(" "),
 					Markup.em(itemDesc),
 					Markup.raw(".")
 				));
@@ -193,10 +195,4 @@ public class TakeItemAction extends Action {
 		return eds.getSimpleDescription(entity, ws.getCurrentTime(), "something");
 	}
 	
-	private String capitalize(String str) {
-		if (str == null || str.isEmpty()) {
-			return str;
-		}
-		return str.substring(0, 1).toUpperCase() + str.substring(1);
-	}
 }

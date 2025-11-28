@@ -50,8 +50,9 @@ public class Client extends com.benleskey.textengine.Client {
 		}
 		output.getError().ifPresent(error -> System.out.printf("! %s\n", error));
 		output.getText().ifPresent(text -> {
-			// Convert markup to terminal output
-			String rendered = Markup.toTerminal(Markup.raw(text));
+			// Convert markup to terminal output, using avatar's entity ID for you/notyou conversion
+			String avatarId = (entity != null) ? entity.map(e -> e.getKeyId()).orElse(null) : null;
+			String rendered = Markup.toTerminal(Markup.raw(text), avatarId);
 			System.out.println(rendered);
 		});
 	}

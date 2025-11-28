@@ -117,11 +117,14 @@ public class TagInteractionSystem extends SingletonGameSystem implements OnSyste
 	}
 	
 	/**
-	 * Execute an interaction and broadcast to all observers at the same location.
-	 * Returns the primary output for the actor, and sends observer messages to all other actors.
+	 * Execute an interaction. The interaction handler is responsible for broadcasting
+	 * to all observers using BroadcastSystem if needed.
+	 * 
+	 * This method now simply executes the interaction - the handler itself (e.g., Tree.onCut)
+	 * uses BroadcastSystem to notify all nearby entities with proper markup.
 	 * 
 	 * @param actor The actor performing the interaction
-	 * @param actorName Human-readable name of the actor
+	 * @param actorName Human-readable name of the actor (unused now, kept for compatibility)
 	 * @param tool The tool being used
 	 * @param toolName Human-readable name of the tool
 	 * @param target The target of the interaction
@@ -135,57 +138,8 @@ public class TagInteractionSystem extends SingletonGameSystem implements OnSyste
 			Entity target, String targetName,
 			com.benleskey.textengine.model.DTime currentTime) {
 		
-		Optional<CommandOutput> actorOutput = executeInteraction(actor, tool, toolName, target, targetName, currentTime);
-		
-		if (actorOutput.isEmpty()) {
-			return Optional.empty();
-		}
-		
-		// Broadcast to observers at the same location
-		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
-		var actorContainers = rs.getProvidingRelationships(actor, rs.rvContains, currentTime);
-		
-		if (!actorContainers.isEmpty()) {
-			Entity location = actorContainers.get(0).getProvider();
-			
-			// Get all other actors at this location
-			var observers = rs.getReceivingRelationships(location, rs.rvContains, currentTime)
-				.stream()
-				.map(rd -> rd.getReceiver())
-				.filter(e -> e instanceof com.benleskey.textengine.entities.Actor && !e.equals(actor))
-				.toList();
-			
-			// Send observer version to each observer's client
-			for (Entity observer : observers) {
-				game.getClients().stream()
-					.filter(c -> c.getEntity().map(e -> e.equals(observer)).orElse(false))
-					.forEach(c -> {
-						// Get the command ID and text from the actor output
-						String commandId = actorOutput.get().get("output");
-						String originalText = actorOutput.get().getText().orElse("");
-						
-						// Convert "You X" to "ActorName Xs" for observers
-						String observerText = originalText
-							.replaceFirst("^You ", capitalize(actorName) + " ")
-							.replaceAll(" you ", " " + actorName + " ")
-							.replaceAll(" your ", " " + actorName + "'s ");
-						
-						c.sendOutput(CommandOutput.make(commandId)
-							.put("observer", true)
-							.put("actor", actor.getKeyId())
-							.text(com.benleskey.textengine.util.Markup.escape(observerText)));
-					});
-			}
-		}
-		
-		return actorOutput;
-	}
-	
-	private String capitalize(String str) {
-		if (str == null || str.isEmpty()) {
-			return str;
-		}
-		return str.substring(0, 1).toUpperCase() + str.substring(1);
+		// Simply execute the interaction - the handler uses BroadcastSystem internally
+		return executeInteraction(actor, tool, toolName, target, targetName, currentTime);
 	}
 	
 	/**

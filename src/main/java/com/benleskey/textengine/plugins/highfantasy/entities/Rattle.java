@@ -71,26 +71,21 @@ public class Rattle extends Item implements UsableItem {
 		String actorDesc = eds.getActorDescription((com.benleskey.textengine.entities.Actor) actor, ws.getCurrentTime());
 		String itemName = eds.getSimpleDescription(this, ws.getCurrentTime(), "the rattle");
 		
-		// Broadcast to all entities in the same location
+		// Broadcast to all entities in the same location (using new markup system)
 		CommandOutput broadcast = CommandOutput.make(BROADCAST_USE_RATTLE)
 			.put(EntitySystem.M_ACTOR_ID, actor.getKeyId())
 			.put(ItemSystem.M_ITEM_ID, this.getKeyId())
 			.put(ItemSystem.M_ITEM_NAME, itemName)
 			.text(Markup.concat(
-				Markup.escape(capitalize(actorDesc)),
-				Markup.raw(" shakes "),
+				Markup.entity(actor.getKeyId(), actorDesc),
+				Markup.raw(" "),
+				Markup.verb("shake", "shakes"),
+				Markup.raw(" "),
 				Markup.em(itemName),
 				Markup.raw(". It makes a pleasant rattling sound.")
 			));
 		
 		bs.broadcast(actor, broadcast);
 		return broadcast;
-	}
-	
-	private String capitalize(String str) {
-		if (str == null || str.isEmpty()) {
-			return str;
-		}
-		return str.substring(0, 1).toUpperCase() + str.substring(1);
 	}
 }

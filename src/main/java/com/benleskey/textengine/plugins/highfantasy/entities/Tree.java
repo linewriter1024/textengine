@@ -98,7 +98,8 @@ public class Tree extends Item implements Cuttable {
 		// Get actor description for broadcast
 		String actorDesc = eds.getSimpleDescription(actor, ws.getCurrentTime(), "someone");
 		
-		// Broadcast to all entities in location (including the actor)
+		// Broadcast to all entities in location (using new markup system)
+		// The broadcast is the only output - no separate client-specific return value
 		CommandOutput broadcast = CommandOutput.make(BROADCAST_CUTS_TREE)
 			.put(EntitySystem.M_ACTOR_ID, actor.getKeyId())
 			.put(EntitySystem.M_ACTOR_NAME, actorDesc)
@@ -108,26 +109,26 @@ public class Tree extends Item implements Cuttable {
 			.put("target_name", targetName)
 			.put("wood_id", wood.getKeyId())
 			.text(Markup.concat(
-				Markup.escape(capitalize(actorDesc)),
-				Markup.raw(" swings "),
+				Markup.entity(actor.getKeyId(), actorDesc),
+				Markup.raw(" "),
+				Markup.verb("swing", "swings"),
+				Markup.raw(" "),
 				Markup.em(toolName),
 				Markup.raw(" at "),
 				Markup.em(targetName),
 				Markup.raw(". After some effort, "),
-				Markup.escape(actorDesc),
-				Markup.raw(" cuts it down and produces "),
+				Markup.entity(actor.getKeyId(), actorDesc),
+				Markup.raw(" "),
+				Markup.verb("cut", "cuts"),
+				Markup.raw(" it down and "),
+				Markup.verb("produce", "produces"),
+				Markup.raw(" "),
 				Markup.em("a piece of wood"),
 				Markup.raw(".")
 			));
 		
 		bs.broadcast(actor, broadcast);
+		// Return broadcast - no longer client-specific
 		return broadcast;
-	}
-	
-	private String capitalize(String str) {
-		if (str == null || str.isEmpty()) {
-			return str;
-		}
-		return str.substring(0, 1).toUpperCase() + str.substring(1);
 	}
 }

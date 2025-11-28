@@ -5,12 +5,9 @@ import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.entities.Actor;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
-import com.benleskey.textengine.model.LookDescriptor;
 import com.benleskey.textengine.model.UniqueType;
 import com.benleskey.textengine.systems.*;
 import com.benleskey.textengine.util.Markup;
-
-import java.util.List;
 
 /**
  * Action for moving an actor from one location to another.
@@ -83,13 +80,16 @@ public class MoveAction extends Action {
 		String actorDesc = eds.getActorDescription(actor, ws.getCurrentTime());
 		
 		// Broadcast departure to entities in current location
+		// Using new markup: <entity id="X">name</entity> <you>leave</you><notyou>leaves</notyou>
 		bs.broadcast(actor, CommandOutput.make(BROADCAST_LEAVES)
 			.put(EntitySystem.M_ACTOR_ID, actor.getKeyId())
 			.put(EntitySystem.M_ACTOR_NAME, actorDesc)
 			.put(RelationshipSystem.M_FROM, currentLocation.getKeyId())
 			.text(Markup.concat(
-				Markup.escape(capitalize(actorDesc)),
-				Markup.raw(" leaves.")
+				Markup.entity(actor.getKeyId(), actorDesc),
+				Markup.raw(" "),
+				Markup.verb("leave", "leaves"),
+				Markup.raw(".")
 			)));
 		
 		// Cancel old containment relationship
@@ -99,14 +99,22 @@ public class MoveAction extends Action {
 		// Create new containment relationship
 		rs.add(target, actor, rs.rvContains);
 		
+		// Get destination description
+		String destDesc = eds.getSimpleDescription(target, ws.getCurrentTime(), "somewhere");
+		
 		// Broadcast arrival to entities in destination
+		// Using new markup: <entity id="X">name</entity> <you>arrive</you><notyou>arrives</notyou>
 		CommandOutput arrivalBroadcast = CommandOutput.make(BROADCAST_ARRIVES)
 			.put(EntitySystem.M_ACTOR_ID, actor.getKeyId())
 			.put(EntitySystem.M_ACTOR_NAME, actorDesc)
 			.put(RelationshipSystem.M_TO, target.getKeyId())
 			.text(Markup.concat(
-				Markup.escape(capitalize(actorDesc)),
-				Markup.raw(" arrives.")
+				Markup.entity(actor.getKeyId(), actorDesc),
+				Markup.raw(" "),
+				Markup.verb("arrive", "arrives"),
+				Markup.raw(" from "),
+				Markup.em(destDesc),
+				Markup.raw(".")
 			));
 		
 		bs.broadcast(actor, arrivalBroadcast);
@@ -121,12 +129,5 @@ public class MoveAction extends Action {
 		String destDesc = eds.getSimpleDescription(target, ws.getCurrentTime(), "somewhere");
 		
 		return "moving to " + destDesc;
-	}
-	
-	private String capitalize(String str) {
-		if (str == null || str.isEmpty()) {
-			return str;
-		}
-		return str.substring(0, 1).toUpperCase() + str.substring(1);
 	}
 }

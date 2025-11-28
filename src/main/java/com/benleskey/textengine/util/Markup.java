@@ -89,6 +89,48 @@ public class Markup {
 	}
 	
 	/**
+	 * Create an entity reference tag.
+	 * Used for entities that should show as "you" when the player is the recipient.
+	 * 
+	 * Example: entity(123, "a goblin") -> <entity id="123">a goblin</entity>
+	 * 
+	 * When rendered for entity 123's player: "you"
+	 * When rendered for others: "a goblin"
+	 */
+	public static Safe entity(long entityId, String description) {
+		return raw("<entity id=\"" + entityId + "\">" + escape(description).content + "</entity>");
+	}
+	
+	/**
+	 * Create an entity reference tag using string ID.
+	 */
+	public static Safe entity(String entityId, String description) {
+		return raw("<entity id=\"" + escape(entityId).content + "\">" + escape(description).content + "</entity>");
+	}
+	
+	/**
+	 * Create a verb with first/second person forms.
+	 * 
+	 * Example: verb("take", "takes") -> <you>take</you><notyou>takes</notyou>
+	 * 
+	 * When rendered for the actor: "take"
+	 * When rendered for others: "takes"
+	 */
+	public static Safe verb(String firstPerson, String thirdPerson) {
+		return raw("<you>" + escape(firstPerson).content + "</you><notyou>" + escape(thirdPerson).content + "</notyou>");
+	}
+	
+	/**
+	 * Common verb helper: present tense regular verb.
+	 * Automatically adds 's' for third person.
+	 * 
+	 * Example: verb("take") -> <you>take</you><notyou>takes</notyou>
+	 */
+	public static Safe verb(String base) {
+		return verb(base, base + "s");
+	}
+	
+	/**
 	 * Unescape entity codes back to their original characters.
 	 * Used when converting markup to plain text or rendering to terminal.
 	 */
@@ -107,8 +149,11 @@ public class Markup {
 	/**
 	 * Convert markup to terminal output with ANSI formatting.
 	 * Processes tags like <em> and unescapes entities.
+	 * 
+	 * For avatar-specific rendering (you/notyou), pass the avatar's entity ID.
+	 * If avatarEntityId is null, renders in third-person (observer view).
 	 */
-	public static String toTerminal(Safe markup) {
+	public static String toTerminal(Safe markup, String avatarEntityId) {
 		if (markup == null) {
 			return "";
 		}
@@ -119,7 +164,26 @@ public class Markup {
 		String bold = "\033[1m";
 		String reset = "\033[0m";
 		
-		// Replace tags with ANSI codes
+		// Process entity references - replace with "you" if matching avatar, otherwise use description
+		if (avatarEntityId != null) {
+			// Match <entity id="123">description</entity> where id matches avatarEntityId
+			String pattern = "<entity id=\"" + avatarEntityId.replace("\"", "\\\"") + "\">([^<]*)</entity>";
+			text = text.replaceAll(pattern, "you");
+			
+			// Remove non-matching entity tags but keep their descriptions
+			text = text.replaceAll("<entity id=\"[^\"]*\">([^<]*)</entity>", "$1");
+			
+			// Handle you/notyou - keep "you" version
+			text = text.replaceAll("<you>([^<]*)</you><notyou>[^<]*</notyou>", "$1");
+		} else {
+			// Observer view: remove entity tags but keep descriptions
+			text = text.replaceAll("<entity id=\"[^\"]*\">([^<]*)</entity>", "$1");
+			
+			// Handle you/notyou - keep "notyou" version
+			text = text.replaceAll("<you>[^<]*</you><notyou>([^<]*)</notyou>", "$1");
+		}
+		
+		// Replace emphasis tags with ANSI codes
 		text = text
 			.replaceAll("<em>", bold)
 			.replaceAll("</em>", reset);
@@ -128,6 +192,13 @@ public class Markup {
 		text = unescape(text);
 		
 		return text;
+	}
+	
+	/**
+	 * Convert markup to terminal output (observer view - third person).
+	 */
+	public static String toTerminal(Safe markup) {
+		return toTerminal(markup, null);
 	}
 	
 	/**
@@ -140,7 +211,13 @@ public class Markup {
 		
 		String text = markup.content;
 		
-		// Remove all tags
+		// Remove entity tags but keep descriptions
+		text = text.replaceAll("<entity id=\"[^\"]*\">([^<]*)</entity>", "$1");
+		
+		// Handle you/notyou - keep third person (notyou) version for plain text
+		text = text.replaceAll("<you>[^<]*</you><notyou>([^<]*)</notyou>", "$1");
+		
+		// Remove all remaining tags
 		text = text.replaceAll("<[^>]+>", "");
 		
 		// Unescape entities

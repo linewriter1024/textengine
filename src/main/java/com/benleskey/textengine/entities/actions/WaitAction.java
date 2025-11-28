@@ -58,8 +58,10 @@ public class WaitAction extends Action {
 			.put(EntitySystem.M_ACTOR_NAME, actorDesc)
 			.put(WorldSystem.M_DURATION, timeRequired.toMilliseconds())
 			.text(Markup.concat(
-				Markup.escape(capitalize(actorDesc)),
-				Markup.raw(" waits for "),
+				Markup.entity(actor.getKeyId(), actorDesc),
+				Markup.raw(" "),
+				Markup.verb("wait"),
+				Markup.raw(" for "),
 				Markup.escape(durationDesc),
 				Markup.raw(".")
 			));
@@ -86,12 +88,5 @@ public class WaitAction extends Action {
 			long hours = seconds / 3600;
 			return hours + (hours == 1 ? " hour" : " hours");
 		}
-	}
-	
-	private String capitalize(String str) {
-		if (str == null || str.isEmpty()) {
-			return str;
-		}
-		return str.substring(0, 1).toUpperCase() + str.substring(1);
 	}
 }

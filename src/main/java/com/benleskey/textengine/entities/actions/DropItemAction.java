@@ -109,8 +109,10 @@ public class DropItemAction extends Action {
 			.put(ItemSystem.M_ITEM_ID, target.getKeyId())
 			.put(ItemSystem.M_ITEM_NAME, itemDesc)
 			.text(Markup.concat(
-				Markup.escape(capitalize(actorDesc)),
-				Markup.raw(" drops "),
+				Markup.entity(actor.getKeyId(), actorDesc),
+				Markup.raw(" "),
+				Markup.verb("drop"),
+				Markup.raw(" "),
 				Markup.em(itemDesc),
 				Markup.raw(".")
 			));
@@ -134,12 +136,5 @@ public class DropItemAction extends Action {
 	
 	private String getItemDescription() {
 		return getEntityDescription(target);
-	}
-	
-	private String capitalize(String str) {
-		if (str == null || str.isEmpty()) {
-			return str;
-		}
-		return str.substring(0, 1).toUpperCase() + str.substring(1);
 	}
 }
