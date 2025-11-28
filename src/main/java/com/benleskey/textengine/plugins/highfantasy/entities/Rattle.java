@@ -77,7 +77,7 @@ public class Rattle extends Item implements UsableItem {
 			.put(ItemSystem.M_ITEM_ID, this.getKeyId())
 			.put(ItemSystem.M_ITEM_NAME, itemName)
 			.text(Markup.concat(
-				Markup.entity(actor.getKeyId(), actorDesc),
+				Markup.capital(Markup.entity(actor.getKeyId(), actorDesc)),
 				Markup.raw(" "),
 				Markup.verb("shake", "shakes"),
 				Markup.raw(" "),

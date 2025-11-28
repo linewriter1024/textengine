@@ -148,7 +148,7 @@ public class TakeItemAction extends Action {
 				.put(RelationshipSystem.M_CONTAINER_ID, fromContainer.getKeyId())
 				.put(RelationshipSystem.M_CONTAINER_NAME, containerDesc)
 				.text(Markup.concat(
-					Markup.entity(actor.getKeyId(), actorDesc),
+					Markup.capital(Markup.entity(actor.getKeyId(), actorDesc)),
 					Markup.raw(" "),
 					Markup.verb("take"),
 					Markup.raw(" "),
@@ -164,7 +164,7 @@ public class TakeItemAction extends Action {
 				.put(ItemSystem.M_ITEM_ID, target.getKeyId())
 				.put(ItemSystem.M_ITEM_NAME, itemDesc)
 				.text(Markup.concat(
-					Markup.entity(actor.getKeyId(), actorDesc),
+					Markup.capital(Markup.entity(actor.getKeyId(), actorDesc)),
 					Markup.raw(" "),
 					Markup.verb("take"),
 					Markup.raw(" "),

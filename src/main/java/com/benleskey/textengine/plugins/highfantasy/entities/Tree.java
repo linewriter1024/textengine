@@ -109,7 +109,7 @@ public class Tree extends Item implements Cuttable {
 			.put("target_name", targetName)
 			.put("wood_id", wood.getKeyId())
 			.text(Markup.concat(
-				Markup.entity(actor.getKeyId(), actorDesc),
+				Markup.capital(Markup.entity(actor.getKeyId(), actorDesc)),
 				Markup.raw(" "),
 				Markup.verb("swing", "swings"),
 				Markup.raw(" "),

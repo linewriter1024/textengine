@@ -80,13 +80,13 @@ public class MoveAction extends Action {
 		String actorDesc = eds.getActorDescription(actor, ws.getCurrentTime());
 		
 		// Broadcast departure to entities in current location
-		// Using new markup: <entity id="X">name</entity> <you>leave</you><notyou>leaves</notyou>
+		// Using new markup: <capital><entity id="X">name</entity></capital> <you>leave</you><notyou>leaves</notyou>
 		bs.broadcast(actor, CommandOutput.make(BROADCAST_LEAVES)
 			.put(EntitySystem.M_ACTOR_ID, actor.getKeyId())
 			.put(EntitySystem.M_ACTOR_NAME, actorDesc)
 			.put(RelationshipSystem.M_FROM, currentLocation.getKeyId())
 			.text(Markup.concat(
-				Markup.entity(actor.getKeyId(), actorDesc),
+				Markup.capital(Markup.entity(actor.getKeyId(), actorDesc)),
 				Markup.raw(" "),
 				Markup.verb("leave", "leaves"),
 				Markup.raw(".")
@@ -103,13 +103,13 @@ public class MoveAction extends Action {
 		String destDesc = eds.getSimpleDescription(target, ws.getCurrentTime(), "somewhere");
 		
 		// Broadcast arrival to entities in destination
-		// Using new markup: <entity id="X">name</entity> <you>arrive</you><notyou>arrives</notyou>
+		// Using new markup: <capital><entity id="X">name</entity></capital> <you>arrive</you><notyou>arrives</notyou>
 		CommandOutput arrivalBroadcast = CommandOutput.make(BROADCAST_ARRIVES)
 			.put(EntitySystem.M_ACTOR_ID, actor.getKeyId())
 			.put(EntitySystem.M_ACTOR_NAME, actorDesc)
 			.put(RelationshipSystem.M_TO, target.getKeyId())
 			.text(Markup.concat(
-				Markup.entity(actor.getKeyId(), actorDesc),
+				Markup.capital(Markup.entity(actor.getKeyId(), actorDesc)),
 				Markup.raw(" "),
 				Markup.verb("arrive", "arrives"),
 				Markup.raw(" from "),

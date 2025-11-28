@@ -131,6 +131,17 @@ public class Markup {
 	}
 	
 	/**
+	 * Wrap content in a capital tag to capitalize the first letter when rendered.
+	 * 
+	 * Example: capital(entity("123", "player")) 
+	 *   -> <capital><entity id="123">player</entity></capital>
+	 *   -> renders as "You" or "Player" (first letter capitalized)
+	 */
+	public static Safe capital(Safe content) {
+		return raw("<capital>" + content.content + "</capital>");
+	}
+	
+	/**
 	 * Unescape entity codes back to their original characters.
 	 * Used when converting markup to plain text or rendering to terminal.
 	 */
@@ -158,40 +169,150 @@ public class Markup {
 			return "";
 		}
 		
-		String text = markup.content;
+		// Parse and process markup tags properly
+		String result = processMarkup(markup.content, avatarEntityId);
+		
+		// Unescape HTML entities
+		result = unescape(result);
+		
+		return result;
+	}
+	
+	/**
+	 * Process markup tags with proper parsing (not regex).
+	 * Handles: entity, you/notyou, em, capital tags.
+	 */
+	private static String processMarkup(String markup, String avatarEntityId) {
+		StringBuilder result = new StringBuilder();
+		int i = 0;
 		
 		// ANSI escape codes
 		String bold = "\033[1m";
 		String reset = "\033[0m";
 		
-		// Process entity references - replace with "you" if matching avatar, otherwise use description
-		if (avatarEntityId != null) {
-			// Match <entity id="123">description</entity> where id matches avatarEntityId
-			String pattern = "<entity id=\"" + avatarEntityId.replace("\"", "\\\"") + "\">([^<]*)</entity>";
-			text = text.replaceAll(pattern, "you");
-			
-			// Remove non-matching entity tags but keep their descriptions
-			text = text.replaceAll("<entity id=\"[^\"]*\">([^<]*)</entity>", "$1");
-			
-			// Handle you/notyou - keep "you" version
-			text = text.replaceAll("<you>([^<]*)</you><notyou>[^<]*</notyou>", "$1");
-		} else {
-			// Observer view: remove entity tags but keep descriptions
-			text = text.replaceAll("<entity id=\"[^\"]*\">([^<]*)</entity>", "$1");
-			
-			// Handle you/notyou - keep "notyou" version
-			text = text.replaceAll("<you>[^<]*</you><notyou>([^<]*)</notyou>", "$1");
+		while (i < markup.length()) {
+			if (markup.charAt(i) == '<') {
+				// Parse tag
+				int closePos = markup.indexOf('>', i);
+				if (closePos == -1) {
+					// Malformed tag, just append rest
+					result.append(markup.substring(i));
+					break;
+				}
+				
+				String tagContent = markup.substring(i + 1, closePos);
+				boolean isClosingTag = tagContent.startsWith("/");
+				String tagName = isClosingTag ? tagContent.substring(1) : tagContent.split(" ")[0];
+				
+				if (tagName.equals("entity")) {
+					// Parse entity tag: <entity id="123">description</entity>
+					String entityId = extractAttribute(tagContent, "id");
+					int endTagPos = markup.indexOf("</entity>", closePos);
+					if (endTagPos == -1) {
+						i = closePos + 1;
+						continue;
+					}
+					
+					String description = markup.substring(closePos + 1, endTagPos);
+					
+					// Replace with "you" or description based on avatarEntityId
+					if (avatarEntityId != null && entityId.equals(avatarEntityId)) {
+						result.append("you");
+					} else {
+						result.append(description);
+					}
+					
+					i = endTagPos + "</entity>".length();
+					
+				} else if (tagName.equals("you")) {
+					// Parse you/notyou pair: <you>take</you><notyou>takes</notyou>
+					int youEndPos = markup.indexOf("</you>", closePos);
+					if (youEndPos == -1) {
+						i = closePos + 1;
+						continue;
+					}
+					
+					String youText = markup.substring(closePos + 1, youEndPos);
+					
+					// Find matching <notyou>
+					int notyouStartPos = markup.indexOf("<notyou>", youEndPos);
+					int notyouEndPos = markup.indexOf("</notyou>", notyouStartPos);
+					
+					if (notyouStartPos == -1 || notyouEndPos == -1) {
+						i = youEndPos + "</you>".length();
+						continue;
+					}
+					
+					String notyouText = markup.substring(notyouStartPos + "<notyou>".length(), notyouEndPos);
+					
+					// Use appropriate text based on avatarEntityId
+					if (avatarEntityId != null) {
+						result.append(youText);
+					} else {
+						result.append(notyouText);
+					}
+					
+					i = notyouEndPos + "</notyou>".length();
+					
+				} else if (tagName.equals("em")) {
+					// Emphasis: <em>text</em>
+					result.append(bold);
+					i = closePos + 1;
+					
+				} else if (tagName.equals("/em")) {
+					result.append(reset);
+					i = closePos + 1;
+					
+				} else if (tagName.equals("capital")) {
+					// Capital: <capital>text</capital> - capitalize first letter of content
+					int endTagPos = markup.indexOf("</capital>", closePos);
+					if (endTagPos == -1) {
+						i = closePos + 1;
+						continue;
+					}
+					
+					String capitalContent = markup.substring(closePos + 1, endTagPos);
+					// Recursively process the content inside capital tag
+					String processed = processMarkup(capitalContent, avatarEntityId);
+					// Capitalize first letter
+					if (processed.length() > 0) {
+						result.append(Character.toUpperCase(processed.charAt(0)));
+						if (processed.length() > 1) {
+							result.append(processed.substring(1));
+						}
+					}
+					
+					i = endTagPos + "</capital>".length();
+					
+				} else {
+					// Unknown tag, skip it
+					i = closePos + 1;
+				}
+				
+			} else {
+				// Regular character
+				result.append(markup.charAt(i));
+				i++;
+			}
 		}
 		
-		// Replace emphasis tags with ANSI codes
-		text = text
-			.replaceAll("<em>", bold)
-			.replaceAll("</em>", reset);
+		return result.toString();
+	}
+	
+	/**
+	 * Extract attribute value from tag content.
+	 * Example: extractAttribute('entity id="123"', "id") -> "123"
+	 */
+	private static String extractAttribute(String tagContent, String attrName) {
+		String pattern = attrName + "=\"";
+		int startPos = tagContent.indexOf(pattern);
+		if (startPos == -1) return "";
 		
-		// Unescape entities
-		text = unescape(text);
+		startPos += pattern.length();
+		int endPos = tagContent.indexOf("\"", startPos);
+		if (endPos == -1) return "";
 		
-		return text;
+		return tagContent.substring(startPos, endPos);
 	}
 	
 	/**

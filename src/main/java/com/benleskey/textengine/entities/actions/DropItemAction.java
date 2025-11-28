@@ -109,7 +109,7 @@ public class DropItemAction extends Action {
 			.put(ItemSystem.M_ITEM_ID, target.getKeyId())
 			.put(ItemSystem.M_ITEM_NAME, itemDesc)
 			.text(Markup.concat(
-				Markup.entity(actor.getKeyId(), actorDesc),
+				Markup.capital(Markup.entity(actor.getKeyId(), actorDesc)),
 				Markup.raw(" "),
 				Markup.verb("drop"),
 				Markup.raw(" "),

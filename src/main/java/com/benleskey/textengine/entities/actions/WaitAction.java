@@ -58,7 +58,7 @@ public class WaitAction extends Action {
 			.put(EntitySystem.M_ACTOR_NAME, actorDesc)
 			.put(WorldSystem.M_DURATION, timeRequired.toMilliseconds())
 			.text(Markup.concat(
-				Markup.entity(actor.getKeyId(), actorDesc),
+				Markup.capital(Markup.entity(actor.getKeyId(), actorDesc)),
 				Markup.raw(" "),
 				Markup.verb("wait"),
 				Markup.raw(" for "),

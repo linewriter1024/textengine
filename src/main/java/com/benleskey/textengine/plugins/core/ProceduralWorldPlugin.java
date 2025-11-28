@@ -161,6 +161,13 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		Actor actor = findOrCreatePlayerActor();
 		client.setEntity(actor);
 		
+		// Add a rattle to player's starting inventory
+		com.benleskey.textengine.plugins.highfantasy.entities.Rattle rattle = 
+			com.benleskey.textengine.plugins.highfantasy.entities.Rattle.create(game, random);
+		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
+		rs.add(actor, rattle, rs.rvContains);
+		log.log("Added rattle %d to player %d's starting inventory", rattle.getId(), actor.getId());
+		
 		// Send initial look command so player sees where they are
 		CommandInput lookCommand = game.inputLineToCommandInput("look");
 		game.feedCommand(client, lookCommand);
