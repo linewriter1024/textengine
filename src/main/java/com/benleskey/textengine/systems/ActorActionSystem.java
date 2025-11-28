@@ -206,7 +206,22 @@ Game.class, Actor.class, Entity.class, DTime.class);
 				actor.getId(), actionType, actionId, timeRequired.toMilliseconds(), 
 				currentTime.toMilliseconds(), currentTime.toMilliseconds() + timeRequired.toMilliseconds());
 		}
-	}	/**
+	}
+	
+	/**
+	 * Validate whether an action can be executed without actually queueing it.
+	 * Returns the created action if valid, null if invalid.
+	 * Useful for NPCs to pre-check actions before queueing.
+	 */
+	public ActionValidation validateAction(Actor actor, UniqueType actionType, Entity target, DTime timeRequired) {
+		Action action = createAction(actionType, actor, target, timeRequired);
+		if (action == null) {
+			return ActionValidation.failure("invalid_action_type", "Unknown action type");
+		}
+		return action.canExecute();
+	}
+	
+	/**
 	 * Execute an action.
 	 */
 	public boolean executeAction(Actor actor, UniqueType actionType, Entity target, DTime timeRequired) {

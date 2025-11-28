@@ -163,44 +163,6 @@ printf "look\ngo north\nlook\nquit\n" | mvn -q exec:java ...
 
 **Use `log`, not `game.log`** for automatic plugin name prefix.
 
-## Action Validation
-
-**Actions must validate before execution.** Both player commands and NPC AI use the same validation logic.
-
-```java
-// Action classes implement canExecute()
-public class TakeItemAction extends Action {
-    @Override
-    public ActionValidation canExecute() {
-        // Check TAG_TAKEABLE, weight limits, etc.
-        if (!is.hasTag(target, is.TAG_TAKEABLE, ws.getCurrentTime())) {
-            return ActionValidation.failure(ERR_NOT_TAKEABLE, "Not takeable");
-        }
-        return ActionValidation.success();
-    }
-}
-
-// ActorActionSystem checks before executing
-ActionValidation validation = action.canExecute();
-if (!validation.isValid()) {
-    return false; // Don't execute
-}
-
-// NPCs pre-validate before queueing
-TakeItemAction testAction = new TakeItemAction(game, this, item, time);
-if (testAction.canExecute().isValid()) {
-    aas.queueAction(this, aas.ACTION_ITEM_TAKE, item, time);
-}
-
-// Players use same validation in command handlers
-ActionValidation validation = new TakeItemAction(game, actor, item, time).canExecute();
-if (!validation.isValid()) {
-    client.sendOutput(CommandOutput.make(TAKE).error(validation.getErrorCode())...);
-}
-```
-
-**No duplication**: Same validation logic for players and NPCs.
-
 ## Key Rules
 
 1. Never pass systems as parameters
