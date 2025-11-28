@@ -108,32 +108,69 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 			.map(vd -> vd.getEntity())
 			.toList();
 		
-		// Combine exits and landmarks for matching
-		List<Entity> allDestinations = new java.util.ArrayList<>(exitDestinations);
-		allDestinations.addAll(distantLandmarks);
-		
-		// Resolve the user input to a destination (exit or landmark)
-		Entity matchedDestination = ds.resolveEntity(
-			client,
-			userInput,
-			allDestinations,
+	// Combine exits and landmarks for matching
+	List<Entity> allDestinations = new java.util.ArrayList<>(exitDestinations);
+	allDestinations.addAll(distantLandmarks);
+	
+	// Resolve the user input to a destination (exit or landmark)
+	DisambiguationSystem.ResolutionResult<Entity> result = ds.resolveEntityWithAmbiguity(
+		client,
+		userInput,
+		allDestinations,
+		destination -> {
+			// Get the description of the destination place
+			var looks = game.getSystem(com.benleskey.textengine.systems.LookSystem.class)
+				.getLooksFromEntity(destination, ws.getCurrentTime());
+			return !looks.isEmpty() ? looks.get(0).getDescription() : null;
+		}
+	);
+	
+	if (result.isNotFound()) {
+		client.sendOutput(CommandOutput.make(M_GO_FAIL)
+			.put(M_GO_ERROR, "no_exit")
+			.text(Markup.escape("You can't go that way.")));
+		return;
+	}
+	
+	if (result.isAmbiguous()) {
+		// Multiple matches - show disambiguation
+		DisambiguationSystem.DisambiguatedList list = ds.buildDisambiguatedList(
+			result.getAmbiguousMatches(),
 			destination -> {
-				// Get the description of the destination place
 				var looks = game.getSystem(com.benleskey.textengine.systems.LookSystem.class)
 					.getLooksFromEntity(destination, ws.getCurrentTime());
 				return !looks.isEmpty() ? looks.get(0).getDescription() : null;
 			}
 		);
 		
-		if (matchedDestination == null) {
-			// Ambiguous or no match
-			client.sendOutput(CommandOutput.make(M_GO_FAIL)
-				.put(M_GO_ERROR, "no_exit")
-				.text(Markup.escape("You can't go that way.")));
-			return;
-		}
+		// Update client's numeric ID map
+		client.setNumericIdMap(list.getNumericIdMap());
 		
-		// Check if the matched destination is a landmark (not a direct exit)
+		// Format output
+		java.util.List<Markup.Safe> parts = new java.util.ArrayList<>();
+		parts.add(Markup.raw("Which "));
+		parts.add(Markup.em(userInput));
+		parts.add(Markup.raw(" did you mean? "));
+		
+		List<Markup.Safe> itemParts = list.getMarkupParts();
+		for (int i = 0; i < itemParts.size(); i++) {
+			parts.add(itemParts.get(i));
+			if (i < itemParts.size() - 1) {
+				parts.add(Markup.raw(", "));
+			}
+			if (i == itemParts.size() - 2) {
+				parts.add(Markup.raw("or "));
+			}
+		}
+		parts.add(Markup.raw("?"));
+		
+		client.sendOutput(CommandOutput.make(M_GO_FAIL)
+			.put(M_GO_ERROR, "ambiguous")
+			.text(Markup.concat(parts.toArray(new Markup.Safe[0]))));
+		return;
+	}
+	
+	Entity matchedDestination = result.getUniqueMatch();		// Check if the matched destination is a landmark (not a direct exit)
 		boolean isLandmark = distantLandmarks.contains(matchedDestination);
 		
 		com.benleskey.textengine.model.ConnectionDescriptor matchedExit = null;
