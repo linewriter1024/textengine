@@ -4,7 +4,8 @@ applyTo: "**"
 
 # Text Engine Mission
 
-**Reference**: https://benleskey.com/blog/textengine_intro
+**Reference**: https://benleskey.com/blog/textengine_intro  
+**Philosophy Document**: [PHILOSOPHY.md](/home/user/projects/textengine/PHILOSOPHY.md)
 
 ## Core Philosophy
 
