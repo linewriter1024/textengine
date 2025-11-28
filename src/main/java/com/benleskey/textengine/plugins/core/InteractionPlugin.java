@@ -84,11 +84,9 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 		game.registerCommand(new Command(LOOK, (client, input) -> {
 			Entity entity = client.getEntity().orElse(null);
 			if (entity != null) {
-				LookSystem ls = game.getSystem(LookSystem.class);
-				VisibilitySystem vs = game.getSystem(VisibilitySystem.class);
-				ConnectionSystem cs = game.getSystem(ConnectionSystem.class);
 				RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 				WorldSystem ws = game.getSystem(WorldSystem.class);
+				LookSystem ls = game.getSystem(LookSystem.class);
 
 				// Get current location
 				var containers = rs.getProvidingRelationships(entity, rs.rvContains, ws.getCurrentTime());
@@ -96,16 +94,16 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 				if (!containers.isEmpty()) {
 					Entity currentLocation = containers.get(0).getProvider();
 					
-					// Check if looking at a specific target
-					java.util.Optional<Object> targetOpt = input.getO(M_LOOK_TARGET);
-					if (targetOpt.isPresent()) {
-						// Look at specific direction/place
-						String target = targetOpt.get().toString().toLowerCase();
-						lookAtTarget(client, currentLocation, target, ls, cs, ws);
-					} else {
-						// Look at current location (normal look)
-						performNormalLook(client, entity, currentLocation, ls, vs, cs, rs, ws);
-					}
+				// Check if looking at a specific target
+				java.util.Optional<Object> targetOpt = input.getO(M_LOOK_TARGET);
+				if (targetOpt.isPresent()) {
+					// Look at specific direction/place
+					String target = targetOpt.get().toString().toLowerCase();
+					lookAtTarget(client, currentLocation, target);
+				} else {
+					// Look at current location (normal look)
+					performNormalLook(client, entity, currentLocation);
+				}
 				} else {
 					client.sendOutput(buildLookOutput(ls.getSeenLooks(entity).stream()
 						.collect(Collectors.groupingBy(LookDescriptor::getEntity))));
@@ -122,8 +120,7 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 	/**
 	 * Look at a specific target (direction, exit, or distant landmark).
 	 */
-	private void lookAtTarget(Client client, Entity currentLocation, String target, 
-			LookSystem ls, ConnectionSystem cs, WorldSystem ws) {
+	private void lookAtTarget(Client client, Entity currentLocation, String target) {
 		
 		Entity actor = client.getEntity().orElse(null);
 		if (actor == null) {
@@ -131,11 +128,17 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 			return;
 		}
 		
+		LookSystem ls = game.getSystem(LookSystem.class);
+		ConnectionSystem cs = game.getSystem(ConnectionSystem.class);
+		WorldSystem ws = game.getSystem(WorldSystem.class);
+		VisibilitySystem vs = game.getSystem(VisibilitySystem.class);
+		DisambiguationSystem ds = game.getSystem(DisambiguationSystem.class);
+		SpatialSystem spatialSystem = game.getSystem(SpatialSystem.class);
+		
 		// Get available exits from current location
 		List<ConnectionDescriptor> exits = cs.getConnections(currentLocation, ws.getCurrentTime());
 		
 		// Get distant landmarks visible from here
-		VisibilitySystem vs = game.getSystem(VisibilitySystem.class);
 		List<Entity> distantLandmarks = vs.getVisibleEntities(actor).stream()
 			.filter(vd -> vd.getDistanceLevel() == VisibilitySystem.VisibilityLevel.DISTANT)
 			.map(vd -> vd.getEntity())
@@ -150,7 +153,6 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 		allTargets.addAll(distantLandmarks);
 		
 		// Use DisambiguationSystem to resolve the target
-		DisambiguationSystem ds = game.getSystem(DisambiguationSystem.class);
 		Entity matchedTarget = ds.resolveEntity(
 			client,
 			target,
@@ -187,7 +189,6 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 			String landmarkDescription = landmarkLooks.get(0).getDescription();
 			
 			// Find the nearest exit that moves toward this landmark using spatial pathfinding
-			SpatialSystem spatialSystem = game.getSystem(SpatialSystem.class);
 			Entity closestExit = spatialSystem.findClosestToTarget(
 				SpatialSystem.SCALE_CONTINENT, exitDestinations, matchedTarget);
 			
@@ -276,11 +277,15 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 	}
 	
 	/**
-	 * Perform normal look (at current location).
+	 * Perform a normal look at the current location.
 	 */
-	private void performNormalLook(Client client, Entity entity, Entity currentLocation,
-			LookSystem ls, VisibilitySystem vs, ConnectionSystem cs, 
-			RelationshipSystem rs, WorldSystem ws) {
+	private void performNormalLook(Client client, Entity entity, Entity currentLocation) {
+		
+		LookSystem ls = game.getSystem(LookSystem.class);
+		VisibilitySystem vs = game.getSystem(VisibilitySystem.class);
+		ConnectionSystem cs = game.getSystem(ConnectionSystem.class);
+		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
+		WorldSystem ws = game.getSystem(WorldSystem.class);
 		
 		// Get current location description
 		List<LookDescriptor> locationLooks = ls.getLooksFromEntity(currentLocation, ws.getCurrentTime());
@@ -339,7 +344,7 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 				e -> ls.getLooksFromEntity(e, ws.getCurrentTime())
 			));
 		
-		client.sendOutput(buildEnhancedLookOutput(client, locationLooks, exits, nearbyLooks, itemLooks, distantLooks, ls, rs, ws));
+		client.sendOutput(buildEnhancedLookOutput(client, locationLooks, exits, nearbyLooks, itemLooks, distantLooks));
 	}
 
 	private CommandOutput buildEnhancedLookOutput(
@@ -348,11 +353,12 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 		List<ConnectionDescriptor> exits,
 		Map<Entity, List<LookDescriptor>> nearbyLooks,
 		Map<Entity, List<LookDescriptor>> itemLooks,
-		Map<Entity, List<LookDescriptor>> distantLooks,
-		LookSystem ls,
-		RelationshipSystem rs,
-		WorldSystem ws
+		Map<Entity, List<LookDescriptor>> distantLooks
 	) {
+		LookSystem ls = game.getSystem(LookSystem.class);
+		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
+		WorldSystem ws = game.getSystem(WorldSystem.class);
+		
 		CommandOutput output = CommandOutput.make(M_LOOK);
 		java.util.List<Markup.Safe> parts = new java.util.ArrayList<>();
 

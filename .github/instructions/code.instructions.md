@@ -6,6 +6,62 @@ applyTo: "**"
 
 This document captures important patterns, gotchas, and non-obvious implementation details discovered during development.
 
+## System Access Patterns
+
+### Never Pass Systems as Parameters
+
+**Critical**: Don't pass game systems around as method parameters. Fetch them locally where needed.
+
+```java
+// ❌ BAD: Passing systems as parameters
+private void handleCommand(Client client, LookSystem ls, WorldSystem ws, RelationshipSystem rs) {
+    // ...
+}
+
+private void helperMethod(Entity entity, LookSystem ls, WorldSystem ws) {
+    // ...
+}
+
+// ✅ GOOD: Fetch systems locally in each method
+private void handleCommand(Client client) {
+    LookSystem ls = game.getSystem(LookSystem.class);
+    WorldSystem ws = game.getSystem(WorldSystem.class);
+    RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
+    // ...
+}
+
+private void helperMethod(Entity entity) {
+    LookSystem ls = game.getSystem(LookSystem.class);
+    WorldSystem ws = game.getSystem(WorldSystem.class);
+    // ...
+}
+```
+
+**Why**: 
+- **Cleaner signatures**: Methods have fewer parameters, making them easier to call and understand
+- **Self-documenting**: Each method clearly shows which systems it uses
+- **Flexible**: Easy to add/remove system dependencies without changing method signatures
+- **No performance penalty**: System lookup is a HashMap.get() operation
+
+**Pattern**: Fetch systems at the top of each method that needs them, not once at a high level and passed down.
+
+**Alternative**: You can also store frequently-used systems as class-level fields if preferred:
+```java
+public class MyPlugin extends Plugin {
+    private LookSystem ls;
+    private WorldSystem ws;
+    
+    @Override
+    public void onPluginInitialize() {
+        ls = game.getSystem(LookSystem.class);
+        ws = game.getSystem(WorldSystem.class);
+        // Now use ls and ws in methods without fetching each time
+    }
+}
+```
+
+Both patterns are acceptable—choose based on readability and how often systems are accessed.
+
 ## Error Handling
 
 ### Never Hide Errors
