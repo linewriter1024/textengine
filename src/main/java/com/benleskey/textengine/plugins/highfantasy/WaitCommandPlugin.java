@@ -7,11 +7,13 @@ import com.benleskey.textengine.commands.Command;
 import com.benleskey.textengine.commands.CommandInput;
 import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.commands.CommandVariant;
+import com.benleskey.textengine.entities.actions.ActionValidation;
 import com.benleskey.textengine.hooks.core.OnCoreSystemsReady;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.plugins.core.EntityPlugin;
 import com.benleskey.textengine.plugins.core.ProceduralWorldPlugin;
+import com.benleskey.textengine.systems.ActorActionSystem;
 import com.benleskey.textengine.systems.WorldSystem;
 import com.benleskey.textengine.util.Markup;
 
@@ -116,8 +118,18 @@ public class WaitCommandPlugin extends Plugin implements OnCoreSystemsReady {
 		// Get current time before waiting
 		DTime beforeTime = this.worldSystem.getCurrentTime();
 		
-		// Advance time
-		this.worldSystem.incrementCurrentTime(DTime.fromSeconds(seconds));
+		// Queue wait action (time advancement happens inside queueAction for players)
+		ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
+		ActionValidation validation = aas.queueAction(
+			(com.benleskey.textengine.entities.Actor) actor, 
+			aas.ACTION_WAIT, 
+			actor, // target is unused for wait action
+			DTime.fromSeconds(seconds));
+		
+		if (!validation.isValid()) {
+			client.sendOutput(validation.getErrorOutput());
+			return;
+		}
 		
 		// Get new time after waiting
 		DTime afterTime = this.worldSystem.getCurrentTime();

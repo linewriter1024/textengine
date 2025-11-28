@@ -142,19 +142,17 @@ public class Goblin extends Actor implements Acting {
 		// Decide: drop if carrying items, otherwise take
 		if (!env.itemsCarried.isEmpty() && (pickupableItems.isEmpty() || random.nextBoolean())) {
 			Entity itemToDrop = env.itemsCarried.get(random.nextInt(env.itemsCarried.size()));
-			log.log("Goblin %d: queueing drop of item %d", getId(), itemToDrop.getId());
-			aas.queueAction(this, aas.ACTION_ITEM_DROP, itemToDrop, DTime.fromSeconds(30));
+			log.log("Goblin %d: attempting drop of item %d", getId(), itemToDrop.getId());
+			ActionValidation dropResult = aas.queueAction(this, aas.ACTION_ITEM_DROP, itemToDrop, DTime.fromSeconds(30));
+			if (!dropResult.isValid()) {
+				log.log("Goblin %d: failed to drop item %d - %s", getId(), itemToDrop.getId(), dropResult.getErrorCode());
+			}
 		} else if (!pickupableItems.isEmpty()) {
 			Entity itemToTake = pickupableItems.get(random.nextInt(pickupableItems.size()));
-			
-			// Validate action before queueing
-			ActionValidation validation = aas.validateAction(this, aas.ACTION_ITEM_TAKE, itemToTake, DTime.fromSeconds(30));
-			
-			if (validation.isValid()) {
-				log.log("Goblin %d: queueing take of item %d", getId(), itemToTake.getId());
-				aas.queueAction(this, aas.ACTION_ITEM_TAKE, itemToTake, DTime.fromSeconds(30));
-			} else {
-				log.log("Goblin %d: cannot take item %d - %s", getId(), itemToTake.getId(), validation.getErrorMessage());
+			log.log("Goblin %d: attempting take of item %d", getId(), itemToTake.getId());
+			ActionValidation takeResult = aas.queueAction(this, aas.ACTION_ITEM_TAKE, itemToTake, DTime.fromSeconds(30));
+			if (!takeResult.isValid()) {
+				log.log("Goblin %d: failed to take item %d - %s", getId(), itemToTake.getId(), takeResult.getErrorCode());
 			}
 		} else {
 			log.log("Goblin %d: nothing to do with items", getId());

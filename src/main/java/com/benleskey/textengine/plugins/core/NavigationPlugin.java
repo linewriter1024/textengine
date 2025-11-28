@@ -7,6 +7,7 @@ import com.benleskey.textengine.commands.Command;
 import com.benleskey.textengine.commands.CommandInput;
 import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.commands.CommandVariant;
+import com.benleskey.textengine.entities.actions.ActionValidation;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
@@ -218,18 +219,15 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		Entity destination = matchedExit.getTo();
 		worldGen.ensurePlaceHasNeighbors(destination);
 
-		// Use ActorActionSystem to execute the move action
+		// Use ActorActionSystem to queue the move action
 		ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
 		DTime moveTime = DTime.fromSeconds(60);
 		
-		// Queue and execute the action (for players, time auto-advances)
-		aas.queueAction((com.benleskey.textengine.entities.Actor) actor, aas.ACTION_MOVE, destination, moveTime);
-		boolean moved = aas.executeAction((com.benleskey.textengine.entities.Actor) actor, aas.ACTION_MOVE, destination, moveTime);
+		// Queue the action (validation + execution happens inside for players)
+		ActionValidation validation = aas.queueAction((com.benleskey.textengine.entities.Actor) actor, aas.ACTION_MOVE, destination, moveTime);
 		
-		if (!moved) {
-			client.sendOutput(CommandOutput.make(M_GO_FAIL)
-				.put(CommandOutput.M_ERROR, ERR_PLAYER_NOWHERE)
-				.text(Markup.escape("You are nowhere. This should not happen.")));
+		if (!validation.isValid()) {
+			client.sendOutput(validation.getErrorOutput());
 			return;
 		}
 

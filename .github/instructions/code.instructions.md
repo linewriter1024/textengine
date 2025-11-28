@@ -129,6 +129,40 @@ client.sendOutput(CommandOutput.make(TAKE)
 // ❌ BAD - don't use M_SUCCESS or "success" fields
 ```
 
+## Action System
+
+**Actions generate their own validation errors. Players and NPCs use the same path.**
+
+```java
+// Action.canExecute() returns ActionValidation with CommandOutput
+@Override
+public ActionValidation canExecute() {
+    if (!isValid) {
+        return ActionValidation.failure(
+            CommandOutput.make("take")
+                .error("too_heavy")
+                .text(Markup.concat(...)));
+    }
+    return ActionValidation.success();
+}
+
+// Player commands: queue action, send result
+ActionValidation result = aas.queueAction(actor, ACTION_TAKE, item, time);
+if (!result.isValid()) {
+    client.sendOutput(result.getErrorOutput());
+    return;
+}
+client.sendOutput(CommandOutput.make(TAKE).text("You take..."));
+
+// NPCs: queue action, log if failed
+ActionValidation result = aas.queueAction(this, ACTION_TAKE, item, time);
+if (!result.isValid()) {
+    log.log("Cannot take: %s", result.getErrorCode());
+}
+```
+
+**Players auto-execute actions immediately with time advancement. NPCs queue for later execution.**
+
 ## Entity References
 
 - **Disambiguation IDs** (1, 2, 3): Temporary, context-specific from ambiguous matches
@@ -173,7 +207,8 @@ printf "look\ngo north\nlook\nquit\n" | mvn -q exec:java ...
 6. Test with scripted input
 7. Use plugin log for context
 8. **Never store state in entity instance fields - use relationships/properties**
-9. **Actions validate via canExecute() - no duplication between player/NPC logic**
+9. **Actions validate and generate their own error messages**
+10. **Players queue actions (auto-execute with time advance); NPCs queue for later**
 
 ## Entity Lifecycle
 

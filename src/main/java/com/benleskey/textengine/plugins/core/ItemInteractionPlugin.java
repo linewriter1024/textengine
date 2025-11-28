@@ -328,69 +328,16 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		}
 		DTime actionTime = DTime.fromSeconds(timeSeconds);
 		
-		// Use ActorActionSystem to validate the action
+		// Queue the action (validation + execution happens inside)
 		ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
-		ActionValidation validation = aas.validateAction((com.benleskey.textengine.entities.Actor) actor, aas.ACTION_ITEM_TAKE, item, actionTime);
+		ActionValidation validation = aas.queueAction((com.benleskey.textengine.entities.Actor) actor, aas.ACTION_ITEM_TAKE, item, actionTime);
 		
 		if (!validation.isValid()) {
-			// Map generic error codes to specific user-facing errors
-			String errorCode = validation.getErrorCode();
-			
-			if ("not_takeable".equals(errorCode)) {
-				client.sendOutput(CommandOutput.make(TAKE)
-					.error(ERR_NOT_TAKEABLE)
-					.text(Markup.concat(
-						Markup.raw("You can't take "),
-						Markup.em(itemName),
-						Markup.raw(".")
-					)));
-			} else if ("too_heavy".equals(errorCode)) {
-				Long itemWeightGrams = is.getTagValue(item, is.TAG_WEIGHT, ws.getCurrentTime());
-				Long carryWeightGrams = is.getTagValue(actor, is.TAG_CARRY_WEIGHT, ws.getCurrentTime());
-				com.benleskey.textengine.model.DWeight itemWeight = com.benleskey.textengine.model.DWeight.fromGrams(itemWeightGrams);
-				com.benleskey.textengine.model.DWeight carryWeight = com.benleskey.textengine.model.DWeight.fromGrams(carryWeightGrams);
-				
-				client.sendOutput(CommandOutput.make(TAKE)
-					.error(ERR_TOO_HEAVY)
-					.put(M_WEIGHT, itemWeightGrams)
-					.put(M_CARRY_WEIGHT, carryWeightGrams)
-					.text(Markup.concat(
-						Markup.em(itemName.substring(0, 1).toUpperCase() + itemName.substring(1)),
-						Markup.raw(" is too heavy to carry. It weighs "),
-						Markup.escape(itemWeight.toString()),
-						Markup.raw(", but you can only carry up to "),
-						Markup.escape(carryWeight.toString()),
-						Markup.raw(".")
-					)));
-			} else {
-				// Generic error fallback
-				client.sendOutput(CommandOutput.make(TAKE)
-					.error(ERR_CANNOT_TAKE)
-					.text(Markup.concat(
-						Markup.raw("You can't take "),
-						Markup.em(itemName),
-						Markup.raw(". "),
-						Markup.escape(validation.getErrorMessage())
-					)));
-			}
+			client.sendOutput(validation.getErrorOutput());
 			return;
 		}
 		
-		// Queue and execute the take action
-		aas.queueAction((com.benleskey.textengine.entities.Actor) actor, aas.ACTION_ITEM_TAKE, item, actionTime);
-		boolean success = aas.executeAction((com.benleskey.textengine.entities.Actor) actor, aas.ACTION_ITEM_TAKE, item, actionTime);
-		
-		if (!success) {
-			client.sendOutput(CommandOutput.make(TAKE)
-				.error(ERR_CANNOT_TAKE)
-				.text(Markup.concat(
-					Markup.raw("You can't take "),
-					Markup.em(itemName),
-					Markup.raw(".")
-				)));
-			return;
-		}
-		
+		// Success
 		client.sendOutput(CommandOutput.make(TAKE)
 			.put(M_ENTITY_ID, String.valueOf(item.getId()))
 			.put(M_ITEM_NAME, itemName)
@@ -473,40 +420,18 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		List<LookDescriptor> looks = ls.getLooksFromEntity(targetItem, ws.getCurrentTime());
 		String itemName = !looks.isEmpty() ? looks.get(0).getDescription() : "the item";
 		
-		// Use ActorActionSystem to validate and execute the drop action
+		// Queue the action (validation + execution happens inside)
 		ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
 		DTime dropTime = DTime.fromSeconds(5);
 		
-		// Validate the action first
-		ActionValidation validation = aas.validateAction((com.benleskey.textengine.entities.Actor) actor, aas.ACTION_ITEM_DROP, targetItem, dropTime);
+		ActionValidation validation = aas.queueAction((com.benleskey.textengine.entities.Actor) actor, aas.ACTION_ITEM_DROP, targetItem, dropTime);
 		
 		if (!validation.isValid()) {
-			client.sendOutput(CommandOutput.make(DROP)
-				.error(ERR_CANNOT_DROP)
-				.text(Markup.concat(
-					Markup.raw("You can't drop "),
-					Markup.em(itemName),
-					Markup.raw(". "),
-					Markup.escape(validation.getErrorMessage())
-				)));
+			client.sendOutput(validation.getErrorOutput());
 			return;
 		}
 		
-		// Queue and execute the drop action
-		aas.queueAction((com.benleskey.textengine.entities.Actor) actor, aas.ACTION_ITEM_DROP, targetItem, dropTime);
-		boolean success = aas.executeAction((com.benleskey.textengine.entities.Actor) actor, aas.ACTION_ITEM_DROP, targetItem, dropTime);
-		
-		if (!success) {
-			client.sendOutput(CommandOutput.make(DROP)
-				.error(ERR_CANNOT_DROP)
-				.text(Markup.concat(
-					Markup.raw("You can't drop "),
-					Markup.em(itemName),
-					Markup.raw(".")
-				)));
-			return;
-		}
-		
+		// Success
 		client.sendOutput(CommandOutput.make(DROP)
 			.put(M_ENTITY_ID, String.valueOf(targetItem.getId()))
 			.put(M_ITEM_NAME, itemName)

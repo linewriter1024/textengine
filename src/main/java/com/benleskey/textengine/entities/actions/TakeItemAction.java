@@ -34,15 +34,32 @@ public class TakeItemAction extends Action {
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		
+		// Get item description for error messages
+		String itemName = getItemDescription();
+		
 		// Check if item still exists and has a container
 		var itemContainers = rs.getProvidingRelationships(target, rs.rvContains, ws.getCurrentTime());
 		if (itemContainers.isEmpty()) {
-			return ActionValidation.failure("item_not_found", "Item no longer exists or has no location");
+			return ActionValidation.failure(
+				CommandOutput.make("take")
+					.error("item_not_found")
+					.text(Markup.concat(
+						Markup.raw("You can't find "),
+						Markup.em(itemName),
+						Markup.raw(".")
+					)));
 		}
 		
 		// Check if item is takeable
 		if (!is.hasTag(target, is.TAG_TAKEABLE, ws.getCurrentTime())) {
-			return ActionValidation.failure("not_takeable", "Item cannot be taken");
+			return ActionValidation.failure(
+				CommandOutput.make("take")
+					.error("not_takeable")
+					.text(Markup.concat(
+						Markup.raw("You can't take "),
+						Markup.em(itemName),
+						Markup.raw(".")
+					)));
 		}
 		
 		// Check weight constraints
@@ -54,8 +71,19 @@ public class TakeItemAction extends Action {
 			com.benleskey.textengine.model.DWeight carryWeight = com.benleskey.textengine.model.DWeight.fromGrams(carryWeightGrams);
 			
 			if (itemWeight.isGreaterThan(carryWeight)) {
-				return ActionValidation.failure("too_heavy", 
-					"Item weighs " + itemWeight + " but actor can only carry " + carryWeight);
+				return ActionValidation.failure(
+					CommandOutput.make("take")
+						.error("too_heavy")
+						.put("weight", itemWeightGrams)
+						.put("carry_weight", carryWeightGrams)
+						.text(Markup.concat(
+							Markup.em(capitalize(itemName)),
+							Markup.raw(" is too heavy to carry. It weighs "),
+							Markup.escape(itemWeight.toString()),
+							Markup.raw(", but you can only carry up to "),
+							Markup.escape(carryWeight.toString()),
+							Markup.raw(".")
+						)));
 			}
 		}
 		

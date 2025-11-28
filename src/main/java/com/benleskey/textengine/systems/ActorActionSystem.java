@@ -2,6 +2,7 @@ package com.benleskey.textengine.systems;
 
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.SingletonGameSystem;
+import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.entities.Acting;
 import com.benleskey.textengine.entities.Actor;
 import com.benleskey.textengine.entities.actions.*;
@@ -11,6 +12,7 @@ import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.Reference;
 import com.benleskey.textengine.model.UniqueType;
+import com.benleskey.textengine.util.Markup;
 
 import java.lang.reflect.Constructor;
 import java.sql.PreparedStatement;
@@ -45,6 +47,7 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 	public UniqueType ACTION_MOVE;
 	public UniqueType ACTION_ITEM_TAKE;
 	public UniqueType ACTION_ITEM_DROP;
+	public UniqueType ACTION_WAIT;
 	
 	// Tag for Acting entities
 	public UniqueType TAG_ACTING;
@@ -96,6 +99,7 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 		ACTION_MOVE = uts.getType("action_move");
 		ACTION_ITEM_TAKE = uts.getType("action_item_take");
 		ACTION_ITEM_DROP = uts.getType("action_item_drop");
+		ACTION_WAIT = uts.getType("action_wait");
 		
 		// Define tags
 		TAG_ACTING = uts.getType("entity_tag_acting");
@@ -105,6 +109,7 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 		registerActionType(ACTION_MOVE, MoveAction.class);
 		registerActionType(ACTION_ITEM_TAKE, TakeItemAction.class);
 		registerActionType(ACTION_ITEM_DROP, DropItemAction.class);
+		registerActionType(ACTION_WAIT, WaitAction.class);
 	}
 	
 	/**
@@ -172,20 +177,47 @@ Game.class, Actor.class, Entity.class, DTime.class);
 	
 	/**
 	 * Queue an action for an actor.
+	 * Validates the action first. If invalid, returns the validation result with error output.
 	 * Players: auto-advance time and execute immediately.
 	 * NPCs: store in database for later execution.
+	 * 
+	 * @return ActionValidation indicating success or failure with error output for players
 	 */
-	public void queueAction(Actor actor, UniqueType actionType, Entity target, DTime timeRequired) throws DatabaseException {
+	public ActionValidation queueAction(Actor actor, UniqueType actionType, Entity target, DTime timeRequired) throws DatabaseException {
+		// Validate the action first
+		Action action = createAction(actionType, actor, target, timeRequired);
+		if (action == null) {
+			return ActionValidation.failure(
+				CommandOutput.make("action")
+					.error("invalid_action_type")
+					.text(Markup.escape("That action doesn't exist.")));
+		}
+		
+		ActionValidation validation = action.canExecute();
+		if (!validation.isValid()) {
+			log.log("Actor %d cannot queue %s action: %s", 
+				actor.getId(), actionType, validation.getErrorCode());
+			return validation;
+		}
+		
 		DTime currentTime = worldSystem.getCurrentTime();
 		boolean isPlayer = entityTagSystem.hasTag(actor, entitySystem.TAG_AVATAR, currentTime);
 		
 		if (isPlayer) {
 			// Players execute immediately with time auto-advance
 			worldSystem.incrementCurrentTime(timeRequired);
-			log.log("Player %d action %s completed instantly (advanced time by %d ms)", 
-				actor.getId(), actionType, timeRequired.toMilliseconds());
+			boolean success = action.execute();
+			log.log("Player %d action %s %s (advanced time by %d ms)", 
+				actor.getId(), actionType, success ? "succeeded" : "failed", timeRequired.toMilliseconds());
+			
+			if (!success) {
+				return ActionValidation.failure(
+					CommandOutput.make("action")
+						.error("execution_failed")
+						.text(Markup.escape("Something went wrong.")));
+			}
 		} else {
-			// NPCs queue action in database
+			// NPCs queue action in database for later execution
 			long actionId = game.getNewGlobalId();
 			
 			try (PreparedStatement ps = game.db().prepareStatement(
@@ -206,23 +238,13 @@ Game.class, Actor.class, Entity.class, DTime.class);
 				actor.getId(), actionType, actionId, timeRequired.toMilliseconds(), 
 				currentTime.toMilliseconds(), currentTime.toMilliseconds() + timeRequired.toMilliseconds());
 		}
-	}
-	
-	/**
-	 * Validate whether an action can be executed without actually queueing it.
-	 * Returns the created action if valid, null if invalid.
-	 * Useful for NPCs to pre-check actions before queueing.
-	 */
-	public ActionValidation validateAction(Actor actor, UniqueType actionType, Entity target, DTime timeRequired) {
-		Action action = createAction(actionType, actor, target, timeRequired);
-		if (action == null) {
-			return ActionValidation.failure("invalid_action_type", "Unknown action type");
-		}
-		return action.canExecute();
+		
+		return ActionValidation.success();
 	}
 	
 	/**
 	 * Execute an action.
+	 * Used internally for NPC action execution.
 	 */
 	public boolean executeAction(Actor actor, UniqueType actionType, Entity target, DTime timeRequired) {
 		Action action = createAction(actionType, actor, target, timeRequired);
@@ -233,7 +255,7 @@ Game.class, Actor.class, Entity.class, DTime.class);
 		// Check if action can be executed
 		ActionValidation validation = action.canExecute();
 		if (!validation.isValid()) {
-			log.log("Actor %d cannot execute %s action: %s", actor.getId(), actionType, validation.getErrorMessage());
+			log.log("Actor %d cannot execute %s action: %s", actor.getId(), actionType, validation.getErrorCode());
 			return false;
 		}
 		

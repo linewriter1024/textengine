@@ -32,16 +32,28 @@ public class DropItemAction extends Action {
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		
+		String itemName = getItemDescription();
+		
 		// Verify actor has the item
 		var itemContainers = rs.getProvidingRelationships(target, rs.rvContains, ws.getCurrentTime());
 		if (itemContainers.isEmpty() || !itemContainers.get(0).getProvider().equals(actor)) {
-			return ActionValidation.failure("not_carrying", "Actor is not carrying this item");
+			return ActionValidation.failure(
+				CommandOutput.make("drop")
+					.error("not_carrying")
+					.text(Markup.concat(
+						Markup.raw("You aren't carrying "),
+						Markup.em(itemName),
+						Markup.raw(".")
+					)));
 		}
 		
 		// Check if actor has a location to drop into
 		var actorContainers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
 		if (actorContainers.isEmpty()) {
-			return ActionValidation.failure("nowhere", "Actor has no location to drop item into");
+			return ActionValidation.failure(
+				CommandOutput.make("drop")
+					.error("nowhere")
+					.text(Markup.escape("You are nowhere.")));
 		}
 		
 		return ActionValidation.success();

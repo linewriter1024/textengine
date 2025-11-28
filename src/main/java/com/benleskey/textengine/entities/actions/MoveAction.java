@@ -36,14 +36,20 @@ public class MoveAction extends Action {
 		// Check if actor has a current location
 		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
 		if (containers.isEmpty()) {
-			return ActionValidation.failure("nowhere", "Actor has no current location");
+			return ActionValidation.failure(
+				CommandOutput.make("go")
+					.error("nowhere")
+					.text(Markup.escape("You are nowhere.")));
 		}
 		
 		// Check if destination still exists
 		try {
 			es.get(target.getId());
 		} catch (Exception e) {
-			return ActionValidation.failure("destination_not_found", "Destination no longer exists");
+			return ActionValidation.failure(
+				CommandOutput.make("go")
+					.error("destination_not_found")
+					.text(Markup.escape("That destination doesn't exist.")));
 		}
 		
 		return ActionValidation.success();
