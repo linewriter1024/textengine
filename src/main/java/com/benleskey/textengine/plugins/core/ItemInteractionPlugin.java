@@ -10,6 +10,7 @@ import com.benleskey.textengine.commands.CommandVariant;
 import com.benleskey.textengine.entities.Item;
 import com.benleskey.textengine.entities.UsableItem;
 import com.benleskey.textengine.entities.UsableOnTarget;
+import com.benleskey.textengine.entities.actions.ActionValidation;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
@@ -317,27 +318,38 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		List<LookDescriptor> looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
 		String itemName = !looks.isEmpty() ? looks.get(0).getDescription() : "the item";
 		
-		// Check if item is takeable
-		if (!is.hasTag(item, is.TAG_TAKEABLE, ws.getCurrentTime())) {
-			client.sendOutput(CommandOutput.make(TAKE)
-				.error(ERR_NOT_TAKEABLE)
-				.text(Markup.concat(
-					Markup.raw("You can't take "),
-					Markup.em(itemName),
-					Markup.raw(".")
-				)));
-			return;
+		// Calculate time for action - base 5s + 1s per kg
+		ItemSystem itemSystem = game.getSystem(ItemSystem.class);
+		Long weightGrams = itemSystem.getTagValue(item, itemSystem.TAG_WEIGHT, ws.getCurrentTime());
+		long timeSeconds = 5;
+		if (weightGrams != null) {
+			long weightKg = weightGrams / 1000;
+			timeSeconds = 5 + weightKg;
 		}
+		DTime actionTime = DTime.fromSeconds(timeSeconds);
 		
-		// Check weight constraints
-		Long itemWeightGrams = is.getTagValue(item, is.TAG_WEIGHT, ws.getCurrentTime());
-		Long carryWeightGrams = is.getTagValue(actor, is.TAG_CARRY_WEIGHT, ws.getCurrentTime());
+		// Use ActorActionSystem to validate the action
+		ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
+		ActionValidation validation = aas.validateAction((com.benleskey.textengine.entities.Actor) actor, aas.ACTION_ITEM_TAKE, item, actionTime);
 		
-		if (itemWeightGrams != null && carryWeightGrams != null) {
-			com.benleskey.textengine.model.DWeight itemWeight = com.benleskey.textengine.model.DWeight.fromGrams(itemWeightGrams);
-			com.benleskey.textengine.model.DWeight carryWeight = com.benleskey.textengine.model.DWeight.fromGrams(carryWeightGrams);
+		if (!validation.isValid()) {
+			// Map generic error codes to specific user-facing errors
+			String errorCode = validation.getErrorCode();
 			
-			if (itemWeight.isGreaterThan(carryWeight)) {
+			if ("not_takeable".equals(errorCode)) {
+				client.sendOutput(CommandOutput.make(TAKE)
+					.error(ERR_NOT_TAKEABLE)
+					.text(Markup.concat(
+						Markup.raw("You can't take "),
+						Markup.em(itemName),
+						Markup.raw(".")
+					)));
+			} else if ("too_heavy".equals(errorCode)) {
+				Long itemWeightGrams = is.getTagValue(item, is.TAG_WEIGHT, ws.getCurrentTime());
+				Long carryWeightGrams = is.getTagValue(actor, is.TAG_CARRY_WEIGHT, ws.getCurrentTime());
+				com.benleskey.textengine.model.DWeight itemWeight = com.benleskey.textengine.model.DWeight.fromGrams(itemWeightGrams);
+				com.benleskey.textengine.model.DWeight carryWeight = com.benleskey.textengine.model.DWeight.fromGrams(carryWeightGrams);
+				
 				client.sendOutput(CommandOutput.make(TAKE)
 					.error(ERR_TOO_HEAVY)
 					.put(M_WEIGHT, itemWeightGrams)
@@ -350,22 +362,21 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 						Markup.escape(carryWeight.toString()),
 						Markup.raw(".")
 					)));
-				return;
+			} else {
+				// Generic error fallback
+				client.sendOutput(CommandOutput.make(TAKE)
+					.error(ERR_CANNOT_TAKE)
+					.text(Markup.concat(
+						Markup.raw("You can't take "),
+						Markup.em(itemName),
+						Markup.raw(". "),
+						Markup.escape(validation.getErrorMessage())
+					)));
 			}
+			return;
 		}
 		
-		// Calculate time for action - base 5s + 1s per kg
-		ItemSystem itemSystem = game.getSystem(ItemSystem.class);
-		Long weightGrams = itemSystem.getTagValue(item, itemSystem.TAG_WEIGHT, ws.getCurrentTime());
-		long timeSeconds = 5;
-		if (weightGrams != null) {
-			long weightKg = weightGrams / 1000;
-			timeSeconds = 5 + weightKg;
-		}
-		DTime actionTime = DTime.fromSeconds(timeSeconds);
-		
-		// Use ActorActionSystem to execute the take action
-		ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
+		// Queue and execute the take action
 		aas.queueAction((com.benleskey.textengine.entities.Actor) actor, aas.ACTION_ITEM_TAKE, item, actionTime);
 		boolean success = aas.executeAction((com.benleskey.textengine.entities.Actor) actor, aas.ACTION_ITEM_TAKE, item, actionTime);
 		
@@ -462,10 +473,26 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		List<LookDescriptor> looks = ls.getLooksFromEntity(targetItem, ws.getCurrentTime());
 		String itemName = !looks.isEmpty() ? looks.get(0).getDescription() : "the item";
 		
-		// Use ActorActionSystem to execute the drop action
+		// Use ActorActionSystem to validate and execute the drop action
 		ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
 		DTime dropTime = DTime.fromSeconds(5);
 		
+		// Validate the action first
+		ActionValidation validation = aas.validateAction((com.benleskey.textengine.entities.Actor) actor, aas.ACTION_ITEM_DROP, targetItem, dropTime);
+		
+		if (!validation.isValid()) {
+			client.sendOutput(CommandOutput.make(DROP)
+				.error(ERR_CANNOT_DROP)
+				.text(Markup.concat(
+					Markup.raw("You can't drop "),
+					Markup.em(itemName),
+					Markup.raw(". "),
+					Markup.escape(validation.getErrorMessage())
+				)));
+			return;
+		}
+		
+		// Queue and execute the drop action
 		aas.queueAction((com.benleskey.textengine.entities.Actor) actor, aas.ACTION_ITEM_DROP, targetItem, dropTime);
 		boolean success = aas.executeAction((com.benleskey.textengine.entities.Actor) actor, aas.ACTION_ITEM_DROP, targetItem, dropTime);
 		
