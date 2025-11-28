@@ -179,10 +179,25 @@ public class Markup {
 	}
 	
 	/**
+	 * State for markup processing to track whether the last entity was the avatar.
+	 */
+	private static class MarkupState {
+		boolean lastEntityWasAvatar = false;
+	}
+	
+	/**
 	 * Process markup tags with proper parsing (not regex).
 	 * Handles: entity, you/notyou, em, capital tags.
 	 */
 	private static String processMarkup(String markup, String avatarEntityId) {
+		MarkupState state = new MarkupState();
+		return processMarkupWithState(markup, avatarEntityId, state);
+	}
+	
+	/**
+	 * Process markup tags with state tracking.
+	 */
+	private static String processMarkupWithState(String markup, String avatarEntityId, MarkupState state) {
 		StringBuilder result = new StringBuilder();
 		int i = 0;
 		
@@ -218,8 +233,10 @@ public class Markup {
 					// Replace with "you" or description based on avatarEntityId
 					if (avatarEntityId != null && entityId.equals(avatarEntityId)) {
 						result.append("you");
+						state.lastEntityWasAvatar = true; // Track that this entity was the avatar
 					} else {
 						result.append(description);
+						state.lastEntityWasAvatar = false; // Track that this entity was NOT the avatar
 					}
 					
 					i = endTagPos + "</entity>".length();
@@ -245,8 +262,8 @@ public class Markup {
 					
 					String notyouText = markup.substring(notyouStartPos + "<notyou>".length(), notyouEndPos);
 					
-					// Use appropriate text based on avatarEntityId
-					if (avatarEntityId != null) {
+					// Use appropriate text based on whether last entity was the avatar
+					if (state.lastEntityWasAvatar) {
 						result.append(youText);
 					} else {
 						result.append(notyouText);
@@ -272,8 +289,8 @@ public class Markup {
 					}
 					
 					String capitalContent = markup.substring(closePos + 1, endTagPos);
-					// Recursively process the content inside capital tag
-					String processed = processMarkup(capitalContent, avatarEntityId);
+					// Recursively process the content inside capital tag, passing state
+					String processed = processMarkupWithState(capitalContent, avatarEntityId, state);
 					// Capitalize first letter
 					if (processed.length() > 0) {
 						result.append(Character.toUpperCase(processed.charAt(0)));
