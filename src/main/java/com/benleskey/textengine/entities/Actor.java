@@ -14,6 +14,7 @@ public class Actor extends Entity {
 	/**
 	 * Receive a broadcast event from another entity.
 	 * Relays the broadcast to this actor's client, if one exists.
+	 * For player avatars, filters the broadcast through AvatarBroadcastSystem.
 	 * 
 	 * @param output The broadcast output to relay
 	 */
@@ -22,7 +23,13 @@ public class Actor extends Entity {
 		// Find the client controlling this actor
 		for (Client client : game.getClients()) {
 			if (client.getEntity().isPresent() && client.getEntity().get().getId() == this.getId()) {
-				client.sendOutput(output);
+				// Filter broadcast for player avatars
+				CommandOutput filtered = game.getSystem(com.benleskey.textengine.systems.AvatarBroadcastSystem.class)
+					.filterBroadcast(this, output);
+				
+				if (filtered != null) {
+					client.sendOutput(filtered);
+				}
 				break;
 			}
 		}

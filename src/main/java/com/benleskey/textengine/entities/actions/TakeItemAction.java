@@ -112,7 +112,7 @@ public class TakeItemAction extends Action {
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		BroadcastSystem bs = game.getSystem(BroadcastSystem.class);
-		ActorDescriptionSystem ads = game.getSystem(ActorDescriptionSystem.class);
+		EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
 		
 		// Verify item exists and has a container
 		var itemContainers = rs.getProvidingRelationships(target, rs.rvContains, ws.getCurrentTime());
@@ -123,7 +123,7 @@ public class TakeItemAction extends Action {
 		Entity fromContainer = itemContainers.get(0).getProvider();
 		
 		// Get descriptions
-		String actorDesc = ads.getActorDescription(actor, ws.getCurrentTime());
+		String actorDesc = eds.getActorDescription(actor, ws.getCurrentTime());
 		String itemDesc = getItemDescription();
 		
 		// Remove from old container

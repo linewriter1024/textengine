@@ -245,16 +245,16 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 	}
 	
 	private void registerItemDescriptions() {
-		ItemDescriptionSystem ids = game.getSystem(ItemDescriptionSystem.class);
+		EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
 		ItemSystem is = game.getSystem(ItemSystem.class);
 		
 		// Register descriptions for common item tags
-		ids.registerTagDescription(is.TAG_INFINITE_RESOURCE, "This resource is abundant here.");
-		ids.registerTagDescription(is.TAG_CONTAINER, "It can hold other items.");
-		ids.registerTagDescription(is.TAG_TOOL, "This appears to be a tool.");
-		ids.registerTagDescription(is.TAG_CUT, "It looks sharp enough to cut things.");
-		ids.registerTagDescription(is.TAG_CUTTABLE, "It could be cut down.");
-		ids.registerTagDescription(is.TAG_TOY, "It looks like a toy.");
+		eds.registerTagDescription(is.TAG_INFINITE_RESOURCE, "This resource is abundant here.");
+		eds.registerTagDescription(is.TAG_CONTAINER, "It can hold other items.");
+		eds.registerTagDescription(is.TAG_TOOL, "This appears to be a tool.");
+		eds.registerTagDescription(is.TAG_CUT, "It looks sharp enough to cut things.");
+		eds.registerTagDescription(is.TAG_CUTTABLE, "It could be cut down.");
+		eds.registerTagDescription(is.TAG_TOY, "It looks like a toy.");
 		
 		log.log("Registered item tag descriptions");
 	}

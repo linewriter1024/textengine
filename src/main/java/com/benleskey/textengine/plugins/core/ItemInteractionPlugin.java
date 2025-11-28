@@ -19,7 +19,7 @@ import com.benleskey.textengine.model.RelationshipDescriptor;
 import com.benleskey.textengine.systems.ActorActionSystem;
 import com.benleskey.textengine.systems.DisambiguationSystem;
 import com.benleskey.textengine.systems.EntitySystem;
-import com.benleskey.textengine.systems.ItemDescriptionSystem;
+import com.benleskey.textengine.systems.EntityDescriptionSystem;
 import com.benleskey.textengine.systems.ItemSystem;
 import com.benleskey.textengine.systems.LookSystem;
 import com.benleskey.textengine.systems.RelationshipSystem;
@@ -429,7 +429,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		LookSystem ls = game.getSystem(LookSystem.class);
 		ItemSystem is = game.getSystem(ItemSystem.class);
-		ItemDescriptionSystem ids = game.getSystem(ItemDescriptionSystem.class);
+		EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
 		
 		// Get items from both inventory and current location
 		List<Entity> availableItems = new java.util.ArrayList<>();
@@ -497,7 +497,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		examineMarkup.add(Markup.raw(". "));
 		
 		// Add tag-based descriptions on same line with space separation
-		List<String> tagDescriptions = ids.getDescriptions(targetItem, ws.getCurrentTime());
+		List<String> tagDescriptions = eds.getTagDescriptions(targetItem, ws.getCurrentTime());
 		for (int i = 0; i < tagDescriptions.size(); i++) {
 			if (i > 0) {
 				examineMarkup.add(Markup.raw(" ")); // Space between descriptions

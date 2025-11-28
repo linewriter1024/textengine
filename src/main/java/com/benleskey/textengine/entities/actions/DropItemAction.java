@@ -74,7 +74,7 @@ public class DropItemAction extends Action {
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		BroadcastSystem bs = game.getSystem(BroadcastSystem.class);
-		ActorDescriptionSystem ads = game.getSystem(ActorDescriptionSystem.class);
+		EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
 		
 		// Verify actor has the item
 		var itemContainers = rs.getProvidingRelationships(target, rs.rvContains, ws.getCurrentTime());
@@ -91,7 +91,7 @@ public class DropItemAction extends Action {
 		Entity currentLocation = actorContainers.get(0).getProvider();
 		
 		// Get descriptions
-		String actorDesc = ads.getActorDescription(actor, ws.getCurrentTime());
+		String actorDesc = eds.getActorDescription(actor, ws.getCurrentTime());
 		String itemDesc = getItemDescription();
 		
 		// Remove from actor

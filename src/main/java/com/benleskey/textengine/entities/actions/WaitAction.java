@@ -7,8 +7,8 @@ import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.UniqueType;
 import com.benleskey.textengine.systems.ActorActionSystem;
-import com.benleskey.textengine.systems.ActorDescriptionSystem;
 import com.benleskey.textengine.systems.BroadcastSystem;
+import com.benleskey.textengine.systems.EntityDescriptionSystem;
 import com.benleskey.textengine.systems.WorldSystem;
 import com.benleskey.textengine.util.Markup;
 
@@ -45,9 +45,9 @@ public class WaitAction extends Action {
 	public CommandOutput execute() {
 		BroadcastSystem bs = game.getSystem(BroadcastSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
-		ActorDescriptionSystem ads = game.getSystem(ActorDescriptionSystem.class);
+		EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
 		
-		String actorDesc = ads.getActorDescription(actor, ws.getCurrentTime());
+		String actorDesc = eds.getActorDescription(actor, ws.getCurrentTime());
 		String durationDesc = getDurationDescription();
 		
 		// Broadcast to all entities including the actor

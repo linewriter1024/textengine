@@ -230,12 +230,11 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 			client.sendOutput(validation.getErrorOutput());
 			return;
 		}
-
-		// Build the navigation message for the player
-		Markup.Safe message;
 		
+		// Success - action has already broadcast the result to player
+		
+		// For pathfinding toward landmarks, send context message (not a broadcast)
 		if (isLandmark) {
-			// Navigating toward a distant landmark - show the actual destination and the landmark
 			var destinationLooks = game.getSystem(com.benleskey.textengine.systems.LookSystem.class)
 				.getLooksFromEntity(destination, ws.getCurrentTime());
 			String destinationDesc = !destinationLooks.isEmpty() ? destinationLooks.get(0).getDescription() : "there";
@@ -244,35 +243,17 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 				.getLooksFromEntity(matchedDestination, ws.getCurrentTime());
 			String landmarkDesc = !landmarkLooks.isEmpty() ? landmarkLooks.get(0).getDescription() : "the landmark";
 			
-			message = Markup.concat(
-				Markup.raw("You head toward "),
-				Markup.em(destinationDesc),
-				Markup.raw(", moving closer to "),
-				Markup.em(landmarkDesc),
-				Markup.raw(".")
-			);
-		} else {
-			// Normal navigation - show the destination
-			var destinationLooks = game.getSystem(com.benleskey.textengine.systems.LookSystem.class)
-				.getLooksFromEntity(destination, ws.getCurrentTime());
-			String destinationDesc = !destinationLooks.isEmpty() ? destinationLooks.get(0).getDescription() : "there";
-			
-			message = Markup.concat(
-				Markup.raw("You go to "),
-				Markup.em(destinationDesc),
-				Markup.raw(".")
-			);
+			client.sendOutput(CommandOutput.make("navigation_context")
+				.put("destination", destinationDesc)
+				.put("landmark", landmarkDesc)
+				.text(Markup.concat(
+					Markup.raw("You head toward "),
+					Markup.em(destinationDesc),
+					Markup.raw(", moving closer to "),
+					Markup.em(landmarkDesc),
+					Markup.raw(".")
+				)));
 		}
-
-		// Get the destination description for the output message
-		var destinationLooks = game.getSystem(com.benleskey.textengine.systems.LookSystem.class)
-			.getLooksFromEntity(destination, ws.getCurrentTime());
-		String exitDescription = !destinationLooks.isEmpty() ? destinationLooks.get(0).getDescription() : "unknown";
-
-		client.sendOutput(CommandOutput.make(M_GO_SUCCESS)
-			.put(M_GO_DESTINATION, destination.getKeyId())
-			.put(M_GO_EXIT, exitDescription)
-			.text(message));
 		
 		// Automatically look around the new location
 		game.feedCommand(client, CommandInput.make(LOOK));

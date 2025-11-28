@@ -71,7 +71,7 @@ public class MoveAction extends Action {
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		BroadcastSystem bs = game.getSystem(BroadcastSystem.class);
-		ActorDescriptionSystem ads = game.getSystem(ActorDescriptionSystem.class);
+		EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
 		
 		// Get current location
 		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
@@ -82,7 +82,7 @@ public class MoveAction extends Action {
 		Entity currentLocation = containers.get(0).getProvider();
 		
 		// Get actor description
-		String actorDesc = ads.getActorDescription(actor, ws.getCurrentTime());
+		String actorDesc = eds.getActorDescription(actor, ws.getCurrentTime());
 		
 		// Broadcast departure to entities in current location
 		bs.broadcast(actor, CommandOutput.make(BROADCAST_LEAVES)

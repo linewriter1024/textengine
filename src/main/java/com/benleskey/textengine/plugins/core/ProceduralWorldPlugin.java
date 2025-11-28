@@ -80,7 +80,7 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		game.registerSystem(new PlaceDescriptionSystem(game));
 		game.registerSystem(new ItemTemplateSystem(game));
 		game.registerSystem(new LandmarkTemplateSystem(game));
-		game.registerSystem(new ItemDescriptionSystem(game));
+		// ItemDescriptionSystem replaced by EntityDescriptionSystem (registered in EntityPlugin)
 	}
 	
 	@Override
