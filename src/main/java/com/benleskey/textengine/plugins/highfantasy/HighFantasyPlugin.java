@@ -105,20 +105,24 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 	/**
 	 * Register tag-based interactions for high fantasy items.
 	 * This defines what happens when TAG_CUT is used on TAG_CUTTABLE.
+	 * Note: Interactions that use BroadcastSystem handle their own messaging,
+	 * so the return value is used only for error cases or client-specific responses.
 	 */
 	private void registerTagInteractions() {
 
 		// Register cutting interaction: TAG_CUT + TAG_CUTTABLE
 		tagInteractionSystem.registerInteraction(itemSystem.TAG_CUT, itemSystem.TAG_CUTTABLE, (actor, tool, toolName, target, targetName) -> {
 			// If target implements Cuttable interface, delegate to it
+			// The Cuttable implementation handles broadcasting to nearby entities
 			if (target instanceof Cuttable cuttable) {
 				return cuttable.onCut(actor, tool, toolName, targetName);
 			}
 			
 			// Default behavior if target doesn't implement Cuttable
+			// This simple case returns output directly (could be enhanced with broadcast)
 			return com.benleskey.textengine.commands.CommandOutput.make("use")
-				.put("item", tool.getKeyId())
-				.put("target", target.getKeyId())
+				.put(ItemSystem.M_ITEM_ID, tool.getKeyId())
+				.put(RelationshipSystem.M_TARGET, target.getKeyId())
 				.text(com.benleskey.textengine.util.Markup.concat(
 					com.benleskey.textengine.util.Markup.raw("You use "),
 					com.benleskey.textengine.util.Markup.em(toolName),

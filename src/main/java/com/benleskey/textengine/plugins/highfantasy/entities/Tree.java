@@ -5,6 +5,8 @@ import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.entities.Item;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.plugins.highfantasy.Cuttable;
+import com.benleskey.textengine.systems.BroadcastSystem;
+import com.benleskey.textengine.systems.EntityDescriptionSystem;
 import com.benleskey.textengine.systems.EntitySystem;
 import com.benleskey.textengine.systems.EventSystem;
 import com.benleskey.textengine.systems.ItemSystem;
@@ -21,6 +23,9 @@ import java.util.Random;
  */
 public class Tree extends Item implements Cuttable {
 	
+	// Command and broadcast constants
+	public static final String CMD_CUT_TREE = "cut_tree";
+	public static final String BROADCAST_CUTS_TREE = "actor_cuts_tree";
 	// Error codes
 	private static final String ERR_TREE_NOWHERE = "tree_nowhere";
 	
@@ -63,11 +68,13 @@ public class Tree extends Item implements Cuttable {
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		EventSystem evs = game.getSystem(EventSystem.class);
+		BroadcastSystem bs = game.getSystem(BroadcastSystem.class);
+		EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
 		
 		// Find current location
 		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
 		if (containers.isEmpty()) {
-			return CommandOutput.make("use")
+			return CommandOutput.make(CMD_CUT_TREE)
 				.put(CommandOutput.M_ERROR, ERR_TREE_NOWHERE)
 				.text(Markup.escape("You are nowhere."));
 		}
@@ -88,18 +95,39 @@ public class Tree extends Item implements Cuttable {
 			evs.cancelEvent(treeContainment.get(0).getRelationship());
 		}
 		
-		// Return output for the actor (broadcasting handled by TagInteractionSystem)
-		return CommandOutput.make("use")
-			.put("item", tool.getKeyId())
-			.put("target", this.getKeyId())
+		// Get actor description for broadcast
+		String actorDesc = eds.getSimpleDescription(actor, ws.getCurrentTime(), "someone");
+		
+		// Broadcast to all entities in location (including the actor)
+		CommandOutput broadcast = CommandOutput.make(BROADCAST_CUTS_TREE)
+			.put(EntitySystem.M_ACTOR_ID, actor.getKeyId())
+			.put(EntitySystem.M_ACTOR_NAME, actorDesc)
+			.put(ItemSystem.M_ITEM_ID, tool.getKeyId())
+			.put(ItemSystem.M_ITEM_NAME, toolName)
+			.put(RelationshipSystem.M_TARGET, this.getKeyId())
+			.put("target_name", targetName)
+			.put("wood_id", wood.getKeyId())
 			.text(Markup.concat(
-				Markup.raw("You swing "),
+				Markup.escape(capitalize(actorDesc)),
+				Markup.raw(" swings "),
 				Markup.em(toolName),
 				Markup.raw(" at "),
 				Markup.em(targetName),
-				Markup.raw(". After some effort, you cut it down and produce "),
+				Markup.raw(". After some effort, "),
+				Markup.escape(actorDesc),
+				Markup.raw(" cuts it down and produces "),
 				Markup.em("a piece of wood"),
 				Markup.raw(".")
 			));
+		
+		bs.broadcast(actor, broadcast);
+		return broadcast;
+	}
+	
+	private String capitalize(String str) {
+		if (str == null || str.isEmpty()) {
+			return str;
+		}
+		return str.substring(0, 1).toUpperCase() + str.substring(1);
 	}
 }
