@@ -1,6 +1,7 @@
 package com.benleskey.textengine.entities.actions;
 
 import com.benleskey.textengine.Game;
+import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.entities.Actor;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
@@ -50,11 +51,11 @@ public abstract class Action {
 	/**
 	 * Execute this action.
 	 * Called when the action's time requirement is met.
-	 * Should broadcast messages to nearby entities using BroadcastSystem.
+	 * Should return CommandOutput that will be broadcast to the actor and nearby entities.
 	 * 
-	 * @return true if action succeeded, false if it failed (e.g., target no longer exists)
+	 * @return CommandOutput to broadcast (both to actor and nearby entities), or null if action failed
 	 */
-	public abstract boolean execute();
+	public abstract CommandOutput execute();
 	
 	/**
 	 * Check if this action can be executed.

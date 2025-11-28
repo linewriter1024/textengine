@@ -18,6 +18,16 @@ import java.util.List;
  */
 public class DropItemAction extends Action {
 	
+	// Command and message constants
+	public static final String CMD_DROP = "drop";
+	public static final String ERR_NOT_CARRYING = "not_carrying";
+	public static final String ERR_NOWHERE = "nowhere";
+	public static final String BROADCAST_DROPS = "actor_drops";
+	public static final String M_ACTOR_ID = "actor_id";
+	public static final String M_ACTOR_NAME = "actor_name";
+	public static final String M_ITEM_ID = "item_id";
+	public static final String M_ITEM_NAME = "item_name";
+	
 	public DropItemAction(Game game, Actor actor, Entity item, DTime timeRequired) {
 		super(game, actor, item, timeRequired);
 	}
@@ -38,8 +48,8 @@ public class DropItemAction extends Action {
 		var itemContainers = rs.getProvidingRelationships(target, rs.rvContains, ws.getCurrentTime());
 		if (itemContainers.isEmpty() || !itemContainers.get(0).getProvider().equals(actor)) {
 			return ActionValidation.failure(
-				CommandOutput.make("drop")
-					.error("not_carrying")
+				CommandOutput.make(CMD_DROP)
+					.error(ERR_NOT_CARRYING)
 					.text(Markup.concat(
 						Markup.raw("You aren't carrying "),
 						Markup.em(itemName),
@@ -51,8 +61,8 @@ public class DropItemAction extends Action {
 		var actorContainers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
 		if (actorContainers.isEmpty()) {
 			return ActionValidation.failure(
-				CommandOutput.make("drop")
-					.error("nowhere")
+				CommandOutput.make(CMD_DROP)
+					.error(ERR_NOWHERE)
 					.text(Markup.escape("You are nowhere.")));
 		}
 		
@@ -60,27 +70,28 @@ public class DropItemAction extends Action {
 	}
 	
 	@Override
-	public boolean execute() {
+	public CommandOutput execute() {
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		BroadcastSystem bs = game.getSystem(BroadcastSystem.class);
+		ActorDescriptionSystem ads = game.getSystem(ActorDescriptionSystem.class);
 		
 		// Verify actor has the item
 		var itemContainers = rs.getProvidingRelationships(target, rs.rvContains, ws.getCurrentTime());
 		if (itemContainers.isEmpty() || !itemContainers.get(0).getProvider().equals(actor)) {
-			return false; // Actor doesn't have this item
+			return null; // Actor doesn't have this item
 		}
 		
 		// Get current location
 		var actorContainers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
 		if (actorContainers.isEmpty()) {
-			return false; // Actor has no location
+			return null; // Actor has no location
 		}
 		
 		Entity currentLocation = actorContainers.get(0).getProvider();
 		
 		// Get descriptions
-		String actorDesc = getActorDescription();
+		String actorDesc = ads.getActorDescription(actor, ws.getCurrentTime());
 		String itemDesc = getItemDescription();
 		
 		// Remove from actor
@@ -90,41 +101,27 @@ public class DropItemAction extends Action {
 		// Add to current location
 		rs.add(currentLocation, target, rs.rvContains);
 		
-		// Broadcast action
-		bs.broadcast(actor, CommandOutput.make("actor_drops")
-			.put("actor_id", actor.getKeyId())
-			.put("actor_name", actorDesc)
-			.put("item_id", target.getKeyId())
-			.put("item_name", itemDesc)
+		// Broadcast to all entities including the actor
+		CommandOutput broadcast = CommandOutput.make(BROADCAST_DROPS)
+			.put(M_ACTOR_ID, actor.getKeyId())
+			.put(M_ACTOR_NAME, actorDesc)
+			.put(M_ITEM_ID, target.getKeyId())
+			.put(M_ITEM_NAME, itemDesc)
 			.text(Markup.concat(
 				Markup.escape(capitalize(actorDesc)),
 				Markup.raw(" drops "),
 				Markup.em(itemDesc),
 				Markup.raw(".")
-			)));
+			));
 		
-		return true;
+		bs.broadcast(actor, broadcast);
+		return broadcast;
 	}
 	
 	@Override
 	public String getDescription() {
 		String itemDesc = getItemDescription();
 		return "dropping " + itemDesc;
-	}
-	
-	private String getActorDescription() {
-		LookSystem ls = game.getSystem(LookSystem.class);
-		WorldSystem ws = game.getSystem(WorldSystem.class);
-		
-		List<LookDescriptor> looks = ls.getLooksFromEntity(actor, ws.getCurrentTime());
-		if (!looks.isEmpty()) {
-			String desc = looks.get(0).getDescription();
-			if (!desc.startsWith("a ") && !desc.startsWith("an ") && !desc.startsWith("the ")) {
-				return "a " + desc;
-			}
-			return desc;
-		}
-		return "someone";
 	}
 	
 	private String getItemDescription() {

@@ -61,6 +61,13 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 	private EntitySystem entitySystem;
 	private EntityTagSystem entityTagSystem;
 	
+	// Prepared statements
+	private PreparedStatement insertActionStatement;
+	private PreparedStatement loadActionStatement;
+	private PreparedStatement getPendingActionStatement;
+	private PreparedStatement getActionReadyTimeStatement;
+	private PreparedStatement getActingEntitiesStatement;
+	
 	public ActorActionSystem(Game game) {
 		super(game);
 	}
@@ -105,6 +112,41 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 		TAG_ACTING = uts.getType("entity_tag_acting");
 		TAG_LAST_ACTION_CHECK = uts.getType("entity_tag_last_action_check");
 		
+		// Prepare SQL statements
+		try {
+			insertActionStatement = game.db().prepareStatement(
+				"INSERT INTO action (action_id, actor_id, action_type, target_entity_id, time_required_ms) VALUES (?, ?, ?, ?, ?)");
+			
+			loadActionStatement = game.db().prepareStatement(
+				"SELECT actor_id, action_type, target_entity_id, time_required_ms, event.time " +
+				"FROM action " +
+				"JOIN event ON event.reference = action.action_id " +
+				"WHERE action.action_id = ? " +
+				"AND event.reference IN " + eventSystem.getValidEventsSubquery("action.action_id"));
+			
+			getPendingActionStatement = game.db().prepareStatement(
+				"SELECT action_id, event.time, time_required_ms " +
+				"FROM action " +
+				"JOIN event ON event.reference = action.action_id " +
+				"WHERE action.actor_id = ? " +
+				"AND event.reference IN " + eventSystem.getValidEventsSubquery("action.action_id") +
+				" ORDER BY event.time ASC LIMIT 1");
+			
+			getActionReadyTimeStatement = game.db().prepareStatement(
+				"SELECT event.time, time_required_ms " +
+				"FROM action " +
+				"JOIN event ON event.reference = action.action_id " +
+				"WHERE action.action_id = ?");
+			
+			getActingEntitiesStatement = game.db().prepareStatement(
+				"SELECT DISTINCT entity_id FROM entity_tag " +
+				"JOIN event ON event.reference = entity_tag.entity_tag_id " +
+				"WHERE entity_tag.entity_tag_type = ? " +
+				"AND event.reference IN " + eventSystem.getValidEventsSubquery("entity_tag.entity_tag_id"));
+		} catch (SQLException e) {
+			throw new DatabaseException("Unable to prepare action statements", e);
+		}
+		
 		// Register action classes
 		registerActionType(ACTION_MOVE, MoveAction.class);
 		registerActionType(ACTION_ITEM_TAKE, TakeItemAction.class);
@@ -123,18 +165,12 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 	/**
 	 * Create an action instance from a Reference.
 	 */
-	private Action createActionFromReference(Reference actionRef, DTime currentTime) throws DatabaseException {
-		try (PreparedStatement ps = game.db().prepareStatement(
-"SELECT actor_id, action_type, target_entity_id, time_required_ms, event.time " +
-"FROM action " +
-"JOIN event ON event.reference = action.action_id " +
-"WHERE action.action_id = ? " +
-"AND event.reference IN " + eventSystem.getValidEventsSubquery("action.action_id"))) {
+	private synchronized Action createActionFromReference(Reference actionRef, DTime currentTime) throws DatabaseException {
+		try {
+			loadActionStatement.setLong(1, actionRef.getId());
+			eventSystem.setValidEventsSubqueryParameters(loadActionStatement, 2, ACTION_MOVE, currentTime);
 			
-			ps.setLong(1, actionRef.getId());
-			eventSystem.setValidEventsSubqueryParameters(ps, 2, ACTION_MOVE, currentTime);
-			
-			try (ResultSet rs = ps.executeQuery()) {
+			try (ResultSet rs = loadActionStatement.executeQuery()) {
 				if (rs.next()) {
 					long actorId = rs.getLong("actor_id");
 					long actionTypeId = rs.getLong("action_type");
@@ -206,30 +242,32 @@ Game.class, Actor.class, Entity.class, DTime.class);
 		if (isPlayer) {
 			// Players execute immediately with time auto-advance
 			worldSystem.incrementCurrentTime(timeRequired);
-			boolean success = action.execute();
+			CommandOutput result = action.execute();
 			log.log("Player %d action %s %s (advanced time by %d ms)", 
-				actor.getId(), actionType, success ? "succeeded" : "failed", timeRequired.toMilliseconds());
+				actor.getId(), actionType, result != null ? "succeeded" : "failed", timeRequired.toMilliseconds());
 			
-			if (!success) {
+			if (result == null) {
 				return ActionValidation.failure(
 					CommandOutput.make("action")
 						.error("execution_failed")
 						.text(Markup.escape("Something went wrong.")));
 			}
+			// Result was already broadcast by the action, player will receive via broadcast
 		} else {
 			// NPCs queue action in database for later execution
 			long actionId = game.getNewGlobalId();
 			
-			try (PreparedStatement ps = game.db().prepareStatement(
-"INSERT INTO action (action_id, actor_id, action_type, target_entity_id, time_required_ms) VALUES (?, ?, ?, ?, ?)")) {
-				ps.setLong(1, actionId);
-				ps.setLong(2, actor.getId());
-				ps.setLong(3, actionType.type());
-				ps.setLong(4, target.getId());
-				ps.setLong(5, timeRequired.toMilliseconds());
-				ps.execute();
-			} catch (SQLException e) {
-				throw new DatabaseException("Unable to create action", e);
+			synchronized (this) {
+				try {
+					insertActionStatement.setLong(1, actionId);
+					insertActionStatement.setLong(2, actor.getId());
+					insertActionStatement.setLong(3, actionType.type());
+					insertActionStatement.setLong(4, target.getId());
+					insertActionStatement.setLong(5, timeRequired.toMilliseconds());
+					insertActionStatement.executeUpdate();
+				} catch (SQLException e) {
+					throw new DatabaseException("Unable to create action", e);
+				}
 			}
 			
 			eventSystem.addEvent(actionType, currentTime, new Reference(actionId, game));
@@ -259,30 +297,22 @@ Game.class, Actor.class, Entity.class, DTime.class);
 			return false;
 		}
 		
-		boolean success = action.execute();
-		log.log("Actor %d executed %s action: %s", actor.getId(), actionType, success ? "success" : "failed");
-		return success;
+		CommandOutput result = action.execute();
+		log.log("Actor %d executed %s action: %s", actor.getId(), actionType, result != null ? "success" : "failed");
+		return result != null;
 	}
 	
 	/**
 	 * Get pending action for an actor.
 	 */
-	public Reference getPendingAction(Actor actor) throws DatabaseException {
+	public synchronized Reference getPendingAction(Actor actor) throws DatabaseException {
 		DTime currentTime = worldSystem.getCurrentTime();
 		
-		try (PreparedStatement ps = game.db().prepareStatement(
-"SELECT action_id, event.time, time_required_ms " +
-"FROM action " +
-"JOIN event ON event.reference = action.action_id " +
-"WHERE action.actor_id = ? " +
-"AND event.reference IN " + eventSystem.getValidEventsSubquery("action.action_id") + 
-" ORDER BY event.time ASC " +
-"LIMIT 1")) {
+		try {
+			getPendingActionStatement.setLong(1, actor.getId());
+			eventSystem.setValidEventsSubqueryParameters(getPendingActionStatement, 2, ACTION_MOVE, currentTime);
 			
-			ps.setLong(1, actor.getId());
-			eventSystem.setValidEventsSubqueryParameters(ps, 2, ACTION_MOVE, currentTime);
-			
-			try (ResultSet rs = ps.executeQuery()) {
+			try (ResultSet rs = getPendingActionStatement.executeQuery()) {
 				if (rs.next()) {
 					long actionId = rs.getLong("action_id");
 					return new Reference(actionId, game);
@@ -298,16 +328,11 @@ Game.class, Actor.class, Entity.class, DTime.class);
 	/**
 	 * Get the time when an action will be ready to execute.
 	 */
-	public long getActionReadyTime(Reference actionRef) throws DatabaseException {
-		try (PreparedStatement ps = game.db().prepareStatement(
-			"SELECT event.time, time_required_ms " +
-			"FROM action " +
-			"JOIN event ON event.reference = action.action_id " +
-			"WHERE action.action_id = ?")) {
+	public synchronized long getActionReadyTime(Reference actionRef) throws DatabaseException {
+		try {
+			getActionReadyTimeStatement.setLong(1, actionRef.getId());
 			
-			ps.setLong(1, actionRef.getId());
-			
-			try (ResultSet rs = ps.executeQuery()) {
+			try (ResultSet rs = getActionReadyTimeStatement.executeQuery()) {
 				if (rs.next()) {
 					long createdAtMs = rs.getLong("time");
 					long timeRequiredMs = rs.getLong("time_required_ms");
@@ -336,13 +361,13 @@ Game.class, Actor.class, Entity.class, DTime.class);
 			return false;
 		}
 		
-		boolean success = action.execute();
+		CommandOutput result = action.execute();
 		eventSystem.cancelEvent(actionRef);
 		
 		log.log("Actor %d executed pending action %d: %s", actor.getId(), actionRef.getId(), 
-			success ? "success" : "failed");
+			result != null ? "success" : "failed");
 		
-		return success;
+		return result != null;
 	}
 	
 	/**
@@ -396,25 +421,22 @@ Game.class, Actor.class, Entity.class, DTime.class);
 		// Get all Acting entities
 		List<Entity> actingEntities = new ArrayList<>();
 		
-		try (PreparedStatement ps = game.db().prepareStatement(
-			"SELECT DISTINCT entity_id FROM entity_tag " +
-			"JOIN event ON event.reference = entity_tag.entity_tag_id " +
-			"WHERE entity_tag.entity_tag_type = ? " +
-			"AND event.reference IN " + eventSystem.getValidEventsSubquery("entity_tag.entity_tag_id"))) {
-			
-			ps.setLong(1, TAG_ACTING.type());
-			eventSystem.setValidEventsSubqueryParameters(ps, 2, etEntityTag, currentTime);
-			
-			try (ResultSet rs = ps.executeQuery()) {
-				while (rs.next()) {
-					Entity entity = entitySystem.get(rs.getLong("entity_id"));
-					if (entity instanceof Acting) {
-						actingEntities.add(entity);
+		synchronized (this) {
+			try {
+				getActingEntitiesStatement.setLong(1, TAG_ACTING.type());
+				eventSystem.setValidEventsSubqueryParameters(getActingEntitiesStatement, 2, etEntityTag, currentTime);
+				
+				try (ResultSet rs = getActingEntitiesStatement.executeQuery()) {
+					while (rs.next()) {
+						Entity entity = entitySystem.get(rs.getLong("entity_id"));
+						if (entity instanceof Acting) {
+							actingEntities.add(entity);
+						}
 					}
 				}
+			} catch (SQLException e) {
+				throw new DatabaseException("Unable to query acting entities", e);
 			}
-		} catch (SQLException e) {
-			throw new DatabaseException("Unable to query acting entities", e);
 		}
 		
 		// Process each Acting entity

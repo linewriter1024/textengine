@@ -314,10 +314,6 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 			item = result.getUniqueMatch();
 		}
 		
-		// Get item description
-		List<LookDescriptor> looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
-		String itemName = !looks.isEmpty() ? looks.get(0).getDescription() : "the item";
-		
 		// Calculate time for action - base 5s + 1s per kg
 		ItemSystem itemSystem = game.getSystem(ItemSystem.class);
 		Long weightGrams = itemSystem.getTagValue(item, itemSystem.TAG_WEIGHT, ws.getCurrentTime());
@@ -337,15 +333,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 			return;
 		}
 		
-		// Success
-		client.sendOutput(CommandOutput.make(TAKE)
-			.put(M_ENTITY_ID, String.valueOf(item.getId()))
-			.put(M_ITEM_NAME, itemName)
-			.text(Markup.concat(
-				Markup.raw("You take "),
-				Markup.em(itemName),
-				Markup.raw(".")
-			)));
+		// Success - action has already broadcast the result to player
 	}
 	
 	private void handleDrop(Client client, CommandInput input) {
@@ -416,10 +404,6 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		
 		Entity targetItem = result.getUniqueMatch();
 		
-		// Get item description
-		List<LookDescriptor> looks = ls.getLooksFromEntity(targetItem, ws.getCurrentTime());
-		String itemName = !looks.isEmpty() ? looks.get(0).getDescription() : "the item";
-		
 		// Queue the action (validation + execution happens inside)
 		ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
 		DTime dropTime = DTime.fromSeconds(5);
@@ -431,15 +415,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 			return;
 		}
 		
-		// Success
-		client.sendOutput(CommandOutput.make(DROP)
-			.put(M_ENTITY_ID, String.valueOf(targetItem.getId()))
-			.put(M_ITEM_NAME, itemName)
-			.text(Markup.concat(
-				Markup.raw("You drop "),
-				Markup.em(itemName),
-				Markup.raw(".")
-			)));
+		// Success - action has already broadcast the result to player
 	}
 	
 	private void handleExamine(Client client, CommandInput input) {

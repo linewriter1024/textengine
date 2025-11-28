@@ -37,7 +37,8 @@ public class BroadcastSystem extends SingletonGameSystem implements OnSystemInit
 	}
 
 	/**
-	 * Broadcast a message from an entity to all entities in the same location.
+	 * Broadcast a message from an entity to all entities in the same location, including the source.
+	 * This ensures players and NPCs receive the same messages for their own actions.
 	 * 
 	 * @param source The entity broadcasting the message
 	 * @param output The output to broadcast
@@ -59,11 +60,9 @@ public class BroadcastSystem extends SingletonGameSystem implements OnSystemInit
 			.map(RelationshipDescriptor::getReceiver)
 			.toList();
 		
-		// Broadcast to all entities (except source itself)
+		// Broadcast to all entities including source (so players see their own actions)
 		for (Entity entity : entitiesInLocation) {
-			if (entity.getId() != source.getId()) {
-				entity.receiveBroadcast(output);
-			}
+			entity.receiveBroadcast(output);
 		}
 	}
 }

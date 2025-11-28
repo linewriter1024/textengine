@@ -131,37 +131,12 @@ client.sendOutput(CommandOutput.make(TAKE)
 
 ## Action System
 
-**Actions generate their own validation errors. Players and NPCs use the same path.**
+**Actions handle their own validation and broadcast messages. Players and NPCs use the same queueAction() path.**
 
-```java
-// Action.canExecute() returns ActionValidation with CommandOutput
-@Override
-public ActionValidation canExecute() {
-    if (!isValid) {
-        return ActionValidation.failure(
-            CommandOutput.make("take")
-                .error("too_heavy")
-                .text(Markup.concat(...)));
-    }
-    return ActionValidation.success();
-}
-
-// Player commands: queue action, send result
-ActionValidation result = aas.queueAction(actor, ACTION_TAKE, item, time);
-if (!result.isValid()) {
-    client.sendOutput(result.getErrorOutput());
-    return;
-}
-client.sendOutput(CommandOutput.make(TAKE).text("You take..."));
-
-// NPCs: queue action, log if failed
-ActionValidation result = aas.queueAction(this, ACTION_TAKE, item, time);
-if (!result.isValid()) {
-    log.log("Cannot take: %s", result.getErrorCode());
-}
-```
-
-**Players auto-execute actions immediately with time advancement. NPCs queue for later execution.**
+- `canExecute()` validates and returns `ActionValidation` with error `CommandOutput`
+- `execute()` performs action and broadcasts `CommandOutput` to all nearby entities (including actor)
+- Players auto-execute with time advance; NPCs queue for later
+- Use constants (CMD_*, ERR_*, M_*) defined in action classes, not magic strings
 
 ## Entity References
 

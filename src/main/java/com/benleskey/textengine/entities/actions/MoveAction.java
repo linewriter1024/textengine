@@ -18,6 +18,17 @@ import java.util.List;
  */
 public class MoveAction extends Action {
 	
+	// Command and message constants
+	public static final String CMD_GO = "go";
+	public static final String ERR_NOWHERE = "nowhere";
+	public static final String ERR_DESTINATION_NOT_FOUND = "destination_not_found";
+	public static final String BROADCAST_LEAVES = "actor_leaves";
+	public static final String BROADCAST_ARRIVES = "actor_arrives";
+	public static final String M_ACTOR_ID = "actor_id";
+	public static final String M_ACTOR_NAME = "actor_name";
+	public static final String M_FROM = "from";
+	public static final String M_TO = "to";
+	
 	public MoveAction(Game game, Actor actor, Entity destination, DTime timeRequired) {
 		super(game, actor, destination, timeRequired);
 	}
@@ -37,8 +48,8 @@ public class MoveAction extends Action {
 		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
 		if (containers.isEmpty()) {
 			return ActionValidation.failure(
-				CommandOutput.make("go")
-					.error("nowhere")
+				CommandOutput.make(CMD_GO)
+					.error(ERR_NOWHERE)
 					.text(Markup.escape("You are nowhere.")));
 		}
 		
@@ -47,8 +58,8 @@ public class MoveAction extends Action {
 			es.get(target.getId());
 		} catch (Exception e) {
 			return ActionValidation.failure(
-				CommandOutput.make("go")
-					.error("destination_not_found")
+				CommandOutput.make(CMD_GO)
+					.error(ERR_DESTINATION_NOT_FOUND)
 					.text(Markup.escape("That destination doesn't exist.")));
 		}
 		
@@ -56,28 +67,28 @@ public class MoveAction extends Action {
 	}
 	
 	@Override
-	public boolean execute() {
+	public CommandOutput execute() {
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		BroadcastSystem bs = game.getSystem(BroadcastSystem.class);
-		LookSystem ls = game.getSystem(LookSystem.class);
+		ActorDescriptionSystem ads = game.getSystem(ActorDescriptionSystem.class);
 		
 		// Get current location
 		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
 		if (containers.isEmpty()) {
-			return false; // Actor has no location
+			return null; // Actor has no location
 		}
 		
 		Entity currentLocation = containers.get(0).getProvider();
 		
 		// Get actor description
-		String actorDesc = getActorDescription(ls, ws);
+		String actorDesc = ads.getActorDescription(actor, ws.getCurrentTime());
 		
 		// Broadcast departure to entities in current location
-		bs.broadcast(actor, CommandOutput.make("actor_leaves")
-			.put("actor_id", actor.getKeyId())
-			.put("actor_name", actorDesc)
-			.put("from", currentLocation.getKeyId())
+		bs.broadcast(actor, CommandOutput.make(BROADCAST_LEAVES)
+			.put(M_ACTOR_ID, actor.getKeyId())
+			.put(M_ACTOR_NAME, actorDesc)
+			.put(M_FROM, currentLocation.getKeyId())
 			.text(Markup.concat(
 				Markup.escape(capitalize(actorDesc)),
 				Markup.raw(" leaves.")
@@ -91,16 +102,17 @@ public class MoveAction extends Action {
 		rs.add(target, actor, rs.rvContains);
 		
 		// Broadcast arrival to entities in destination
-		bs.broadcast(actor, CommandOutput.make("actor_arrives")
-			.put("actor_id", actor.getKeyId())
-			.put("actor_name", actorDesc)
-			.put("to", target.getKeyId())
+		CommandOutput arrivalBroadcast = CommandOutput.make(BROADCAST_ARRIVES)
+			.put(M_ACTOR_ID, actor.getKeyId())
+			.put(M_ACTOR_NAME, actorDesc)
+			.put(M_TO, target.getKeyId())
 			.text(Markup.concat(
 				Markup.escape(capitalize(actorDesc)),
 				Markup.raw(" arrives.")
-			)));
+			));
 		
-		return true;
+		bs.broadcast(actor, arrivalBroadcast);
+		return arrivalBroadcast;
 	}
 	
 	@Override
@@ -112,19 +124,6 @@ public class MoveAction extends Action {
 		String destDesc = !looks.isEmpty() ? looks.get(0).getDescription() : "somewhere";
 		
 		return "moving to " + destDesc;
-	}
-	
-	private String getActorDescription(LookSystem ls, WorldSystem ws) {
-		List<LookDescriptor> looks = ls.getLooksFromEntity(actor, ws.getCurrentTime());
-		if (!looks.isEmpty()) {
-			String desc = looks.get(0).getDescription();
-			// For NPCs, add article if needed
-			if (!desc.startsWith("a ") && !desc.startsWith("an ") && !desc.startsWith("the ")) {
-				return "a " + desc;
-			}
-			return desc;
-		}
-		return "someone";
 	}
 	
 	private String capitalize(String str) {

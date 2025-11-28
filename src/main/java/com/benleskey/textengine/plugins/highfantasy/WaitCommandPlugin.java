@@ -14,7 +14,6 @@ import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.plugins.core.EntityPlugin;
 import com.benleskey.textengine.plugins.core.ProceduralWorldPlugin;
 import com.benleskey.textengine.systems.ActorActionSystem;
-import com.benleskey.textengine.systems.WorldSystem;
 import com.benleskey.textengine.util.Markup;
 
 import java.util.Set;
@@ -40,8 +39,6 @@ public class WaitCommandPlugin extends Plugin implements OnCoreSystemsReady {
 		"^(\\d+)\\s*(second|seconds|minute|minutes|hour|hours|s|m|h)?$",
 		Pattern.CASE_INSENSITIVE
 	);
-	
-	private WorldSystem worldSystem;
 
 	public WaitCommandPlugin(Game game) {
 		super(game);
@@ -54,8 +51,6 @@ public class WaitCommandPlugin extends Plugin implements OnCoreSystemsReady {
 
 	@Override
 	public void onCoreSystemsReady() {
-		worldSystem = game.getSystem(WorldSystem.class);
-		
 		game.registerCommand(new Command(WAIT, this::handleWait,
 			new CommandVariant(WAIT_DURATION, "^(?:wait)(?:\\s+(.+?))?\\s*$", this::parseWait)
 		));
@@ -115,9 +110,6 @@ public class WaitCommandPlugin extends Plugin implements OnCoreSystemsReady {
 			}
 		}
 		
-		// Get current time before waiting
-		DTime beforeTime = this.worldSystem.getCurrentTime();
-		
 		// Queue wait action (time advancement happens inside queueAction for players)
 		ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
 		ActionValidation validation = aas.queueAction(
@@ -131,37 +123,6 @@ public class WaitCommandPlugin extends Plugin implements OnCoreSystemsReady {
 			return;
 		}
 		
-		// Get new time after waiting
-		DTime afterTime = this.worldSystem.getCurrentTime();
-		
-		// Build message based on duration
-		String durationText;
-		if (seconds == 1) {
-			durationText = "1 second";
-		} else if (seconds < 60) {
-			durationText = seconds + " seconds";
-		} else if (seconds < 3600) {
-			long minutes = seconds / 60;
-			durationText = minutes + (minutes == 1 ? " minute" : " minutes");
-		} else {
-			long hours = seconds / 3600;
-			long remainingMinutes = (seconds % 3600) / 60;
-			if (remainingMinutes == 0) {
-				durationText = hours + (hours == 1 ? " hour" : " hours");
-			} else {
-				durationText = hours + (hours == 1 ? " hour" : " hours") + 
-					" and " + remainingMinutes + (remainingMinutes == 1 ? " minute" : " minutes");
-			}
-		}
-		
-		client.sendOutput(CommandOutput.make(M_WAIT)
-			.put("duration_seconds", String.valueOf(seconds))
-			.put("before_time", GameCalendar.formatFull(beforeTime))
-			.put("after_time", GameCalendar.formatFull(afterTime))
-			.text(Markup.concat(
-				Markup.raw("You wait for "),
-				Markup.em(durationText),
-				Markup.raw(".")
-			)));
+		// Success - action has already broadcast the result to player
 	}
 }
