@@ -56,9 +56,6 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 	public UniqueType TAG_ACTING;
 	public UniqueType TAG_LAST_ACTION_CHECK;
 
-	// Event type for entity tags
-	private UniqueType etEntityTag;
-
 	private EventSystem eventSystem;
 	private WorldSystem worldSystem;
 	private EntitySystem entitySystem;
@@ -102,7 +99,6 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 		UniqueTypeSystem uts = game.getSystem(UniqueTypeSystem.class);
 
 		// Define event types
-		etEntityTag = uts.getType("entity_tag");
 		ACTION = uts.getType("action");
 
 		// Define action types
@@ -440,7 +436,7 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 		synchronized (this) {
 			try {
 				getActingEntitiesStatement.setLong(1, TAG_ACTING.type());
-				eventSystem.setValidEventsSubqueryParameters(getActingEntitiesStatement, 2, etEntityTag, currentTime);
+				eventSystem.setValidEventsSubqueryParameters(getActingEntitiesStatement, 2, entityTagSystem.etEntityTag, currentTime);
 
 				try (ResultSet rs = getActingEntitiesStatement.executeQuery()) {
 					while (rs.next()) {
