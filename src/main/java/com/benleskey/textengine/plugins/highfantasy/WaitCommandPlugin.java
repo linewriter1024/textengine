@@ -34,6 +34,9 @@ public class WaitCommandPlugin extends Plugin implements OnCoreSystemsReady {
 	// Error codes
 	private static final String ERR_INVALID_DURATION = "invalid_duration";
 	
+	// System fields
+	private ActorActionSystem actorActionSystem;
+	
 	// Pattern for parsing durations like "1 minute", "2 hours", "30 seconds", "30"
 	private static final Pattern DURATION_PATTERN = Pattern.compile(
 		"^(\\d+)\\s*(second|seconds|minute|minutes|hour|hours|s|m|h)?$",
@@ -51,6 +54,9 @@ public class WaitCommandPlugin extends Plugin implements OnCoreSystemsReady {
 
 	@Override
 	public void onCoreSystemsReady() {
+		// Initialize systems
+		actorActionSystem = game.getSystem(ActorActionSystem.class);
+		
 		game.registerCommand(new Command(WAIT, this::handleWait,
 			new CommandVariant(WAIT_DURATION, "^(?:wait)(?:\\s+(.+?))?\\s*$", this::parseWait)
 		));
@@ -111,10 +117,9 @@ public class WaitCommandPlugin extends Plugin implements OnCoreSystemsReady {
 		}
 		
 		// Queue wait action (time advancement happens inside queueAction for players)
-		ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
-		ActionValidation validation = aas.queueAction(
+		ActionValidation validation = actorActionSystem.queueAction(
 			(com.benleskey.textengine.entities.Actor) actor, 
-			aas.ACTION_WAIT, 
+			actorActionSystem.ACTION_WAIT, 
 			actor, // target is unused for wait action
 			DTime.fromSeconds(seconds));
 		

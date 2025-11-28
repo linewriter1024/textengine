@@ -27,6 +27,7 @@ import com.benleskey.textengine.util.RawMessage;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class InteractionPlugin extends Plugin implements OnPluginInitialize {
@@ -42,21 +43,48 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 	public static final String M_LOOK_EXITS = "look_exits";
 	public static final String M_LOOK_NEARBY = "look_nearby";
 	public static final String M_LOOK_DISTANT = "look_distant";
+	
+	// System fields
+	private RelationshipSystem relationshipSystem;
+	private WorldSystem worldSystem;
+	private LookSystem lookSystem;
+	private ConnectionSystem connectionSystem;
+	private VisibilitySystem visibilitySystem;
+	private DisambiguationSystem disambiguationSystem;
+	private SpatialSystem spatialSystem;
+	private EntityDescriptionSystem entityDescriptionSystem;
+	private ActorActionSystem actorActionSystem;
 
 	public InteractionPlugin(Game game) {
 		super(game);
 	}
+	
+	@Override
+	public Set<Plugin> getDependencies() {
+		return Set.of(
+			game.getPlugin(EntityPlugin.class),
+			game.getPlugin(ProceduralWorldPlugin.class)
+		);
+	}
 
 	@Override
 	public void onPluginInitialize() {
+		// Initialize system fields
+		relationshipSystem = game.getSystem(RelationshipSystem.class);
+		worldSystem = game.getSystem(WorldSystem.class);
+		lookSystem = game.getSystem(LookSystem.class);
+		connectionSystem = game.getSystem(ConnectionSystem.class);
+		visibilitySystem = game.getSystem(VisibilitySystem.class);
+		disambiguationSystem = game.getSystem(DisambiguationSystem.class);
+		spatialSystem = game.getSystem(SpatialSystem.class);
+		entityDescriptionSystem = game.getSystem(EntityDescriptionSystem.class);
+		actorActionSystem = game.getSystem(ActorActionSystem.class);
+		
 		game.registerCommand(new Command(LOOK, (client, input) -> {
 			Entity entity = client.getEntity().orElse(null);
 			if (entity != null) {
-				RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
-				WorldSystem ws = game.getSystem(WorldSystem.class);
-				
 				// Get current location
-				var containers = rs.getProvidingRelationships(entity, rs.rvContains, ws.getCurrentTime());
+				var containers = relationshipSystem.getProvidingRelationships(entity, relationshipSystem.rvContains, worldSystem.getCurrentTime());
 				
 				if (!containers.isEmpty()) {
 					Entity currentLocation = containers.get(0).getProvider();
@@ -96,18 +124,11 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 			return;
 		}
 		
-		LookSystem ls = game.getSystem(LookSystem.class);
-		ConnectionSystem cs = game.getSystem(ConnectionSystem.class);
-		WorldSystem ws = game.getSystem(WorldSystem.class);
-		VisibilitySystem vs = game.getSystem(VisibilitySystem.class);
-		DisambiguationSystem ds = game.getSystem(DisambiguationSystem.class);
-		SpatialSystem spatialSystem = game.getSystem(SpatialSystem.class);
-		
 		// Get available exits from current location
-		List<ConnectionDescriptor> exits = cs.getConnections(currentLocation, ws.getCurrentTime());
+		List<ConnectionDescriptor> exits = connectionSystem.getConnections(currentLocation, worldSystem.getCurrentTime());
 		
 		// Get distant landmarks visible from here
-		List<Entity> distantLandmarks = vs.getVisibleEntities(actor).stream()
+		List<Entity> distantLandmarks = visibilitySystem.getVisibleEntities(actor).stream()
 			.filter(vd -> vd.getDistanceLevel() == VisibilitySystem.VisibilityLevel.DISTANT)
 			.map(vd -> vd.getEntity())
 			.toList();
@@ -121,12 +142,11 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 		allTargets.addAll(distantLandmarks);
 		
 		// Use DisambiguationSystem to resolve the target
-		EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
-		Entity matchedTarget = ds.resolveEntity(
+		Entity matchedTarget = disambiguationSystem.resolveEntity(
 			client,
 			target,
 			allTargets,
-			entity -> eds.getSimpleDescription(entity, ws.getCurrentTime())
+			entity -> entityDescriptionSystem.getSimpleDescription(entity, worldSystem.getCurrentTime())
 		);
 		
 		if (matchedTarget == null) {
@@ -145,7 +165,7 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 		
 		if (isDistantLandmark) {
 			// Looking at a distant landmark
-			String landmarkDescription = eds.getSimpleDescription(matchedTarget, ws.getCurrentTime(), "something");
+			String landmarkDescription = entityDescriptionSystem.getSimpleDescription(matchedTarget, worldSystem.getCurrentTime(), "something");
 			
 			// Find the nearest exit that moves toward this landmark using spatial pathfinding
 			Entity closestExit = spatialSystem.findClosestToTarget(
@@ -160,9 +180,9 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 				Markup.raw(".")
 			));
 			
-		// Show which exit to take to get closer
-		if (closestExit != null) {
-			String exitDescription = eds.getSimpleDescription(closestExit, ws.getCurrentTime());
+			// Show which exit to take to get closer
+			if (closestExit != null) {
+				String exitDescription = entityDescriptionSystem.getSimpleDescription(closestExit, worldSystem.getCurrentTime());
 			parts.add(Markup.concat(
 				Markup.raw(" To get closer, head toward "),
 				Markup.em(exitDescription),
@@ -173,10 +193,10 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 				.text(Markup.concat(parts.toArray(new Markup.Safe[0]))));
 		} else {
 			// Looking at an adjacent exit
-			String description = eds.getSimpleDescription(matchedTarget, ws.getCurrentTime(), "nothing");
+			String description = entityDescriptionSystem.getSimpleDescription(matchedTarget, worldSystem.getCurrentTime(), "nothing");
 			
 			// Get exits from the destination (look ahead)
-			List<ConnectionDescriptor> destExits = cs.getConnections(matchedTarget, ws.getCurrentTime());
+			List<ConnectionDescriptor> destExits = connectionSystem.getConnections(matchedTarget, worldSystem.getCurrentTime());
 			
 			// Build the message
 			java.util.List<Markup.Safe> parts = new java.util.ArrayList<>();
@@ -192,7 +212,7 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 			if (!destExits.isEmpty()) {
 				java.util.List<Markup.Safe> landmarkNames = new java.util.ArrayList<>();
 				for (ConnectionDescriptor destExit : destExits) {
-					String destExitDesc = eds.getSimpleDescription(destExit.getTo(), ws.getCurrentTime());
+					String destExitDesc = entityDescriptionSystem.getSimpleDescription(destExit.getTo(), worldSystem.getCurrentTime());
 					landmarkNames.add(Markup.raw(destExitDesc));
 				}
 				
@@ -226,13 +246,8 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 	 */
 	private void performNormalLook(Client client, Entity entity, Entity currentLocation) {
 		
-		LookSystem ls = game.getSystem(LookSystem.class);
-		ConnectionSystem cs = game.getSystem(ConnectionSystem.class);
-		WorldSystem ws = game.getSystem(WorldSystem.class);
-		EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
-		
 		// Use LookSystem's shared environment observation (same as NPCs)
-		LookSystem.LookEnvironment env = ls.getLookEnvironment(entity);
+		LookSystem.LookEnvironment env = lookSystem.getLookEnvironment(entity);
 		if (env == null) {
 			client.sendOutput(CommandOutput.make(M_LOOK)
 				.text(Markup.escape("You are nowhere. This should not happen.")));
@@ -240,28 +255,28 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 		}
 		
 		// Get exits as ConnectionDescriptors (for compatibility with existing output builder)
-		List<ConnectionDescriptor> exits = cs.getConnections(currentLocation, ws.getCurrentTime());
+		List<ConnectionDescriptor> exits = connectionSystem.getConnections(currentLocation, worldSystem.getCurrentTime());
 		
 		// Convert environment data to the format expected by buildEnhancedLookOutput
 		// nearbyLooks: non-item entities (actors, etc.)
 		Map<Entity, List<LookDescriptor>> nearbyLooks = env.actorsHere.stream()
 			.collect(Collectors.toMap(
 				e -> e,
-				e -> ls.getLooksFromEntity(e, ws.getCurrentTime())
+				e -> lookSystem.getLooksFromEntity(e, worldSystem.getCurrentTime())
 			));
 		
 		// itemLooks: items at location (already excludes containers in some contexts)
 		Map<Entity, List<LookDescriptor>> itemLooks = env.itemsHere.stream()
 			.collect(Collectors.toMap(
 				e -> e,
-				e -> ls.getLooksFromEntity(e, ws.getCurrentTime())
+				e -> lookSystem.getLooksFromEntity(e, worldSystem.getCurrentTime())
 			));
 		
 		// distantLooks: landmarks visible from distance
 		Map<Entity, List<LookDescriptor>> distantLooks = env.distantLandmarks.stream()
 			.collect(Collectors.toMap(
 				e -> e,
-				e -> ls.getLooksFromEntity(e, ws.getCurrentTime())
+				e -> lookSystem.getLooksFromEntity(e, worldSystem.getCurrentTime())
 			));
 		
 		client.sendOutput(buildEnhancedLookOutput(client, env.locationLooks, exits, nearbyLooks, itemLooks, distantLooks));
@@ -275,10 +290,6 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 		Map<Entity, List<LookDescriptor>> itemLooks,
 		Map<Entity, List<LookDescriptor>> distantLooks
 	) {
-		LookSystem ls = game.getSystem(LookSystem.class);
-		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
-		WorldSystem ws = game.getSystem(WorldSystem.class);
-		EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
 		
 		CommandOutput output = CommandOutput.make(M_LOOK);
 		java.util.List<Markup.Safe> parts = new java.util.ArrayList<>();
@@ -302,7 +313,7 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 			
 			// Build machine-readable exit data
 			for (ConnectionDescriptor exit : exits) {
-				String description = eds.getSimpleDescription(exit.getTo(), ws.getCurrentTime(), "unknown");
+				String description = entityDescriptionSystem.getSimpleDescription(exit.getTo(), worldSystem.getCurrentTime(), "unknown");
 				exitMessage.put(description, exit.getTo().getKeyId());
 			}
 			
@@ -317,7 +328,7 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 					}
 				}
 				
-				List<LookDescriptor> looks = ls.getLooksFromEntity(exits.get(i).getTo(), ws.getCurrentTime());
+				List<LookDescriptor> looks = lookSystem.getLooksFromEntity(exits.get(i).getTo(), worldSystem.getCurrentTime());
 				String description = !looks.isEmpty() ? looks.get(0).getDescription() : "unknown";
 				joined.add(Markup.em(description));
 			}
@@ -407,7 +418,7 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 				// Add container contents if this item is a container
 				if (item instanceof Item) {
 					List<com.benleskey.textengine.model.RelationshipDescriptor> itemContents = 
-						rs.getReceivingRelationships(item, rs.rvContains, ws.getCurrentTime());
+						relationshipSystem.getReceivingRelationships(item, relationshipSystem.rvContains, worldSystem.getCurrentTime());
 					
 					if (!itemContents.isEmpty()) {
 						List<Map<String, Object>> contentsList = new java.util.ArrayList<>();
@@ -415,14 +426,14 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 					for (com.benleskey.textengine.model.RelationshipDescriptor rd : itemContents) {
 						Entity contentItem = rd.getReceiver();
 						if (contentItem instanceof Item) {
-							String contentDesc = eds.getSimpleDescription(contentItem, ws.getCurrentTime(), "something");								Map<String, Object> contentData = new java.util.HashMap<>();
-								contentData.put("entity_id", contentItem.getKeyId());
-								contentData.put("item_name", contentDesc);
-								contentsList.add(contentData);
-							}
+							String contentDesc = entityDescriptionSystem.getSimpleDescription(contentItem, worldSystem.getCurrentTime(), "something");
+							
+							Map<String, Object> contentData = new java.util.HashMap<>();
+							contentData.put("entity_id", contentItem.getKeyId());
+							contentData.put("item_name", contentDesc);
+							contentsList.add(contentData);
 						}
-						
-						if (!contentsList.isEmpty()) {
+					}						if (!contentsList.isEmpty()) {
 							entityMessage.put("container_contents", contentsList);
 						}
 					}
@@ -461,8 +472,6 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 			java.util.List<Markup.Safe> nearbyParts = new java.util.ArrayList<>();
 			RawMessage nearbyEntities = Message.make();
 			
-			ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
-			
 			for (Map.Entry<Entity, List<LookDescriptor>> entry : nearbyLooks.entrySet()) {
 				Entity entity = entry.getKey();
 				List<LookDescriptor> looks = entry.getValue();
@@ -484,7 +493,7 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 				// Check if this actor has a pending action
 				String pendingAction = null;
 				if (entity instanceof com.benleskey.textengine.entities.Actor) {
-					pendingAction = aas.getPendingActionDescription((com.benleskey.textengine.entities.Actor) entity);
+					pendingAction = actorActionSystem.getPendingActionDescription((com.benleskey.textengine.entities.Actor) entity);
 					if (pendingAction != null) {
 						entityMessage.put("pending_action", pendingAction);
 					}

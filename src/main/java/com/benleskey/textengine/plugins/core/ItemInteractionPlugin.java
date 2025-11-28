@@ -30,6 +30,7 @@ import com.benleskey.textengine.util.Markup;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.stream.Collectors;
 
@@ -80,12 +81,44 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 	public static final String ERR_NOTHING_TO_PUT = "nothing_to_put";
 	public static final String ERR_CONTAINER_SELF = "container_self";
 	
+	// System fields
+	private RelationshipSystem relationshipSystem;
+	private WorldSystem worldSystem;
+	private LookSystem lookSystem;
+	private ItemSystem itemSystem;
+	private EntitySystem entitySystem;
+	private DisambiguationSystem disambiguationSystem;
+	private EntityDescriptionSystem entityDescriptionSystem;
+	private ActorActionSystem actorActionSystem;
+	private TagInteractionSystem tagInteractionSystem;
+	private com.benleskey.textengine.systems.EventSystem eventSystem;
+	
 	public ItemInteractionPlugin(Game game) {
 		super(game);
 	}
 	
 	@Override
+	public Set<Plugin> getDependencies() {
+		return Set.of(
+			game.getPlugin(EntityPlugin.class),
+			game.getPlugin(ProceduralWorldPlugin.class)
+		);
+	}
+	
+	@Override
 	public void onPluginInitialize() {
+		// Initialize systems
+		relationshipSystem = game.getSystem(RelationshipSystem.class);
+		worldSystem = game.getSystem(WorldSystem.class);
+		lookSystem = game.getSystem(LookSystem.class);
+		itemSystem = game.getSystem(ItemSystem.class);
+		entitySystem = game.getSystem(EntitySystem.class);
+		disambiguationSystem = game.getSystem(DisambiguationSystem.class);
+		entityDescriptionSystem = game.getSystem(EntityDescriptionSystem.class);
+		actorActionSystem = game.getSystem(ActorActionSystem.class);
+		tagInteractionSystem = game.getSystem(TagInteractionSystem.class);
+		eventSystem = game.getSystem(com.benleskey.textengine.systems.EventSystem.class);
+		
 		// Take/get item (or take from container)
 		// Accepts entity names or entity IDs with # prefix (e.g., "take #1234" or "take coin")
 		game.registerCommand(new Command(TAKE, this::handleTake,
@@ -168,14 +201,9 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 			client.sendOutput(Client.NO_ENTITY);
 			return;
 		}
-		
-		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
-		WorldSystem ws = game.getSystem(WorldSystem.class);
-		LookSystem ls = game.getSystem(LookSystem.class);
-		ItemSystem is = game.getSystem(ItemSystem.class);
-		
+
 		// Find current location
-		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
+		var containers = relationshipSystem.getProvidingRelationships(actor, relationshipSystem.rvContains, worldSystem.getCurrentTime());
 		if (containers.isEmpty()) {
 			client.sendOutput(CommandOutput.make(TAKE)
 				.error(ERR_PLAYER_NOWHERE)
@@ -192,11 +220,11 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 			String containerInput = input.get(M_CONTAINER);
 			
 			// Get containers at current location
-			List<Entity> containersHere = rs.getReceivingRelationships(currentLocation, rs.rvContains, ws.getCurrentTime())
+			List<Entity> containersHere = relationshipSystem.getReceivingRelationships(currentLocation, relationshipSystem.rvContains, worldSystem.getCurrentTime())
 				.stream()
 				.map(RelationshipDescriptor::getReceiver)
 				.filter(e -> e instanceof Item)
-				.filter(e -> is.hasTag(e, is.TAG_CONTAINER, ws.getCurrentTime()))
+				.filter(e -> itemSystem.hasTag(e, itemSystem.TAG_CONTAINER, worldSystem.getCurrentTime()))
 				.collect(Collectors.toList());
 			
 			if (containersHere.isEmpty()) {
@@ -205,12 +233,10 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 					.text(Markup.escape("There are no containers here.")));
 				return;
 			}
+
+java.util.function.Function<Entity, String> descExtractor = e -> entityDescriptionSystem.getSimpleDescription(e, worldSystem.getCurrentTime());
 			
-			DisambiguationSystem ds = game.getSystem(DisambiguationSystem.class);
-			EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
-java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDescription(e, ws.getCurrentTime());
-			
-			DisambiguationSystem.ResolutionResult<Entity> containerResult = ds.resolveEntityWithAmbiguity(
+			DisambiguationSystem.ResolutionResult<Entity> containerResult = disambiguationSystem.resolveEntityWithAmbiguity(
 				client,
 				containerInput,
 				containersHere,
@@ -236,9 +262,9 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 			sourceContainer = containerResult.getUniqueMatch();
 			
 			// Check if container is open
-			Long openValue = is.getTagValue(sourceContainer, is.TAG_OPEN, ws.getCurrentTime());
+			Long openValue = itemSystem.getTagValue(sourceContainer, itemSystem.TAG_OPEN, worldSystem.getCurrentTime());
 			if (openValue == null || openValue == 0) {
-			String containerName = eds.getSimpleDescription(sourceContainer, ws.getCurrentTime(), "the container");
+			String containerName = entityDescriptionSystem.getSimpleDescription(sourceContainer, worldSystem.getCurrentTime(), "the container");
 				client.sendOutput(CommandOutput.make(TAKE)
 					.error(ERR_CONTAINER_CLOSED)
 					.text(Markup.concat(
@@ -251,22 +277,19 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		
 		// Get items from appropriate location (container or current location)
 		Entity itemSource = sourceContainer != null ? sourceContainer : currentLocation;
-		List<Entity> itemsHere = rs.getReceivingRelationships(itemSource, rs.rvContains, ws.getCurrentTime())
+		List<Entity> itemsHere = relationshipSystem.getReceivingRelationships(itemSource, relationshipSystem.rvContains, worldSystem.getCurrentTime())
 			.stream()
 			.map(RelationshipDescriptor::getReceiver)
 			.filter(e -> e instanceof Item)
 			.collect(Collectors.toList());
-		
-		EntitySystem es = game.getSystem(EntitySystem.class);
-		DisambiguationSystem ds = game.getSystem(DisambiguationSystem.class);
-		
+
 		// Check if entity_id is provided (machine-readable input)
 		Entity item = null;
 		if (input.getO(M_ENTITY_ID).isPresent()) {
 			String entityIdStr = input.get(M_ENTITY_ID);
 			try {
 				long entityId = Long.parseLong(entityIdStr);
-				item = es.get(entityId);
+				item = entitySystem.get(entityId);
 				if (item == null || !itemsHere.contains(item)) {
 					item = null; // Entity not found or not at this location
 				}
@@ -277,13 +300,12 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		
 		// Fall back to keyword matching if no entity_id or entity not found
 		String itemInput = input.get(M_ITEM);
-		
-		EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
-java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDescription(e, ws.getCurrentTime());
+
+java.util.function.Function<Entity, String> descExtractor = e -> entityDescriptionSystem.getSimpleDescription(e, worldSystem.getCurrentTime());
 		
 		// Only do resolution if we don't already have an item from entity_id
 		if (item == null) {
-			DisambiguationSystem.ResolutionResult<Entity> result = ds.resolveEntityWithAmbiguity(
+			DisambiguationSystem.ResolutionResult<Entity> result = disambiguationSystem.resolveEntityWithAmbiguity(
 				client,
 				itemInput,
 				itemsHere,
@@ -310,8 +332,7 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		}
 		
 		// Calculate time for action - base 5s + 1s per kg
-		ItemSystem itemSystem = game.getSystem(ItemSystem.class);
-		Long weightGrams = itemSystem.getTagValue(item, itemSystem.TAG_WEIGHT, ws.getCurrentTime());
+		Long weightGrams = itemSystem.getTagValue(item, itemSystem.TAG_WEIGHT, worldSystem.getCurrentTime());
 		long timeSeconds = 5;
 		if (weightGrams != null) {
 			long weightKg = weightGrams / 1000;
@@ -320,8 +341,8 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		DTime actionTime = DTime.fromSeconds(timeSeconds);
 		
 		// Queue the action (validation + execution happens inside)
-		ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
-		ActionValidation validation = aas.queueAction((com.benleskey.textengine.entities.Actor) actor, aas.ACTION_ITEM_TAKE, item, actionTime);
+
+		ActionValidation validation = actorActionSystem.queueAction((com.benleskey.textengine.entities.Actor) actor, actorActionSystem.ACTION_ITEM_TAKE, item, actionTime);
 		
 		if (!validation.isValid()) {
 			client.sendOutput(validation.getErrorOutput());
@@ -337,13 +358,9 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 			client.sendOutput(Client.NO_ENTITY);
 			return;
 		}
-		
-		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
-		WorldSystem ws = game.getSystem(WorldSystem.class);
-		LookSystem ls = game.getSystem(LookSystem.class);
-		
+
 		// Find current location
-		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
+		var containers = relationshipSystem.getProvidingRelationships(actor, relationshipSystem.rvContains, worldSystem.getCurrentTime());
 		if (containers.isEmpty()) {
 			client.sendOutput(CommandOutput.make(DROP)
 				.error(ERR_PLAYER_NOWHERE)
@@ -352,7 +369,7 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		}
 		
 		// Get items carried by actor
-		List<Entity> carriedItems = rs.getReceivingRelationships(actor, rs.rvContains, ws.getCurrentTime())
+		List<Entity> carriedItems = relationshipSystem.getReceivingRelationships(actor, relationshipSystem.rvContains, worldSystem.getCurrentTime())
 			.stream()
 			.map(RelationshipDescriptor::getReceiver)
 			.filter(e -> e instanceof Item)
@@ -367,14 +384,13 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		
 		// Resolve which item to drop
 		String itemInput = input.get(M_ITEM);
-		DisambiguationSystem ds = game.getSystem(DisambiguationSystem.class);
-		
+
 		java.util.function.Function<Entity, String> descExtractor = item -> {
-			List<LookDescriptor> looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
+			List<LookDescriptor> looks = lookSystem.getLooksFromEntity(item, worldSystem.getCurrentTime());
 			return !looks.isEmpty() ? looks.get(0).getDescription() : null;
 		};
 		
-		DisambiguationSystem.ResolutionResult<Entity> result = ds.resolveEntityWithAmbiguity(
+		DisambiguationSystem.ResolutionResult<Entity> result = disambiguationSystem.resolveEntityWithAmbiguity(
 			client,
 			itemInput,
 			carriedItems,
@@ -400,10 +416,10 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		Entity targetItem = result.getUniqueMatch();
 		
 		// Queue the action (validation + execution happens inside)
-		ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
+
 		DTime dropTime = DTime.fromSeconds(5);
 		
-		ActionValidation validation = aas.queueAction((com.benleskey.textengine.entities.Actor) actor, aas.ACTION_ITEM_DROP, targetItem, dropTime);
+		ActionValidation validation = actorActionSystem.queueAction((com.benleskey.textengine.entities.Actor) actor, actorActionSystem.ACTION_ITEM_DROP, targetItem, dropTime);
 		
 		if (!validation.isValid()) {
 			client.sendOutput(validation.getErrorOutput());
@@ -419,28 +435,22 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 			client.sendOutput(Client.NO_ENTITY);
 			return;
 		}
-		
-		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
-		WorldSystem ws = game.getSystem(WorldSystem.class);
-		LookSystem ls = game.getSystem(LookSystem.class);
-		ItemSystem is = game.getSystem(ItemSystem.class);
-		EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
-		
+
 		// Get items from both inventory and current location
 		List<Entity> availableItems = new java.util.ArrayList<>();
 		
 		// Carried items
-		availableItems.addAll(rs.getReceivingRelationships(actor, rs.rvContains, ws.getCurrentTime())
+		availableItems.addAll(relationshipSystem.getReceivingRelationships(actor, relationshipSystem.rvContains, worldSystem.getCurrentTime())
 			.stream()
 			.map(RelationshipDescriptor::getReceiver)
 			.filter(e -> e instanceof Item)
 			.collect(Collectors.toList()));
 		
 		// Items at location
-		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
+		var containers = relationshipSystem.getProvidingRelationships(actor, relationshipSystem.rvContains, worldSystem.getCurrentTime());
 		if (!containers.isEmpty()) {
 			Entity currentLocation = containers.get(0).getProvider();
-			availableItems.addAll(rs.getReceivingRelationships(currentLocation, rs.rvContains, ws.getCurrentTime())
+			availableItems.addAll(relationshipSystem.getReceivingRelationships(currentLocation, relationshipSystem.rvContains, worldSystem.getCurrentTime())
 				.stream()
 				.map(RelationshipDescriptor::getReceiver)
 				.filter(e -> e instanceof Item)
@@ -449,14 +459,13 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		
 		// Resolve which item to examine
 		String itemInput = input.get(M_ITEM);
-		DisambiguationSystem ds = game.getSystem(DisambiguationSystem.class);
-		
+
 		java.util.function.Function<Entity, String> descExtractor = item -> {
-			List<LookDescriptor> looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
+			List<LookDescriptor> looks = lookSystem.getLooksFromEntity(item, worldSystem.getCurrentTime());
 			return !looks.isEmpty() ? looks.get(0).getDescription() : null;
 		};
 		
-		DisambiguationSystem.ResolutionResult<Entity> result = ds.resolveEntityWithAmbiguity(
+		DisambiguationSystem.ResolutionResult<Entity> result = disambiguationSystem.resolveEntityWithAmbiguity(
 			client,
 			itemInput,
 			availableItems,
@@ -482,7 +491,7 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		Entity targetItem = result.getUniqueMatch();
 		
 		// Get item description
-			String itemName = eds.getSimpleDescription(targetItem, ws.getCurrentTime(), "something");
+			String itemName = entityDescriptionSystem.getSimpleDescription(targetItem, worldSystem.getCurrentTime(), "something");
 		
 		// Build examination output - all on one line
 		java.util.List<Markup.Safe> examineMarkup = new java.util.ArrayList<>();
@@ -491,7 +500,7 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		examineMarkup.add(Markup.raw(". "));
 		
 		// Add tag-based descriptions on same line with space separation
-		List<String> tagDescriptions = eds.getTagDescriptions(targetItem, ws.getCurrentTime());
+		List<String> tagDescriptions = entityDescriptionSystem.getTagDescriptions(targetItem, worldSystem.getCurrentTime());
 		for (int i = 0; i < tagDescriptions.size(); i++) {
 			if (i > 0) {
 				examineMarkup.add(Markup.raw(" ")); // Space between descriptions
@@ -500,7 +509,7 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		}
 		
 		// Add weight if present
-		Long weightGrams = is.getTagValue(targetItem, is.TAG_WEIGHT, ws.getCurrentTime());
+		Long weightGrams = itemSystem.getTagValue(targetItem, itemSystem.TAG_WEIGHT, worldSystem.getCurrentTime());
 		if (weightGrams != null) {
 			if (!tagDescriptions.isEmpty()) {
 				examineMarkup.add(Markup.raw(" ")); // Space before weight
@@ -510,7 +519,7 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		}
 		
 		// Check if it's a container with contents
-		List<Entity> contents = rs.getReceivingRelationships(targetItem, rs.rvContains, ws.getCurrentTime())
+		List<Entity> contents = relationshipSystem.getReceivingRelationships(targetItem, relationshipSystem.rvContains, worldSystem.getCurrentTime())
 			.stream()
 			.map(RelationshipDescriptor::getReceiver)
 			.filter(e -> e instanceof Item)
@@ -529,10 +538,10 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		if (!contents.isEmpty()) {
 			examineMarkup.add(Markup.raw("\nIt contains: "));
 			
-			DisambiguationSystem.DisambiguatedList contentList = ds.buildDisambiguatedList(
+			DisambiguationSystem.DisambiguatedList contentList = disambiguationSystem.buildDisambiguatedList(
 				contents,
 				item -> {
-					List<LookDescriptor> itemLooks = ls.getLooksFromEntity(item, ws.getCurrentTime());
+					List<LookDescriptor> itemLooks = lookSystem.getLooksFromEntity(item, worldSystem.getCurrentTime());
 					return !itemLooks.isEmpty() ? itemLooks.get(0).getDescription() : null;
 				}
 			);
@@ -554,7 +563,7 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		// Build machine-readable contents list
 		List<Map<String, Object>> itemsList = new java.util.ArrayList<>();
 		for (Entity item : contents) {
-			List<LookDescriptor> itemLooks = ls.getLooksFromEntity(item, ws.getCurrentTime());
+			List<LookDescriptor> itemLooks = lookSystem.getLooksFromEntity(item, worldSystem.getCurrentTime());
 			String desc = !itemLooks.isEmpty() ? itemLooks.get(0).getDescription() : "something";
 			
 			Map<String, Object> itemData = new java.util.HashMap<>();
@@ -576,13 +585,9 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 			client.sendOutput(Client.NO_ENTITY);
 			return;
 		}
-		
-		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
-		WorldSystem ws = game.getSystem(WorldSystem.class);
-		LookSystem ls = game.getSystem(LookSystem.class);
-		
+
 		// Get carried items (can only use what you're carrying)
-		List<Entity> carriedItems = rs.getReceivingRelationships(actor, rs.rvContains, ws.getCurrentTime())
+		List<Entity> carriedItems = relationshipSystem.getReceivingRelationships(actor, relationshipSystem.rvContains, worldSystem.getCurrentTime())
 			.stream()
 			.map(RelationshipDescriptor::getReceiver)
 			.filter(e -> e instanceof Item)
@@ -597,14 +602,13 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		
 		// Resolve which item to use
 		String itemInput = input.get(M_ITEM);
-		DisambiguationSystem ds = game.getSystem(DisambiguationSystem.class);
-		
+
 		java.util.function.Function<Entity, String> descExtractor = item -> {
-			List<LookDescriptor> looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
+			List<LookDescriptor> looks = lookSystem.getLooksFromEntity(item, worldSystem.getCurrentTime());
 			return !looks.isEmpty() ? looks.get(0).getDescription() : null;
 		};
 		
-		DisambiguationSystem.ResolutionResult<Entity> result = ds.resolveEntityWithAmbiguity(
+		DisambiguationSystem.ResolutionResult<Entity> result = disambiguationSystem.resolveEntityWithAmbiguity(
 			client,
 			itemInput,
 			carriedItems,
@@ -642,8 +646,8 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 	}
 	
 	private void handleUseSolo(Client client, Entity actor, Entity item) {
-		LookSystem ls = game.getSystem(LookSystem.class);
-		List<LookDescriptor> looks = ls.getLooksFromEntity(item, game.getSystem(WorldSystem.class).getCurrentTime());
+
+		List<LookDescriptor> looks = lookSystem.getLooksFromEntity(item, worldSystem.getCurrentTime());
 		String itemName = !looks.isEmpty() ? looks.get(0).getDescription() : "the item";
 		
 		// Check if item implements UsableItem interface
@@ -666,16 +670,13 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 	}
 	
 	private void handleUseOn(Client client, Entity actor, Entity item, String targetInput) {
-		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
-		WorldSystem ws = game.getSystem(WorldSystem.class);
-		LookSystem ls = game.getSystem(LookSystem.class);
-		
+
 		// Get item description
-		List<LookDescriptor> itemLooks = ls.getLooksFromEntity(item, ws.getCurrentTime());
+		List<LookDescriptor> itemLooks = lookSystem.getLooksFromEntity(item, worldSystem.getCurrentTime());
 		String itemName = !itemLooks.isEmpty() ? itemLooks.get(0).getDescription() : "the item";
 		
 		// Find current location
-		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
+		var containers = relationshipSystem.getProvidingRelationships(actor, relationshipSystem.rvContains, worldSystem.getCurrentTime());
 		if (containers.isEmpty()) {
 			client.sendOutput(CommandOutput.make(USE)
 				.error(ERR_PLAYER_NOWHERE)
@@ -689,20 +690,19 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		List<Entity> availableTargets = new java.util.ArrayList<>();
 		
 		// Items at location
-		availableTargets.addAll(rs.getReceivingRelationships(currentLocation, rs.rvContains, ws.getCurrentTime())
+		availableTargets.addAll(relationshipSystem.getReceivingRelationships(currentLocation, relationshipSystem.rvContains, worldSystem.getCurrentTime())
 			.stream()
 			.map(RelationshipDescriptor::getReceiver)
 			.collect(Collectors.toList()));
 		
 		// Resolve target
-		DisambiguationSystem ds = game.getSystem(DisambiguationSystem.class);
-		
+
 		java.util.function.Function<Entity, String> descExtractor = entity -> {
-			List<LookDescriptor> looks = ls.getLooksFromEntity(entity, ws.getCurrentTime());
+			List<LookDescriptor> looks = lookSystem.getLooksFromEntity(entity, worldSystem.getCurrentTime());
 			return !looks.isEmpty() ? looks.get(0).getDescription() : null;
 		};
 		
-		DisambiguationSystem.ResolutionResult<Entity> result = ds.resolveEntityWithAmbiguity(
+		DisambiguationSystem.ResolutionResult<Entity> result = disambiguationSystem.resolveEntityWithAmbiguity(
 			client,
 			targetInput,
 			availableTargets,
@@ -728,20 +728,19 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		Entity target = result.getUniqueMatch();
 		
 		// Get target description
-		List<LookDescriptor> targetLooks = ls.getLooksFromEntity(target, ws.getCurrentTime());
+		List<LookDescriptor> targetLooks = lookSystem.getLooksFromEntity(target, worldSystem.getCurrentTime());
 		String targetName = !targetLooks.isEmpty() ? targetLooks.get(0).getDescription() : "the target";
 		
 		// GENERIC TAG-BASED INTERACTIONS
 		
 		// Check TagInteractionSystem for registered tag interactions
-		TagInteractionSystem tis = game.getSystem(TagInteractionSystem.class);
-		
+
 		// Get actor name for broadcasting
-		List<LookDescriptor> actorLooks = ls.getLooksFromEntity(actor, ws.getCurrentTime());
+		List<LookDescriptor> actorLooks = lookSystem.getLooksFromEntity(actor, worldSystem.getCurrentTime());
 		String actorName = !actorLooks.isEmpty() ? actorLooks.get(0).getDescription() : "someone";
 		
-		Optional<CommandOutput> tagInteractionOutput = tis.executeInteractionWithBroadcast(
-			actor, actorName, item, itemName, target, targetName, ws.getCurrentTime()
+		Optional<CommandOutput> tagInteractionOutput = tagInteractionSystem.executeInteractionWithBroadcast(
+			actor, actorName, item, itemName, target, targetName, worldSystem.getCurrentTime()
 		);
 		
 		if (tagInteractionOutput.isPresent()) {
@@ -776,13 +775,9 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 			client.sendOutput(Client.NO_ENTITY);
 			return;
 		}
-		
-		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
-		WorldSystem ws = game.getSystem(WorldSystem.class);
-		LookSystem ls = game.getSystem(LookSystem.class);
-		
+
 		// Get carried items
-		List<Entity> carriedItems = rs.getReceivingRelationships(actor, rs.rvContains, ws.getCurrentTime())
+		List<Entity> carriedItems = relationshipSystem.getReceivingRelationships(actor, relationshipSystem.rvContains, worldSystem.getCurrentTime())
 			.stream()
 			.map(RelationshipDescriptor::getReceiver)
 			.filter(e -> e instanceof Item)
@@ -809,8 +804,8 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 			}
 			
 			// Get item description
-			EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
-			String description = eds.getSimpleDescription(carriedItems.get(i), ws.getCurrentTime(), "something");
+
+			String description = entityDescriptionSystem.getSimpleDescription(carriedItems.get(i), worldSystem.getCurrentTime(), "something");
 			parts.add(Markup.em(description));
 		}
 		parts.add(Markup.raw("."));
@@ -835,9 +830,8 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 			String userInput,
 			List<T> matches,
 			java.util.function.Function<T, String> descriptionExtractor) {
-		
-		DisambiguationSystem ds = game.getSystem(DisambiguationSystem.class);
-		ds.sendDisambiguationPrompt(client, commandId, userInput, matches, descriptionExtractor);
+
+		disambiguationSystem.sendDisambiguationPrompt(client, commandId, userInput, matches, descriptionExtractor);
 	}
 	
 	private CommandInput parseOpen(Matcher matcher) {
@@ -860,15 +854,9 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 			client.sendOutput(Client.NO_ENTITY);
 			return;
 		}
-		
-		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
-		WorldSystem ws = game.getSystem(WorldSystem.class);
-		ItemSystem is = game.getSystem(ItemSystem.class);
-		LookSystem ls = game.getSystem(LookSystem.class);
-		DisambiguationSystem ds = game.getSystem(DisambiguationSystem.class);
-		
+
 		// Get current location
-		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
+		var containers = relationshipSystem.getProvidingRelationships(actor, relationshipSystem.rvContains, worldSystem.getCurrentTime());
 		if (containers.isEmpty()) {
 			client.sendOutput(CommandOutput.make(OPEN)
 				.error(ERR_PLAYER_NOWHERE)
@@ -882,14 +870,14 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		List<Entity> allItems = new java.util.ArrayList<>();
 		
 		// Items at location
-		allItems.addAll(rs.getReceivingRelationships(currentLocation, rs.rvContains, ws.getCurrentTime())
+		allItems.addAll(relationshipSystem.getReceivingRelationships(currentLocation, relationshipSystem.rvContains, worldSystem.getCurrentTime())
 			.stream()
 			.map(RelationshipDescriptor::getReceiver)
 			.filter(e -> e instanceof Item)
 			.collect(Collectors.toList()));
 		
 		// Items in inventory
-		allItems.addAll(rs.getReceivingRelationships(actor, rs.rvContains, ws.getCurrentTime())
+		allItems.addAll(relationshipSystem.getReceivingRelationships(actor, relationshipSystem.rvContains, worldSystem.getCurrentTime())
 			.stream()
 			.map(RelationshipDescriptor::getReceiver)
 			.filter(e -> e instanceof Item)
@@ -897,7 +885,7 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		
 		// Filter to only containers
 		List<Entity> availableContainers = allItems.stream()
-			.filter(item -> is.hasTag(item, is.TAG_CONTAINER, ws.getCurrentTime()))
+			.filter(item -> itemSystem.hasTag(item, itemSystem.TAG_CONTAINER, worldSystem.getCurrentTime()))
 			.collect(Collectors.toList());
 		
 		if (availableContainers.isEmpty()) {
@@ -910,9 +898,9 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		String containerInput = input.get(M_CONTAINER);
 		
 		// Resolve which container
-		var result = ds.resolveEntityWithAmbiguity(client, containerInput, availableContainers,
+		var result = disambiguationSystem.resolveEntityWithAmbiguity(client, containerInput, availableContainers,
 			container -> {
-				var looks = ls.getLooksFromEntity(container, ws.getCurrentTime());
+				var looks = lookSystem.getLooksFromEntity(container, worldSystem.getCurrentTime());
 				return !looks.isEmpty() ? looks.get(0).getDescription() : null;
 			});
 		
@@ -930,18 +918,18 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		if (result.isAmbiguous()) {
 			handleAmbiguousMatch(client, OPEN, containerInput, result.getAmbiguousMatches(),
 				container -> {
-					var looks = ls.getLooksFromEntity(container, ws.getCurrentTime());
+					var looks = lookSystem.getLooksFromEntity(container, worldSystem.getCurrentTime());
 					return !looks.isEmpty() ? looks.get(0).getDescription() : null;
 				});
 			return;
 		}
 		
 		Entity container = result.getUniqueMatch();
-		var containerLooks = ls.getLooksFromEntity(container, ws.getCurrentTime());
+		var containerLooks = lookSystem.getLooksFromEntity(container, worldSystem.getCurrentTime());
 		String containerName = !containerLooks.isEmpty() ? containerLooks.get(0).getDescription() : "the container";
 		
 		// Check if already open
-		Long openValue = is.getTagValue(container, is.TAG_OPEN, ws.getCurrentTime());
+		Long openValue = itemSystem.getTagValue(container, itemSystem.TAG_OPEN, worldSystem.getCurrentTime());
 		if (openValue != null && openValue == 1) {
 			client.sendOutput(CommandOutput.make(OPEN)
 				.error(ERR_ALREADY_OPEN)
@@ -955,10 +943,10 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		}
 		
 		// Open the container
-		is.addTag(container, is.TAG_OPEN, 1);
+		itemSystem.addTag(container, itemSystem.TAG_OPEN, 1);
 		
 		// Get contents
-		List<Entity> contents = rs.getReceivingRelationships(container, rs.rvContains, ws.getCurrentTime())
+		List<Entity> contents = relationshipSystem.getReceivingRelationships(container, relationshipSystem.rvContains, worldSystem.getCurrentTime())
 			.stream()
 			.map(RelationshipDescriptor::getReceiver)
 			.filter(e -> e instanceof Item)
@@ -986,7 +974,7 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 			
 			for (int i = 0; i < contents.size(); i++) {
 				Entity item = contents.get(i);
-				var looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
+				var looks = lookSystem.getLooksFromEntity(item, worldSystem.getCurrentTime());
 				String desc = !looks.isEmpty() ? looks.get(0).getDescription() : "something";
 				
 				// Add to machine-readable list
@@ -1021,15 +1009,9 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 			client.sendOutput(Client.NO_ENTITY);
 			return;
 		}
-		
-		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
-		WorldSystem ws = game.getSystem(WorldSystem.class);
-		ItemSystem is = game.getSystem(ItemSystem.class);
-		LookSystem ls = game.getSystem(LookSystem.class);
-		DisambiguationSystem ds = game.getSystem(DisambiguationSystem.class);
-		
+
 		// Get current location
-		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
+		var containers = relationshipSystem.getProvidingRelationships(actor, relationshipSystem.rvContains, worldSystem.getCurrentTime());
 		if (containers.isEmpty()) {
 			client.sendOutput(CommandOutput.make(CLOSE)
 				.error(ERR_PLAYER_NOWHERE)
@@ -1041,19 +1023,19 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		
 		// Get all visible containers
 		List<Entity> allItems = new java.util.ArrayList<>();
-		allItems.addAll(rs.getReceivingRelationships(currentLocation, rs.rvContains, ws.getCurrentTime())
+		allItems.addAll(relationshipSystem.getReceivingRelationships(currentLocation, relationshipSystem.rvContains, worldSystem.getCurrentTime())
 			.stream()
 			.map(RelationshipDescriptor::getReceiver)
 			.filter(e -> e instanceof Item)
 			.collect(Collectors.toList()));
-		allItems.addAll(rs.getReceivingRelationships(actor, rs.rvContains, ws.getCurrentTime())
+		allItems.addAll(relationshipSystem.getReceivingRelationships(actor, relationshipSystem.rvContains, worldSystem.getCurrentTime())
 			.stream()
 			.map(RelationshipDescriptor::getReceiver)
 			.filter(e -> e instanceof Item)
 			.collect(Collectors.toList()));
 		
 		List<Entity> availableContainers = allItems.stream()
-			.filter(item -> is.hasTag(item, is.TAG_CONTAINER, ws.getCurrentTime()))
+			.filter(item -> itemSystem.hasTag(item, itemSystem.TAG_CONTAINER, worldSystem.getCurrentTime()))
 			.collect(Collectors.toList());
 		
 		if (availableContainers.isEmpty()) {
@@ -1065,9 +1047,9 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		
 		String containerInput = input.get(M_CONTAINER);
 		
-		var result = ds.resolveEntityWithAmbiguity(client, containerInput, availableContainers,
+		var result = disambiguationSystem.resolveEntityWithAmbiguity(client, containerInput, availableContainers,
 			container -> {
-				var looks = ls.getLooksFromEntity(container, ws.getCurrentTime());
+				var looks = lookSystem.getLooksFromEntity(container, worldSystem.getCurrentTime());
 				return !looks.isEmpty() ? looks.get(0).getDescription() : null;
 			});
 		
@@ -1085,18 +1067,18 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		if (result.isAmbiguous()) {
 			handleAmbiguousMatch(client, CLOSE, containerInput, result.getAmbiguousMatches(),
 				container -> {
-					var looks = ls.getLooksFromEntity(container, ws.getCurrentTime());
+					var looks = lookSystem.getLooksFromEntity(container, worldSystem.getCurrentTime());
 					return !looks.isEmpty() ? looks.get(0).getDescription() : null;
 				});
 			return;
 		}
 		
 		Entity container = result.getUniqueMatch();
-		var containerLooks = ls.getLooksFromEntity(container, ws.getCurrentTime());
+		var containerLooks = lookSystem.getLooksFromEntity(container, worldSystem.getCurrentTime());
 		String containerName = !containerLooks.isEmpty() ? containerLooks.get(0).getDescription() : "the container";
 		
 		// Check if already closed
-		Long openValue = is.getTagValue(container, is.TAG_OPEN, ws.getCurrentTime());
+		Long openValue = itemSystem.getTagValue(container, itemSystem.TAG_OPEN, worldSystem.getCurrentTime());
 		if (openValue == null || openValue == 0) {
 			client.sendOutput(CommandOutput.make(CLOSE)
 				.error(ERR_ALREADY_CLOSED)
@@ -1110,7 +1092,7 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		}
 		
 		// Close the container
-		is.updateTagValue(container, is.TAG_OPEN, 0, ws.getCurrentTime());
+		itemSystem.updateTagValue(container, itemSystem.TAG_OPEN, 0, worldSystem.getCurrentTime());
 		
 		client.sendOutput(CommandOutput.make(CLOSE)
 			.put(M_CONTAINER, container.getKeyId())
@@ -1129,15 +1111,8 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 			return;
 		}
 		
-		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
-		WorldSystem ws = game.getSystem(WorldSystem.class);
-		ItemSystem is = game.getSystem(ItemSystem.class);
-		LookSystem ls = game.getSystem(LookSystem.class);
-		DisambiguationSystem ds = game.getSystem(DisambiguationSystem.class);
-		com.benleskey.textengine.systems.EventSystem evs = game.getSystem(com.benleskey.textengine.systems.EventSystem.class);
-		
 		// Get current location
-		var locationContainers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
+		var locationContainers = relationshipSystem.getProvidingRelationships(actor, relationshipSystem.rvContains, worldSystem.getCurrentTime());
 		if (locationContainers.isEmpty()) {
 			client.sendOutput(CommandOutput.make(PUT)
 				.error(ERR_PLAYER_NOWHERE)
@@ -1148,7 +1123,7 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		Entity currentLocation = locationContainers.get(0).getProvider();
 		
 		// Get items in inventory
-		List<Entity> inventory = rs.getReceivingRelationships(actor, rs.rvContains, ws.getCurrentTime())
+		List<Entity> inventory = relationshipSystem.getReceivingRelationships(actor, relationshipSystem.rvContains, worldSystem.getCurrentTime())
 			.stream()
 			.map(RelationshipDescriptor::getReceiver)
 			.filter(e -> e instanceof Item)
@@ -1164,9 +1139,9 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		String itemInput = input.get(M_ITEM);
 		
 		// Resolve which item to put
-		var itemResult = ds.resolveEntityWithAmbiguity(client, itemInput, inventory,
+		var itemResult = disambiguationSystem.resolveEntityWithAmbiguity(client, itemInput, inventory,
 			item -> {
-				var looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
+				var looks = lookSystem.getLooksFromEntity(item, worldSystem.getCurrentTime());
 				return !looks.isEmpty() ? looks.get(0).getDescription() : null;
 			});
 		
@@ -1184,19 +1159,19 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		if (itemResult.isAmbiguous()) {
 			handleAmbiguousMatch(client, PUT, itemInput, itemResult.getAmbiguousMatches(),
 				item -> {
-					var looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
+					var looks = lookSystem.getLooksFromEntity(item, worldSystem.getCurrentTime());
 					return !looks.isEmpty() ? looks.get(0).getDescription() : null;
 				});
 			return;
 		}
 		
 		Entity item = itemResult.getUniqueMatch();
-		var itemLooks = ls.getLooksFromEntity(item, ws.getCurrentTime());
+		var itemLooks = lookSystem.getLooksFromEntity(item, worldSystem.getCurrentTime());
 		String itemName = !itemLooks.isEmpty() ? itemLooks.get(0).getDescription() : "it";
 		
 		// Get all visible containers
 		List<Entity> allItems = new java.util.ArrayList<>();
-		allItems.addAll(rs.getReceivingRelationships(currentLocation, rs.rvContains, ws.getCurrentTime())
+		allItems.addAll(relationshipSystem.getReceivingRelationships(currentLocation, relationshipSystem.rvContains, worldSystem.getCurrentTime())
 			.stream()
 			.map(RelationshipDescriptor::getReceiver)
 			.filter(e -> e instanceof Item)
@@ -1204,7 +1179,7 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		allItems.addAll(inventory);
 		
 		List<Entity> availableContainers = allItems.stream()
-			.filter(container -> is.hasTag(container, is.TAG_CONTAINER, ws.getCurrentTime()))
+			.filter(container -> itemSystem.hasTag(container, itemSystem.TAG_CONTAINER, worldSystem.getCurrentTime()))
 			.collect(Collectors.toList());
 		
 		if (availableContainers.isEmpty()) {
@@ -1217,9 +1192,9 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		String containerInput = input.get(M_CONTAINER);
 		
 		// Resolve which container
-		var containerResult = ds.resolveEntityWithAmbiguity(client, containerInput, availableContainers,
+		var containerResult = disambiguationSystem.resolveEntityWithAmbiguity(client, containerInput, availableContainers,
 			container -> {
-				var looks = ls.getLooksFromEntity(container, ws.getCurrentTime());
+				var looks = lookSystem.getLooksFromEntity(container, worldSystem.getCurrentTime());
 				return !looks.isEmpty() ? looks.get(0).getDescription() : null;
 			});
 		
@@ -1237,18 +1212,18 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		if (containerResult.isAmbiguous()) {
 			handleAmbiguousMatch(client, PUT, containerInput, containerResult.getAmbiguousMatches(),
 				container -> {
-					var looks = ls.getLooksFromEntity(container, ws.getCurrentTime());
+					var looks = lookSystem.getLooksFromEntity(container, worldSystem.getCurrentTime());
 					return !looks.isEmpty() ? looks.get(0).getDescription() : null;
 				});
 			return;
 		}
 		
 		Entity container = containerResult.getUniqueMatch();
-		var containerLooks = ls.getLooksFromEntity(container, ws.getCurrentTime());
+		var containerLooks = lookSystem.getLooksFromEntity(container, worldSystem.getCurrentTime());
 		String containerName = !containerLooks.isEmpty() ? containerLooks.get(0).getDescription() : "the container";
 		
 		// Check if container is open
-		Long openValue = is.getTagValue(container, is.TAG_OPEN, ws.getCurrentTime());
+		Long openValue = itemSystem.getTagValue(container, itemSystem.TAG_OPEN, worldSystem.getCurrentTime());
 		if (openValue == null || openValue == 0) {
 			client.sendOutput(CommandOutput.make(PUT)
 				.error(ERR_CONTAINER_CLOSED)
@@ -1271,13 +1246,13 @@ java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDe
 		
 		// Move item from inventory to container
 		// Cancel old containment relationship
-		var oldContainment = rs.getProvidingRelationships(item, rs.rvContains, ws.getCurrentTime());
+		var oldContainment = relationshipSystem.getProvidingRelationships(item, relationshipSystem.rvContains, worldSystem.getCurrentTime());
 		if (!oldContainment.isEmpty()) {
-			evs.cancelEvent(oldContainment.get(0).getRelationship());
+			eventSystem.cancelEvent(oldContainment.get(0).getRelationship());
 		}
 		
 		// Add new containment relationship
-		rs.add(container, item, rs.rvContains);
+		relationshipSystem.add(container, item, relationshipSystem.rvContains);
 		
 		client.sendOutput(CommandOutput.make(PUT)
 			.put(M_ITEM, item.getKeyId())

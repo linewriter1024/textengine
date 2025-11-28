@@ -21,6 +21,16 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 		super(game);
 	}
 	
+	// System fields
+	private EntitySystem entitySystem;
+	private TagInteractionSystem tagInteractionSystem;
+	private ItemSystem itemSystem;
+	private BiomeSystem biomeSystem;
+	private PlaceDescriptionSystem placeDescriptionSystem;
+	private ItemTemplateSystem itemTemplateSystem;
+	private LandmarkTemplateSystem landmarkTemplateSystem;
+	private EntityDescriptionSystem entityDescriptionSystem;
+	
 	@Override
 	public Set<Plugin> getDependencies() {
 		// Ensure ProceduralWorldPlugin is loaded first so systems are registered
@@ -37,17 +47,29 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 		// Register the wait command (game-specific calendar implementation)
 		game.registerPlugin(new WaitCommandPlugin(game));
 		
-		registerBiomes();
-		registerPlaceDescriptions();
-		registerItems();
-		registerLandmarks();
-		
 		log.log("High fantasy content registered");
 	}
 	
 	@Override
 	public void onCoreSystemsReady() {
-		log.log("Registering high fantasy entity types...");
+		// Initialize systems
+		entitySystem = game.getSystem(EntitySystem.class);
+		tagInteractionSystem = game.getSystem(TagInteractionSystem.class);
+		itemSystem = game.getSystem(ItemSystem.class);
+		biomeSystem = game.getSystem(BiomeSystem.class);
+		placeDescriptionSystem = game.getSystem(PlaceDescriptionSystem.class);
+		itemTemplateSystem = game.getSystem(ItemTemplateSystem.class);
+		landmarkTemplateSystem = game.getSystem(LandmarkTemplateSystem.class);
+		entityDescriptionSystem = game.getSystem(EntityDescriptionSystem.class);
+		
+		log.log("Registering high fantasy entity types and content...");
+		
+		// Register content (needs systems initialized)
+		registerBiomes();
+		registerPlaceDescriptions();
+		registerItems();
+		registerLandmarks();
+		
 		// Register entity types (used by items generated after this point)
 		registerEntityTypes();
 		// Register tag-based interactions (cutting trees with axes)
@@ -58,25 +80,24 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 	}
 	
 	private void registerEntityTypes() {
-		EntitySystem es = game.getSystem(EntitySystem.class);
-		
+
 		// Register consolidated entity types
-		es.registerEntityType(Rock.class);    // All stone/rock items
-		es.registerEntityType(Plant.class);   // All plant items (grass, flowers, mushrooms, etc.)
-		es.registerEntityType(Wood.class);    // All wood items (branches, driftwood, roots)
+		entitySystem.registerEntityType(Rock.class);    // All stone/rock items
+		entitySystem.registerEntityType(Plant.class);   // All plant items (grass, flowers, mushrooms, etc.)
+		entitySystem.registerEntityType(Wood.class);    // All wood items (branches, driftwood, roots)
 		
 		// Register specialized entity types with unique behavior
-		es.registerEntityType(Axe.class);
-		es.registerEntityType(Tree.class);
-		es.registerEntityType(Rattle.class);
-		es.registerEntityType(WoodenChest.class);
-		es.registerEntityType(AncientCoin.class);
-		es.registerEntityType(RustySword.class);
-		es.registerEntityType(TarnishedHelmet.class);
-		es.registerEntityType(WeatheredScroll.class);
-		es.registerEntityType(Timepiece.class);
-		es.registerEntityType(GrandfatherClock.class);
-		es.registerEntityType(Goblin.class);
+		entitySystem.registerEntityType(Axe.class);
+		entitySystem.registerEntityType(Tree.class);
+		entitySystem.registerEntityType(Rattle.class);
+		entitySystem.registerEntityType(WoodenChest.class);
+		entitySystem.registerEntityType(AncientCoin.class);
+		entitySystem.registerEntityType(RustySword.class);
+		entitySystem.registerEntityType(TarnishedHelmet.class);
+		entitySystem.registerEntityType(WeatheredScroll.class);
+		entitySystem.registerEntityType(Timepiece.class);
+		entitySystem.registerEntityType(GrandfatherClock.class);
+		entitySystem.registerEntityType(Goblin.class);
 		
 		log.log("Registered 14 high fantasy entity types");
 	}
@@ -86,11 +107,9 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 	 * This defines what happens when TAG_CUT is used on TAG_CUTTABLE.
 	 */
 	private void registerTagInteractions() {
-		TagInteractionSystem tis = game.getSystem(TagInteractionSystem.class);
-		ItemSystem is = game.getSystem(ItemSystem.class);
-		
+
 		// Register cutting interaction: TAG_CUT + TAG_CUTTABLE
-		tis.registerInteraction(is.TAG_CUT, is.TAG_CUTTABLE, (actor, tool, toolName, target, targetName) -> {
+		tagInteractionSystem.registerInteraction(itemSystem.TAG_CUT, itemSystem.TAG_CUTTABLE, (actor, tool, toolName, target, targetName) -> {
 			// If target implements Cuttable interface, delegate to it
 			if (target instanceof Cuttable cuttable) {
 				return cuttable.onCut(actor, tool, toolName, targetName);
@@ -113,101 +132,98 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 	}
 	
 	private void registerBiomes() {
-		BiomeSystem bs = game.getSystem(BiomeSystem.class);
-		
+
 		// Register fantasy biomes with weights
-		bs.registerBiome("forest", 30);
-		bs.registerBiome("meadow", 25);
-		bs.registerBiome("river", 15);
-		bs.registerBiome("hills", 20);
-		bs.registerBiome("ruins", 10);
+		biomeSystem.registerBiome("forest", 30);
+		biomeSystem.registerBiome("meadow", 25);
+		biomeSystem.registerBiome("river", 15);
+		biomeSystem.registerBiome("hills", 20);
+		biomeSystem.registerBiome("ruins", 10);
 		
 		log.log("Registered 5 fantasy biomes");
 	}
 	
 	private void registerPlaceDescriptions() {
-		PlaceDescriptionSystem pds = game.getSystem(PlaceDescriptionSystem.class);
-		
+
 		// Forest descriptions
-		pds.registerDescriptionGenerator("forest", 3, r -> "a dense forest");
-		pds.registerDescriptionGenerator("forest", 2, r -> "a dark woodland");
-		pds.registerDescriptionGenerator("forest", 2, r -> "a grove of ancient trees");
-		pds.registerDescriptionGenerator("forest", 1, r -> "a misty forest path");
+		placeDescriptionSystem.registerDescriptionGenerator("forest", 3, r -> "a dense forest");
+		placeDescriptionSystem.registerDescriptionGenerator("forest", 2, r -> "a dark woodland");
+		placeDescriptionSystem.registerDescriptionGenerator("forest", 2, r -> "a grove of ancient trees");
+		placeDescriptionSystem.registerDescriptionGenerator("forest", 1, r -> "a misty forest path");
 		
 		// Meadow descriptions
-		pds.registerDescriptionGenerator("meadow", 3, r -> "a grassy meadow");
-		pds.registerDescriptionGenerator("meadow", 2, r -> "a sunlit clearing");
-		pds.registerDescriptionGenerator("meadow", 2, r -> "a field of wildflowers");
-		pds.registerDescriptionGenerator("meadow", 1, r -> "a peaceful glade");
+		placeDescriptionSystem.registerDescriptionGenerator("meadow", 3, r -> "a grassy meadow");
+		placeDescriptionSystem.registerDescriptionGenerator("meadow", 2, r -> "a sunlit clearing");
+		placeDescriptionSystem.registerDescriptionGenerator("meadow", 2, r -> "a field of wildflowers");
+		placeDescriptionSystem.registerDescriptionGenerator("meadow", 1, r -> "a peaceful glade");
 		
 		// River descriptions
-		pds.registerDescriptionGenerator("river", 3, r -> "a flowing river");
-		pds.registerDescriptionGenerator("river", 2, r -> "a babbling brook");
-		pds.registerDescriptionGenerator("river", 2, r -> "a rushing stream");
-		pds.registerDescriptionGenerator("river", 1, r -> "a calm waterway");
+		placeDescriptionSystem.registerDescriptionGenerator("river", 3, r -> "a flowing river");
+		placeDescriptionSystem.registerDescriptionGenerator("river", 2, r -> "a babbling brook");
+		placeDescriptionSystem.registerDescriptionGenerator("river", 2, r -> "a rushing stream");
+		placeDescriptionSystem.registerDescriptionGenerator("river", 1, r -> "a calm waterway");
 		
 		// Hills descriptions
-		pds.registerDescriptionGenerator("hills", 3, r -> "rolling hills");
-		pds.registerDescriptionGenerator("hills", 2, r -> "a rocky hillside");
-		pds.registerDescriptionGenerator("hills", 2, r -> "a windswept rise");
-		pds.registerDescriptionGenerator("hills", 1, r -> "a grassy knoll");
+		placeDescriptionSystem.registerDescriptionGenerator("hills", 3, r -> "rolling hills");
+		placeDescriptionSystem.registerDescriptionGenerator("hills", 2, r -> "a rocky hillside");
+		placeDescriptionSystem.registerDescriptionGenerator("hills", 2, r -> "a windswept rise");
+		placeDescriptionSystem.registerDescriptionGenerator("hills", 1, r -> "a grassy knoll");
 		
 		// Ruins descriptions
-		pds.registerDescriptionGenerator("ruins", 3, r -> "ancient ruins");
-		pds.registerDescriptionGenerator("ruins", 2, r -> "crumbling stonework");
-		pds.registerDescriptionGenerator("ruins", 2, r -> "weathered ruins");
-		pds.registerDescriptionGenerator("ruins", 1, r -> "a forgotten monument");
+		placeDescriptionSystem.registerDescriptionGenerator("ruins", 3, r -> "ancient ruins");
+		placeDescriptionSystem.registerDescriptionGenerator("ruins", 2, r -> "crumbling stonework");
+		placeDescriptionSystem.registerDescriptionGenerator("ruins", 2, r -> "weathered ruins");
+		placeDescriptionSystem.registerDescriptionGenerator("ruins", 1, r -> "a forgotten monument");
 		
 		log.log("Registered place descriptions for all biomes");
 	}
 	
 	private void registerItems() {
-		ItemTemplateSystem its = game.getSystem(ItemTemplateSystem.class);
-		
+
 		// Forest items
-		its.registerItemGenerator("forest", 5, Wood::create);
-		its.registerItemGenerator("forest", 3, Plant::create);
-		its.registerItemGenerator("forest", 2, Plant::create);
+		itemTemplateSystem.registerItemGenerator("forest", 5, Wood::create);
+		itemTemplateSystem.registerItemGenerator("forest", 3, Plant::create);
+		itemTemplateSystem.registerItemGenerator("forest", 2, Plant::create);
 		// Trees (can be cut down with axe)
-		its.registerItemGenerator("forest", 4, Tree::create);
+		itemTemplateSystem.registerItemGenerator("forest", 4, Tree::create);
 		// Axes (tools for cutting trees)
-		its.registerItemGenerator("forest", 1, Axe::create);
+		itemTemplateSystem.registerItemGenerator("forest", 1, Axe::create);
 		
 		// Meadow items
-		its.registerItemGenerator("meadow", 5, Plant::create);
-		its.registerItemGenerator("meadow", 3, Plant::create);
-		its.registerItemGenerator("meadow", 2, Rock::create);
+		itemTemplateSystem.registerItemGenerator("meadow", 5, Plant::create);
+		itemTemplateSystem.registerItemGenerator("meadow", 3, Plant::create);
+		itemTemplateSystem.registerItemGenerator("meadow", 2, Rock::create);
 		// Toy rattles (make sound when used)
-		its.registerItemGenerator("meadow", 1, Rattle::create);
+		itemTemplateSystem.registerItemGenerator("meadow", 1, Rattle::create);
 		
 		// River items
-		its.registerItemGenerator("river", 5, Rock::create);
-		its.registerItemGenerator("river", 3, Wood::create);
-		its.registerItemGenerator("river", 2, Plant::create);
+		itemTemplateSystem.registerItemGenerator("river", 5, Rock::create);
+		itemTemplateSystem.registerItemGenerator("river", 3, Wood::create);
+		itemTemplateSystem.registerItemGenerator("river", 2, Plant::create);
 		
 		// Hills items
-		its.registerItemGenerator("hills", 5, Rock::create);
-		its.registerItemGenerator("hills", 3, Plant::create);
-		its.registerItemGenerator("hills", 2, Wood::create);
+		itemTemplateSystem.registerItemGenerator("hills", 5, Rock::create);
+		itemTemplateSystem.registerItemGenerator("hills", 3, Plant::create);
+		itemTemplateSystem.registerItemGenerator("hills", 2, Wood::create);
 		
 		// Ruins items
-		its.registerItemGenerator("ruins", 5, Rock::create);
-		its.registerItemGenerator("ruins", 4, AncientCoin::create);
-		its.registerItemGenerator("ruins", 3, RustySword::create);
-		its.registerItemGenerator("ruins", 2, TarnishedHelmet::create);
-		its.registerItemGenerator("ruins", 1, WeatheredScroll::create);
+		itemTemplateSystem.registerItemGenerator("ruins", 5, Rock::create);
+		itemTemplateSystem.registerItemGenerator("ruins", 4, AncientCoin::create);
+		itemTemplateSystem.registerItemGenerator("ruins", 3, RustySword::create);
+		itemTemplateSystem.registerItemGenerator("ruins", 2, TarnishedHelmet::create);
+		itemTemplateSystem.registerItemGenerator("ruins", 1, WeatheredScroll::create);
 		// Wooden chests (containers - can hold items)
-		its.registerItemGenerator("ruins", 2, WoodenChest::create);
+		itemTemplateSystem.registerItemGenerator("ruins", 2, WoodenChest::create);
 		// Grandfather clocks (tickable items that show time)
-		its.registerItemGenerator("ruins", 100, GrandfatherClock::create);
+		itemTemplateSystem.registerItemGenerator("ruins", 100, GrandfatherClock::create);
 		
 		// Add chests and axes to all biomes (low probability)
 		for (String biome : List.of("forest", "meadow", "river", "hills", "ruins")) {
 			if (!biome.equals("ruins")) {  // Already added to ruins above
-				its.registerItemGenerator(biome, 1, WoodenChest::create);
+				itemTemplateSystem.registerItemGenerator(biome, 1, WoodenChest::create);
 			}
 			if (!biome.equals("forest")) {  // Already added to forest above
-				its.registerItemGenerator(biome, 1, Axe::create);
+				itemTemplateSystem.registerItemGenerator(biome, 1, Axe::create);
 			}
 		}
 		
@@ -215,10 +231,9 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 	}
 	
 	private void registerLandmarks() {
-		LandmarkTemplateSystem lts = game.getSystem(LandmarkTemplateSystem.class);
-		
+
 		// Great Trees - visible from distance 5.0
-		lts.registerLandmarkType("great_tree", 5, 5.0, r -> {
+		landmarkTemplateSystem.registerLandmarkType("great_tree", 5, 5.0, r -> {
 			String[] variants = {
 				"an ancient oak",
 				"a towering pine",
@@ -230,7 +245,7 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 		});
 		
 		// Ruined Towers - visible from distance 6.0
-		lts.registerLandmarkType("ruined_tower", 3, 6.0, r -> {
+		landmarkTemplateSystem.registerLandmarkType("ruined_tower", 3, 6.0, r -> {
 			String[] variants = {
 				"a crumbling tower",
 				"a broken spire",
@@ -245,16 +260,14 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 	}
 	
 	private void registerItemDescriptions() {
-		EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
-		ItemSystem is = game.getSystem(ItemSystem.class);
-		
+
 		// Register descriptions for common item tags
-		eds.registerTagDescription(is.TAG_INFINITE_RESOURCE, "This resource is abundant here.");
-		eds.registerTagDescription(is.TAG_CONTAINER, "It can hold other items.");
-		eds.registerTagDescription(is.TAG_TOOL, "This appears to be a tool.");
-		eds.registerTagDescription(is.TAG_CUT, "It looks sharp enough to cut things.");
-		eds.registerTagDescription(is.TAG_CUTTABLE, "It could be cut down.");
-		eds.registerTagDescription(is.TAG_TOY, "It looks like a toy.");
+		entityDescriptionSystem.registerTagDescription(itemSystem.TAG_INFINITE_RESOURCE, "This resource is abundant here.");
+		entityDescriptionSystem.registerTagDescription(itemSystem.TAG_CONTAINER, "It can hold other items.");
+		entityDescriptionSystem.registerTagDescription(itemSystem.TAG_TOOL, "This appears to be a tool.");
+		entityDescriptionSystem.registerTagDescription(itemSystem.TAG_CUT, "It looks sharp enough to cut things.");
+		entityDescriptionSystem.registerTagDescription(itemSystem.TAG_CUTTABLE, "It could be cut down.");
+		entityDescriptionSystem.registerTagDescription(itemSystem.TAG_TOY, "It looks like a toy.");
 		
 		log.log("Registered item tag descriptions");
 	}

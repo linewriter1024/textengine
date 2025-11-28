@@ -22,7 +22,7 @@ import java.util.*;
  * Generic procedural world generation plugin.
  * Generates places and connections dynamically based on registered content from other plugins.
  * No hardcoded biomes, items, or landmarks - all content comes from systems.
- * Follows the mission: "Everything is dynamic. Nothing is pre-built."
+ * Follows the mission: "Everything itemSystem dynamic. Nothing itemSystem pre-built."
  * Uses SCALE_CONTINENT for all spatial operations.
  */
 public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize, OnEntityTypesRegistered, OnStartClient {
@@ -55,13 +55,14 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	private SpatialSystem spatialSystem;
 	private BiomeSystem biomeSystem;
 	private PlaceDescriptionSystem placeDescriptionSystem;
+	private WorldSystem worldSystem;
 	private ItemTemplateSystem itemTemplateSystem;
 	private LandmarkTemplateSystem landmarkTemplateSystem;
 	
 	public ProceduralWorldPlugin(Game game, Long seed) {
 		super(game);
 		this.providedSeed = seed;
-		// Random will be initialized in onEntityTypesRegistered after seed is determined
+		// Random will be initialized in onEntityTypesRegistered after seed itemSystem determined
 		this.random = null;
 	}
 
@@ -130,6 +131,7 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		placeDescriptionSystem = game.getSystem(PlaceDescriptionSystem.class);
 		itemTemplateSystem = game.getSystem(ItemTemplateSystem.class);
 		landmarkTemplateSystem = game.getSystem(LandmarkTemplateSystem.class);
+		worldSystem = ws;  // Already fetched above
 		
 		// Set spatial system to 2D
 		spatialSystem.setDimensions(2);
@@ -140,27 +142,23 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		entitySystem.registerEntityType(Item.class);
 		
 		// Check if world already exists
-		if (ws.isWorldInitialized()) {
+		if (worldSystem.isWorldInitialized()) {
 			// Load existing starting place from database
 			startingPlace = loadStartingPlace();
 			log.log("Loaded existing world with starting place at entity %d", startingPlace.getId());
 		} else {
 			// Generate initial world (starting place + neighbors + landmarks)
-			startingPlace = generateInitialWorld(entitySystem, lookSystem, relationshipSystem, connectionSystem, ws);
-			ws.setWorldInitialized();
+			startingPlace = generateInitialWorld();
+			worldSystem.setWorldInitialized();
 			log.log("Generated new procedural world with seed %d", seed);
 		}
 	}
 	
 	@Override
 	public void onStartClient(Client client) throws InternalException {
-		EntitySystem es = game.getSystem(EntitySystem.class);
-		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
-		LookSystem ls = game.getSystem(LookSystem.class);
-		ItemSystem is = game.getSystem(ItemSystem.class);
-		
+
 		// Try to find existing actor or create new one
-		Actor actor = findOrCreatePlayerActor(es, ls, is, rs);
+		Actor actor = findOrCreatePlayerActor();
 		client.setEntity(actor);
 		
 		// Send initial look command so player sees where they are
@@ -172,8 +170,7 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	 * Generate the initial world state: create starting place only.
 	 * All other places generate on-demand as player explores.
 	 */
-	private Entity generateInitialWorld(EntitySystem es, LookSystem ls, 
-			RelationshipSystem rs, ConnectionSystem cs, WorldSystem ws) {
+	private Entity generateInitialWorld() {
 		
 		// Initialize biome tracking
 		for (String biomeName : biomeSystem.getAllBiomeNames()) {
@@ -185,7 +182,7 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		
 		// Generate only the starting place at origin (0, 0)
 		String startingBiome = biomeSystem.selectRandomBiome(random);
-		Entity starting = generatePlaceAtPosition(es, ls, startingBiome, new int[]{0, 0});
+		Entity starting = generatePlaceAtPosition( startingBiome, new int[]{0, 0});
 		placesByBiome.get(startingBiome).add(starting);
 		allPlaces.add(starting);
 		
@@ -194,7 +191,7 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		
 		// Generate 2-3 distant landmarks at strategic positions (only if none exist yet)
 		if (landmarks.isEmpty()) {
-			generateLandmarks(es, ls, rs);
+			generateLandmarks();
 		} else {
 			log.log("Loaded %d existing landmarks from database", landmarks.size());
 		}
@@ -206,14 +203,14 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		
 		// Spawn a goblin NPC that patrols between starting and a neighbor
 		if (!allPlaces.isEmpty()) {
-			List<Entity> neighbors = cs.getConnections(starting, ws.getCurrentTime()).stream()
+			List<Entity> neighbors = connectionSystem.getConnections(starting, worldSystem.getCurrentTime()).stream()
 				.map(ConnectionDescriptor::getTo)
 				.toList();
 			if (!neighbors.isEmpty()) {
 				Entity neighbor = neighbors.get(0); // Pick first neighbor
 				log.log("Spawning goblin to patrol between starting %d and neighbor %d", 
 					starting.getId(), neighbor.getId());
-				spawnGoblinNPC(es, ls, rs, starting, starting, neighbor);
+				spawnGoblinNPC(starting, starting, neighbor);
 			}
 		}
 		
@@ -240,16 +237,14 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	/**
 	 * Find existing player actor or create a new one with starting inventory.
 	 */
-	private Actor findOrCreatePlayerActor(EntitySystem es, LookSystem ls, ItemSystem is, RelationshipSystem rs) throws InternalException {
-		WorldSystem ws = game.getSystem(WorldSystem.class);
-		EntityTagSystem ets = game.getSystem(EntityTagSystem.class);
-		
+	private Actor findOrCreatePlayerActor() throws InternalException {
+
 		// Try to find existing avatar (player-controlled actor) in the starting location
 		List<com.benleskey.textengine.model.RelationshipDescriptor> actorsInStartingPlace = 
-			rs.getReceivingRelationships(startingPlace, rs.rvContains, ws.getCurrentTime())
+			relationshipSystem.getReceivingRelationships(startingPlace, relationshipSystem.rvContains, worldSystem.getCurrentTime())
 			.stream()
 			.filter(rd -> rd.getReceiver() instanceof Actor)
-			.filter(rd -> ets.hasTag(rd.getReceiver(), es.TAG_AVATAR, ws.getCurrentTime())) // Only avatars
+			.filter(rd -> entityTagSystem.hasTag(rd.getReceiver(), entitySystem.TAG_AVATAR, worldSystem.getCurrentTime())) // Only avatars
 			.toList();
 		
 		if (!actorsInStartingPlace.isEmpty()) {
@@ -260,38 +255,38 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		}
 		
 	// Create new actor
-	Actor actor = es.add(Actor.class);
-	ls.addLook(actor, "basic", "yourself");
-	es.addTag(actor, es.TAG_ACTOR); // Mark as an actor (can perform actions)
-	es.addTag(actor, es.TAG_AVATAR); // Mark as player-controlled
-	is.addTag(actor, is.TAG_CARRY_WEIGHT, 10000); // Can carry up to 10kg
-	rs.add(startingPlace, actor, rs.rvContains);
+	Actor actor = entitySystem.add(Actor.class);
+	lookSystem.addLook(actor, "basic", "yourself");
+	entitySystem.addTag(actor, entitySystem.TAG_ACTOR); // Mark as an actor (can perform actions)
+	entitySystem.addTag(actor, entitySystem.TAG_AVATAR); // Mark as player-controlled
+	itemSystem.addTag(actor, itemSystem.TAG_CARRY_WEIGHT, 10000); // Can carry up to 10kg
+	relationshipSystem.add(startingPlace, actor, relationshipSystem.rvContains);
 	log.log("Created new actor %d", actor.getId());		// Give starting inventory (timepiece + grandfather clock)
 		// Use deterministic random from world seed for consistent testing
 		var timepiece = com.benleskey.textengine.plugins.highfantasy.entities.Timepiece.create(game, random);
-		rs.add(actor, timepiece, rs.rvContains);
+		relationshipSystem.add(actor, timepiece, relationshipSystem.rvContains);
 		log.log("Gave player starting timepiece");
 		
 		// Add axe for testing tree cutting
 		var axe = com.benleskey.textengine.plugins.highfantasy.entities.Axe.create(game, random);
-		rs.add(actor, axe, rs.rvContains);
+		relationshipSystem.add(actor, axe, relationshipSystem.rvContains);
 		log.log("Gave player starting axe");
 		
 		var clock = com.benleskey.textengine.plugins.highfantasy.entities.GrandfatherClock.create(game, random);
-		rs.add(startingPlace, clock, rs.rvContains);
+		relationshipSystem.add(startingPlace, clock, relationshipSystem.rvContains);
 		log.log("Added grandfather clock to starting location");
 		
 		// Add a wooden chest with items for testing container system
 		var chest = com.benleskey.textengine.plugins.highfantasy.entities.WoodenChest.create(game, random);
-		rs.add(startingPlace, chest, rs.rvContains);
+		relationshipSystem.add(startingPlace, chest, relationshipSystem.rvContains);
 		log.log("Added wooden chest to starting location");
 		
 		// Put some items in the chest for testing
 		var coin = com.benleskey.textengine.plugins.highfantasy.entities.AncientCoin.create(game, random);
-		rs.add(chest, coin, rs.rvContains);
+		relationshipSystem.add(chest, coin, relationshipSystem.rvContains);
 		
 		var scroll = com.benleskey.textengine.plugins.highfantasy.entities.WeatheredScroll.create(game, random);
-		rs.add(chest, scroll, rs.rvContains);
+		relationshipSystem.add(chest, scroll, relationshipSystem.rvContains);
 		
 		return actor;
 	}
@@ -299,8 +294,7 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	/**
 	 * Spawn a goblin NPC that patrols between two rooms.
 	 */
-	private void spawnGoblinNPC(EntitySystem es, LookSystem ls, RelationshipSystem rs, 
-								Entity startingPlace, Entity roomA, Entity roomB) {
+	private void spawnGoblinNPC(Entity startingPlace, Entity roomA, Entity roomB) {
 		// Spawn goblin in starting place (will patrol between roomA and roomB)
 		var goblin = com.benleskey.textengine.plugins.highfantasy.entities.Goblin.create(
 			game, startingPlace, roomA, roomB);
@@ -312,15 +306,15 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	/**
 	 * Generate a single place based on biome type at a specific position.
 	 */
-	private Entity generatePlaceAtPosition(EntitySystem es, LookSystem ls, String biomeName, int[] position) {
+	private Entity generatePlaceAtPosition(String biomeName, int[] position) {
 		// Use coordinate-specific random for deterministic generation
 		Random placeRandom = getRandomForCoordinate(position);
 		
-		Place place = es.add(Place.class);
+		Place place = entitySystem.add(Place.class);
 		
 		// Generate description based on biome using PlaceDescriptionSystem
 		String description = placeDescriptionSystem.generateDescription(biomeName, placeRandom);
-		ls.addLook(place, "basic", description);
+		lookSystem.addLook(place, "basic", description);
 		
 		// Track spatial position in SpatialSystem at continent scale
 		spatialSystem.setPosition(place, SpatialSystem.SCALE_CONTINENT, position);
@@ -341,9 +335,9 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	 * Creates 2-4 random exits if the place has fewer than 2 connections.
 	 */
 	public synchronized void ensurePlaceHasNeighbors(Entity place) {
-		WorldSystem ws = game.getSystem(WorldSystem.class);
+
 		List<com.benleskey.textengine.model.ConnectionDescriptor> existingExits = 
-			connectionSystem.getConnections(place, ws.getCurrentTime());
+			connectionSystem.getConnections(place, worldSystem.getCurrentTime());
 		
 		// If place has 2 or more exits, it's already been explored
 		if (existingExits.size() >= 2) {
@@ -366,8 +360,7 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	 * @param place The place to generate neighbors for
 	 */
 	private void generateNeighborsForPlace(Entity place) {
-		WorldSystem ws = game.getSystem(WorldSystem.class);
-		
+
 		// Get current position from SpatialSystem at continent scale
 		int[] currentPos = spatialSystem.getPosition(place, SpatialSystem.SCALE_CONTINENT);
 		if (currentPos == null) {
@@ -377,7 +370,7 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		
 		// Get existing exits to avoid duplicates
 		List<com.benleskey.textengine.model.ConnectionDescriptor> existingExits = 
-			connectionSystem.getConnections(place, ws.getCurrentTime());
+			connectionSystem.getConnections(place, worldSystem.getCurrentTime());
 		
 		// Get already connected places (don't reconnect to them)
 		Set<Entity> alreadyConnected = existingExits.stream()
@@ -411,7 +404,7 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 			} else if (existingPlace == null) {
 				// Empty position - generate new place
 				String neighborBiome = biomeSystem.selectRandomBiome(random);
-				neighbor = generatePlaceAtPosition(entitySystem, lookSystem, neighborBiome, adjacentPos);
+				neighbor = generatePlaceAtPosition( neighborBiome, adjacentPos);
 				placesByBiome.get(neighborBiome).add(neighbor);
 				allPlaces.add(neighbor);
 				isNewPlace = true;
@@ -480,11 +473,10 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	
 	/**
 	 * Generate a single item appropriate for the biome and add it to the place using ItemTemplateSystem.
-	 * If the item is a container (chest), populate it with 2-3 random items.
+	 * If the item itemSystem a container (chest), populate it with 2-3 random items.
 	 */
 	private void generateItemForBiome(Entity place, String biomeName, Random placeRandom) throws InternalException {
-		WorldSystem ws = game.getSystem(WorldSystem.class);
-		
+
 		// Use ItemTemplateSystem to generate item factory
 		ItemTemplateSystem.ItemFactory factory = itemTemplateSystem.generateItem(biomeName, game, placeRandom);
 		
@@ -499,8 +491,8 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		// Place the item in the location using the "contains" relationship
 		relationshipSystem.add(place, item, relationshipSystem.rvContains);
 		
-		// If item is a container (chest), populate it with 2-3 items
-		if (itemSystem.hasTag(item, itemSystem.TAG_CONTAINER, ws.getCurrentTime())) {
+		// If item itemSystem a container (chest), populate it with 2-3 items
+		if (itemSystem.hasTag(item, itemSystem.TAG_CONTAINER, worldSystem.getCurrentTime())) {
 			int numContainedItems = 2 + placeRandom.nextInt(2); // 2-3 items
 			for (int i = 0; i < numContainedItems; i++) {
 				generateItemInContainer(item, biomeName, placeRandom);
@@ -512,8 +504,7 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	 * Generate an item inside a container.
 	 */
 	private void generateItemInContainer(Entity container, String biomeName, Random placeRandom) throws InternalException {
-		WorldSystem ws = game.getSystem(WorldSystem.class);
-		
+
 		// Generate item factory (avoid generating another container inside)
 		ItemTemplateSystem.ItemFactory factory = itemTemplateSystem.generateItem(biomeName, game, placeRandom);
 		
@@ -526,7 +517,7 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		Item item = factory.create(game, placeRandom);
 		
 		// Skip containers inside containers
-		if (itemSystem.hasTag(item, itemSystem.TAG_CONTAINER, ws.getCurrentTime())) {
+		if (itemSystem.hasTag(item, itemSystem.TAG_CONTAINER, worldSystem.getCurrentTime())) {
 			return;
 		}
 		
@@ -539,8 +530,8 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	 * Landmarks are identified by having the "prominent" tag.
 	 */
 	private void loadExistingLandmarks() throws InternalException {
-		WorldSystem ws = game.getSystem(WorldSystem.class);
-		DTime now = ws.getCurrentTime();
+
+		DTime now = worldSystem.getCurrentTime();
 		
 		try {
 			// Query for all entities with the prominent tag
@@ -555,10 +546,10 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 				now
 			);
 			
-			try (var rs = stmt.executeQuery()) {
-				EntitySystem es = game.getSystem(EntitySystem.class);
-				while (rs.next()) {
-					Entity landmark = es.get(rs.getLong(1));
+			try (var relationshipSystem = stmt.executeQuery()) {
+
+				while (relationshipSystem.next()) {
+					Entity landmark = entitySystem.get(relationshipSystem.getLong(1));
 					landmarks.add(landmark);
 					allPlaces.add(landmark);
 				}
@@ -572,7 +563,7 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	 * Generate 2-3 distant landmarks using LandmarkTemplateSystem.
 	 * These landmarks will be visible from multiple places.
 	 */
-	private void generateLandmarks(EntitySystem es, LookSystem ls, RelationshipSystem rs) {
+	private void generateLandmarks() {
 		int landmarkCount = 2 + random.nextInt(2); // 2-3 landmarks
 		
 		for (int i = 0; i < landmarkCount; i++) {
@@ -587,9 +578,9 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 			int[] landmarkPos = new int[]{x, y};
 			
 			// Create the landmark place
-			Place landmark = es.add(Place.class);
+			Place landmark = entitySystem.add(Place.class);
 			String description = landmarkTemplateSystem.generateDescription(landmarkTypeName, random);
-			ls.addLook(landmark, "basic", description);
+			lookSystem.addLook(landmark, "basic", description);
 			
 			// Mark as prominent so it's visible from distance
 			entityTagSystem.addTag(landmark, visibilitySystem.tagProminent);
@@ -605,7 +596,7 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 	}
 	
 	/**
-	 * Update distant visibility when a new place is generated.
+	 * Update distant visibility when a new place itemSystem generated.
 	 * Makes nearby landmarks visible from this place.
 	 */
 	private void updateDistantVisibility(Entity place) {

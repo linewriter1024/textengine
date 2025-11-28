@@ -23,6 +23,7 @@ import com.benleskey.textengine.util.Markup;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Matcher;
 
 import static com.benleskey.textengine.plugins.core.InteractionPlugin.LOOK;
@@ -44,14 +45,42 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 	public static final String ERR_PLAYER_NOWHERE = "player_nowhere";
 	public static final String ERR_NO_EXIT = "no_exit";
 	public static final String ERR_NO_EXITS = "no_exits";
+	
+	// System fields
+	private ConnectionSystem connectionSystem;
+	private RelationshipSystem relationshipSystem;
+	private WorldSystem worldSystem;
+	private DisambiguationSystem disambiguationSystem;
+	private VisibilitySystem visibilitySystem;
+	private EntityDescriptionSystem entityDescriptionSystem;
+	private SpatialSystem spatialSystem;
+	private ActorActionSystem actorActionSystem;
 
 
 	public NavigationPlugin(Game game) {
 		super(game);
 	}
+	
+	@Override
+	public Set<Plugin> getDependencies() {
+		return Set.of(
+			game.getPlugin(EntityPlugin.class),
+			game.getPlugin(ProceduralWorldPlugin.class)
+		);
+	}
 
 	@Override
 	public void onPluginInitialize() {
+		// Initialize system fields
+		connectionSystem = game.getSystem(ConnectionSystem.class);
+		relationshipSystem = game.getSystem(RelationshipSystem.class);
+		worldSystem = game.getSystem(WorldSystem.class);
+		disambiguationSystem = game.getSystem(DisambiguationSystem.class);
+		visibilitySystem = game.getSystem(VisibilitySystem.class);
+		entityDescriptionSystem = game.getSystem(EntityDescriptionSystem.class);
+		spatialSystem = game.getSystem(SpatialSystem.class);
+		actorActionSystem = game.getSystem(ActorActionSystem.class);
+		
 		game.registerCommand(new Command(GO, this::handleGo,
 			// Match: go north, go n, go castle, go #1234 (entity ID), etc.
 			// Accepts both destination names and entity IDs with # prefix
@@ -82,12 +111,12 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		
 		String userInput = exitOptional.get().toString();
 
-		ConnectionSystem cs = game.getSystem(ConnectionSystem.class);
-		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
-		WorldSystem ws = game.getSystem(WorldSystem.class);
+		
+		
+		
 
 		// Find current location (what contains the actor)
-		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
+		var containers = relationshipSystem.getProvidingRelationships(actor, relationshipSystem.rvContains, worldSystem.getCurrentTime());
 		if (containers.isEmpty()) {
 			client.sendOutput(CommandOutput.make(M_GO_FAIL)
 				.put(CommandOutput.M_ERROR, ERR_PLAYER_NOWHERE)
@@ -99,10 +128,10 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		
 		// Get available exits and match user input using DisambiguationSystem
 		List<com.benleskey.textengine.model.ConnectionDescriptor> exits = 
-			cs.getConnections(currentLocation, ws.getCurrentTime());
+			connectionSystem.getConnections(currentLocation, worldSystem.getCurrentTime());
 		
 		// Try numeric ID first, then fuzzy match
-		DisambiguationSystem ds = game.getSystem(DisambiguationSystem.class);
+		
 		
 		// Extract exit destinations as entities
 		List<Entity> exitDestinations = exits.stream()
@@ -110,8 +139,8 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 			.toList();
 		
 		// Also get distant landmarks that might be visible
-		VisibilitySystem vs = game.getSystem(VisibilitySystem.class);
-		List<Entity> distantLandmarks = vs.getVisibleEntities(actor).stream()
+		
+		List<Entity> distantLandmarks = visibilitySystem.getVisibleEntities(actor).stream()
 			.filter(vd -> vd.getDistanceLevel() == VisibilitySystem.VisibilityLevel.DISTANT)
 			.map(vd -> vd.getEntity())
 			.toList();
@@ -121,12 +150,12 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 	allDestinations.addAll(distantLandmarks);
 	
 	// Resolve the user input to a destination (exit or landmark)
-	EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
-	DisambiguationSystem.ResolutionResult<Entity> result = ds.resolveEntityWithAmbiguity(
+	
+	DisambiguationSystem.ResolutionResult<Entity> result = disambiguationSystem.resolveEntityWithAmbiguity(
 		client,
 		userInput,
 		allDestinations,
-		destination -> eds.getSimpleDescription(destination, ws.getCurrentTime())
+		destination -> entityDescriptionSystem.getSimpleDescription(destination, worldSystem.getCurrentTime())
 	);
 	
 	if (result.isNotFound()) {
@@ -138,12 +167,12 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 	
 	if (result.isAmbiguous()) {
 		// Multiple matches - show disambiguation
-		ds.sendDisambiguationPrompt(
+		disambiguationSystem.sendDisambiguationPrompt(
 			client,
 			M_GO_FAIL,
 			userInput,
 			result.getAmbiguousMatches(),
-			destination -> eds.getSimpleDescription(destination, ws.getCurrentTime())
+			destination -> entityDescriptionSystem.getSimpleDescription(destination, worldSystem.getCurrentTime())
 		);
 		return;
 	}
@@ -165,7 +194,7 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 			}
 			
 			// Use SpatialSystem to find the exit that moves us closest to the landmark at continent scale
-			SpatialSystem spatialSystem = game.getSystem(SpatialSystem.class);
+			
 			
 			// Find which exit destination is closest to the landmark
 			Entity closestDestination = spatialSystem.findClosestToTarget(
@@ -213,11 +242,11 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		worldGen.ensurePlaceHasNeighbors(destination);
 
 		// Use ActorActionSystem to queue the move action
-		ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
+		
 		DTime moveTime = DTime.fromSeconds(60);
 		
 		// Queue the action (validation + execution happens inside for players)
-		ActionValidation validation = aas.queueAction((com.benleskey.textengine.entities.Actor) actor, aas.ACTION_MOVE, destination, moveTime);
+		ActionValidation validation = actorActionSystem.queueAction((com.benleskey.textengine.entities.Actor) actor, actorActionSystem.ACTION_MOVE, destination, moveTime);
 		
 		if (!validation.isValid()) {
 			client.sendOutput(validation.getErrorOutput());
@@ -228,8 +257,8 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		
 	// For pathfinding toward landmarks, send context message (not a broadcast)
 	if (isLandmark) {
-		String destinationDesc = eds.getSimpleDescription(destination, ws.getCurrentTime(), "there");
-		String landmarkDesc = eds.getSimpleDescription(matchedDestination, ws.getCurrentTime(), "the landmark");			client.sendOutput(CommandOutput.make("navigation_context")
+		String destinationDesc = entityDescriptionSystem.getSimpleDescription(destination, worldSystem.getCurrentTime(), "there");
+		String landmarkDesc = entityDescriptionSystem.getSimpleDescription(matchedDestination, worldSystem.getCurrentTime(), "the landmark");			client.sendOutput(CommandOutput.make("navigation_context")
 				.put("destination", destinationDesc)
 				.put("landmark", landmarkDesc)
 				.text(Markup.concat(
