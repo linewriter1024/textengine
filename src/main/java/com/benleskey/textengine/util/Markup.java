@@ -271,16 +271,19 @@ public class Markup {
 					
 					i = notyouEndPos + "</notyou>".length();
 					
-				} else if (tagName.equals("em")) {
-					// Emphasis: <em>text</em>
-					result.append(bold);
-					i = closePos + 1;
-					
-				} else if (tagName.equals("/em")) {
+			} else if (tagName.equals("em")) {
+				// Emphasis: <em>text</em>
+				if (isClosingTag) {
 					result.append(reset);
-					i = closePos + 1;
-					
-				} else if (tagName.equals("capital")) {
+				} else {
+					result.append(bold);
+				}
+				i = closePos + 1;
+				
+			} else if (tagName.equals("/em")) {
+				// This case is never reached - kept for backwards compatibility
+				result.append(reset);
+				i = closePos + 1;				} else if (tagName.equals("capital")) {
 					// Capital: <capital>text</capital> - capitalize first letter of content
 					int endTagPos = markup.indexOf("</capital>", closePos);
 					if (endTagPos == -1) {
