@@ -43,6 +43,7 @@ public class TickSystem extends SingletonGameSystem implements OnSystemInitializ
 	/**
 	 * Process ticks for all tickable entities in the world.
 	 * Called after time has advanced to trigger entity ticks based on their intervals.
+	 * Also calls ActorActionSystem to check Acting entities.
 	 */
 	public void processWorldTicks() {
 		DTime currentTime = worldSystem.getCurrentTime();
@@ -63,6 +64,11 @@ public class TickSystem extends SingletonGameSystem implements OnSystemInitializ
 				processEntityTick(tickable, entity, currentTime);
 			}
 		}
+		
+		// Process Acting entities via ActorActionSystem
+		ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
+		DTime timeSinceLastTick = DTime.fromSeconds(1); // Placeholder - actual time delta not critical
+		aas.tickActingEntities(currentTime, timeSinceLastTick);
 	}
 	
 	/**

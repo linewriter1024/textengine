@@ -1,13 +1,12 @@
 package com.benleskey.textengine.plugins.highfantasy.entities;
 
 import com.benleskey.textengine.Game;
+import com.benleskey.textengine.entities.Acting;
 import com.benleskey.textengine.entities.Actor;
-import com.benleskey.textengine.entities.Tickable;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.UniqueType;
 import com.benleskey.textengine.systems.*;
-import com.benleskey.textengine.systems.PendingActionSystem.PendingAction;
 
 import java.util.List;
 import java.util.Random;
@@ -15,13 +14,13 @@ import java.util.Random;
 /**
  * Goblin NPC - patrols between locations and interacts with items.
  * 
- * Simplified NPC that delegates all action logic to ActorActionSystem.
- * Only responsible for:
- * - Deciding what action to take (AI logic)
- * - Queueing actions via ActorActionSystem
- * - Reacting when actions complete
+ * Implements Acting interface - ActorActionSystem calls onActionReady() when:
+ * - No pending action exists
+ * - Enough time has passed since last check (getActionInterval())
+ * 
+ * AI logic only - all execution handled by ActorActionSystem.
  */
-public class Goblin extends Actor implements Tickable {
+public class Goblin extends Actor implements Acting {
 	
 	private final Random random;
 	
@@ -35,6 +34,7 @@ public class Goblin extends Actor implements Tickable {
 		LookSystem ls = game.getSystem(LookSystem.class);
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		UniqueTypeSystem uts = game.getSystem(UniqueTypeSystem.class);
+		ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
 		
 		Goblin goblin = es.add(Goblin.class);
 		
@@ -43,48 +43,23 @@ public class Goblin extends Actor implements Tickable {
 		rs.add(goblin, roomB, patrolTarget);
 		
 		ls.addLook(goblin, "basic", "a goblin");
-		es.addTag(goblin, es.TAG_TICKABLE);
+		es.addTag(goblin, aas.TAG_ACTING);
 		rs.add(startLocation, goblin, rs.rvContains);
 		
 		return goblin;
 	}
 	
 	@Override
-	public DTime getTickInterval() {
+	public DTime getActionInterval() {
 		return DTime.fromSeconds(120);
 	}
 	
 	@Override
-	public void onTick(DTime currentTime, DTime timeSinceLastTick) {
-		PendingActionSystem pas = game.getSystem(PendingActionSystem.class);
+	public void onActionReady(DTime currentTime) {
+		// AI: Decide what to do (no pending action, ready for new action)
+		LookSystem ls = game.getSystem(LookSystem.class);
 		ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
 		
-		// Check if we have a pending action
-		PendingAction pending = pas.getPendingAction(this);
-		
-		if (pending != null) {
-			// Wait for action to be ready
-			if (pending.isReady(currentTime)) {
-				log.log("Goblin %d: action %s ready, executing", getId(), pending.type);
-				
-				EntitySystem es = game.getSystem(EntitySystem.class);
-				Entity target = es.get(pending.targetEntityId);
-				
-				// Execute via ActorActionSystem
-				boolean success = aas.executeAction(this, pending.type, target, pending.timeRequired);
-				
-				// Clear the action
-				pas.clearPendingAction(this);
-				
-				log.log("Goblin %d: action completed: %s", getId(), success ? "success" : "failed");
-			} else {
-				log.log("Goblin %d: still working on %s", getId(), pending.type);
-			}
-			return;
-		}
-		
-		// No pending action - decide what to do next
-		LookSystem ls = game.getSystem(LookSystem.class);
 		LookSystem.LookEnvironment env = ls.getLookEnvironment(this);
 		
 		if (env == null) {
