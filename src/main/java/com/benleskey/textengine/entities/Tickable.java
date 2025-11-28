@@ -1,9 +1,6 @@
 package com.benleskey.textengine.entities;
 
 import com.benleskey.textengine.model.DTime;
-import com.benleskey.textengine.model.Entity;
-
-import java.util.List;
 
 /**
  * Interface for entities that can tick (receive periodic updates).

@@ -76,8 +76,9 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 		es.registerEntityType(WeatheredScroll.class);
 		es.registerEntityType(Timepiece.class);
 		es.registerEntityType(GrandfatherClock.class);
+		es.registerEntityType(Goblin.class);
 		
-		log.log("Registered 13 high fantasy entity types");
+		log.log("Registered 14 high fantasy entity types");
 	}
 	
 	/**

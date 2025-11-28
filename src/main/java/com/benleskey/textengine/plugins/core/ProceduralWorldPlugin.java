@@ -203,6 +203,9 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 			updateDistantVisibility(place);
 		}
 		
+		// Spawn a goblin NPC in a neighboring room for testing
+		spawnGoblinNPC(es, ls, rs, starting);
+		
 		return starting;
 	}
 	
@@ -277,6 +280,48 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 		rs.add(chest, scroll, rs.rvContains);
 		
 		return actor;
+	}
+	
+	/**
+	 * Spawn a goblin NPC that wanders between two rooms near the starting location.
+	 */
+	private void spawnGoblinNPC(EntitySystem es, LookSystem ls, RelationshipSystem rs, Entity startingPlace) {
+		WorldSystem ws = game.getSystem(WorldSystem.class);
+		
+		// Get starting location position
+		int[] startPos = spatialSystem.getPosition(startingPlace, SpatialSystem.SCALE_CONTINENT);
+		if (startPos == null) {
+			log.log("Cannot spawn goblin: starting place has no position");
+			return;
+		}
+		
+		// Get exits from starting place
+		List<com.benleskey.textengine.model.ConnectionDescriptor> exits = 
+			connectionSystem.getConnections(startingPlace, ws.getCurrentTime());
+		
+		if (exits.size() < 2) {
+			log.log("Cannot spawn goblin: need at least 2 exits from starting place");
+			return;
+		}
+		
+		// Pick first two neighboring rooms for the goblin to wander between
+		Entity roomA = exits.get(0).getTo();
+		Entity roomB = exits.get(1).getTo();
+		
+		int[] posA = spatialSystem.getPosition(roomA, SpatialSystem.SCALE_CONTINENT);
+		int[] posB = spatialSystem.getPosition(roomB, SpatialSystem.SCALE_CONTINENT);
+		
+		if (posA == null || posB == null) {
+			log.log("Cannot spawn goblin: neighbor rooms have no positions");
+			return;
+		}
+		
+		// Spawn goblin in roomA
+		var goblin = com.benleskey.textengine.plugins.highfantasy.entities.Goblin.create(
+			game, roomA, posA, posB);
+		
+		log.log("Spawned goblin %d in room at (%d, %d), will wander to (%d, %d)", 
+			goblin.getId(), posA[0], posA[1], posB[0], posB[1]);
 	}
 	
 	/**
