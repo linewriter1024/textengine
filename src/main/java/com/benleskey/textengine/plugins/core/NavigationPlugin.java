@@ -14,6 +14,7 @@ import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.systems.ActorActionSystem;
 import com.benleskey.textengine.systems.ConnectionSystem;
 import com.benleskey.textengine.systems.DisambiguationSystem;
+import com.benleskey.textengine.systems.EntityDescriptionSystem;
 import com.benleskey.textengine.systems.RelationshipSystem;
 import com.benleskey.textengine.systems.SpatialSystem;
 import com.benleskey.textengine.systems.VisibilitySystem;
@@ -120,16 +121,12 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 	allDestinations.addAll(distantLandmarks);
 	
 	// Resolve the user input to a destination (exit or landmark)
+	EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
 	DisambiguationSystem.ResolutionResult<Entity> result = ds.resolveEntityWithAmbiguity(
 		client,
 		userInput,
 		allDestinations,
-		destination -> {
-			// Get the description of the destination place
-			var looks = game.getSystem(com.benleskey.textengine.systems.LookSystem.class)
-				.getLooksFromEntity(destination, ws.getCurrentTime());
-			return !looks.isEmpty() ? looks.get(0).getDescription() : null;
-		}
+		destination -> eds.getSimpleDescription(destination, ws.getCurrentTime())
 	);
 	
 	if (result.isNotFound()) {
@@ -146,11 +143,7 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 			M_GO_FAIL,
 			userInput,
 			result.getAmbiguousMatches(),
-			destination -> {
-				var looks = game.getSystem(com.benleskey.textengine.systems.LookSystem.class)
-					.getLooksFromEntity(destination, ws.getCurrentTime());
-				return !looks.isEmpty() ? looks.get(0).getDescription() : null;
-			}
+			destination -> eds.getSimpleDescription(destination, ws.getCurrentTime())
 		);
 		return;
 	}
@@ -233,17 +226,10 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		
 		// Success - action has already broadcast the result to player
 		
-		// For pathfinding toward landmarks, send context message (not a broadcast)
-		if (isLandmark) {
-			var destinationLooks = game.getSystem(com.benleskey.textengine.systems.LookSystem.class)
-				.getLooksFromEntity(destination, ws.getCurrentTime());
-			String destinationDesc = !destinationLooks.isEmpty() ? destinationLooks.get(0).getDescription() : "there";
-			
-			var landmarkLooks = game.getSystem(com.benleskey.textengine.systems.LookSystem.class)
-				.getLooksFromEntity(matchedDestination, ws.getCurrentTime());
-			String landmarkDesc = !landmarkLooks.isEmpty() ? landmarkLooks.get(0).getDescription() : "the landmark";
-			
-			client.sendOutput(CommandOutput.make("navigation_context")
+	// For pathfinding toward landmarks, send context message (not a broadcast)
+	if (isLandmark) {
+		String destinationDesc = eds.getSimpleDescription(destination, ws.getCurrentTime(), "there");
+		String landmarkDesc = eds.getSimpleDescription(matchedDestination, ws.getCurrentTime(), "the landmark");			client.sendOutput(CommandOutput.make("navigation_context")
 				.put("destination", destinationDesc)
 				.put("landmark", landmarkDesc)
 				.text(Markup.concat(

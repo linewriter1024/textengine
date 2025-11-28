@@ -7,6 +7,7 @@ import com.benleskey.textengine.entities.Item;
 import com.benleskey.textengine.entities.UsableItem;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.LookDescriptor;
+import com.benleskey.textengine.systems.EntityDescriptionSystem;
 import com.benleskey.textengine.systems.EntitySystem;
 import com.benleskey.textengine.systems.ItemSystem;
 import com.benleskey.textengine.systems.LookSystem;
@@ -56,10 +57,9 @@ public class Rattle extends Item implements UsableItem {
 	
 	@Override
 	public CommandOutput useSolo(Client client, Entity actor) {
-		LookSystem ls = game.getSystem(LookSystem.class);
+		EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
-		List<LookDescriptor> looks = ls.getLooksFromEntity(this, ws.getCurrentTime());
-		String itemName = !looks.isEmpty() ? looks.get(0).getDescription() : "the rattle";
+		String itemName = eds.getSimpleDescription(this, ws.getCurrentTime(), "the rattle");
 		
 		return CommandOutput.make("use")
 			.put("item", this.getKeyId())

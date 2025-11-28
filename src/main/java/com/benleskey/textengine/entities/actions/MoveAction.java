@@ -117,11 +117,10 @@ public class MoveAction extends Action {
 	
 	@Override
 	public String getDescription() {
-		LookSystem ls = game.getSystem(LookSystem.class);
+		EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		
-		List<LookDescriptor> looks = ls.getLooksFromEntity(target, ws.getCurrentTime());
-		String destDesc = !looks.isEmpty() ? looks.get(0).getDescription() : "somewhere";
+		String destDesc = eds.getSimpleDescription(target, ws.getCurrentTime(), "somewhere");
 		
 		return "moving to " + destDesc;
 	}

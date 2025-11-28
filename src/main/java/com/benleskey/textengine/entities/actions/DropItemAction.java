@@ -124,12 +124,15 @@ public class DropItemAction extends Action {
 		return "dropping " + itemDesc;
 	}
 	
-	private String getItemDescription() {
-		LookSystem ls = game.getSystem(LookSystem.class);
+	private String getEntityDescription(Entity entity) {
+		EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		
-		List<LookDescriptor> looks = ls.getLooksFromEntity(target, ws.getCurrentTime());
-		return !looks.isEmpty() ? looks.get(0).getDescription() : "something";
+		return eds.getSimpleDescription(entity, ws.getCurrentTime(), "something");
+	}
+	
+	private String getItemDescription() {
+		return getEntityDescription(target);
 	}
 	
 	private String capitalize(String str) {

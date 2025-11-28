@@ -185,11 +185,10 @@ public class TakeItemAction extends Action {
 	}
 	
 	private String getEntityDescription(Entity entity) {
-		LookSystem ls = game.getSystem(LookSystem.class);
+		EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		
-		List<LookDescriptor> looks = ls.getLooksFromEntity(entity, ws.getCurrentTime());
-		return !looks.isEmpty() ? looks.get(0).getDescription() : "something";
+		return eds.getSimpleDescription(entity, ws.getCurrentTime(), "something");
 	}
 	
 	private String capitalize(String str) {

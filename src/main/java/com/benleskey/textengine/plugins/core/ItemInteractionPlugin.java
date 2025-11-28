@@ -207,10 +207,8 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 			}
 			
 			DisambiguationSystem ds = game.getSystem(DisambiguationSystem.class);
-			java.util.function.Function<Entity, String> descExtractor = e -> {
-				List<LookDescriptor> looks = ls.getLooksFromEntity(e, ws.getCurrentTime());
-				return !looks.isEmpty() ? looks.get(0).getDescription() : null;
-			};
+			EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
+java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDescription(e, ws.getCurrentTime());
 			
 			DisambiguationSystem.ResolutionResult<Entity> containerResult = ds.resolveEntityWithAmbiguity(
 				client,
@@ -240,8 +238,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 			// Check if container is open
 			Long openValue = is.getTagValue(sourceContainer, is.TAG_OPEN, ws.getCurrentTime());
 			if (openValue == null || openValue == 0) {
-				List<LookDescriptor> looks = ls.getLooksFromEntity(sourceContainer, ws.getCurrentTime());
-				String containerName = !looks.isEmpty() ? looks.get(0).getDescription() : "the container";
+			String containerName = eds.getSimpleDescription(sourceContainer, ws.getCurrentTime(), "the container");
 				client.sendOutput(CommandOutput.make(TAKE)
 					.error(ERR_CONTAINER_CLOSED)
 					.text(Markup.concat(
@@ -281,10 +278,8 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		// Fall back to keyword matching if no entity_id or entity not found
 		String itemInput = input.get(M_ITEM);
 		
-		java.util.function.Function<Entity, String> descExtractor = e -> {
-			List<LookDescriptor> looks = ls.getLooksFromEntity(e, ws.getCurrentTime());
-			return !looks.isEmpty() ? looks.get(0).getDescription() : null;
-		};
+		EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
+java.util.function.Function<Entity, String> descExtractor = e -> eds.getSimpleDescription(e, ws.getCurrentTime());
 		
 		// Only do resolution if we don't already have an item from entity_id
 		if (item == null) {
@@ -487,8 +482,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		Entity targetItem = result.getUniqueMatch();
 		
 		// Get item description
-		List<LookDescriptor> looks = ls.getLooksFromEntity(targetItem, ws.getCurrentTime());
-		String itemName = !looks.isEmpty() ? looks.get(0).getDescription() : "something";
+			String itemName = eds.getSimpleDescription(targetItem, ws.getCurrentTime(), "something");
 		
 		// Build examination output - all on one line
 		java.util.List<Markup.Safe> examineMarkup = new java.util.ArrayList<>();
@@ -815,8 +809,8 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 			}
 			
 			// Get item description
-			List<LookDescriptor> looks = ls.getLooksFromEntity(carriedItems.get(i), ws.getCurrentTime());
-			String description = !looks.isEmpty() ? looks.get(0).getDescription() : "something";
+			EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
+			String description = eds.getSimpleDescription(carriedItems.get(i), ws.getCurrentTime(), "something");
 			parts.add(Markup.em(description));
 		}
 		parts.add(Markup.raw("."));
