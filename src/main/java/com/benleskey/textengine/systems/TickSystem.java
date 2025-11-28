@@ -127,41 +127,50 @@ public class TickSystem extends SingletonGameSystem implements OnSystemInitializ
 			log.log("Processing tick for entity %d at time %d (target=%d)", 
 				te.entity.getId(), tickTime.toMilliseconds(), targetTime.toMilliseconds());
 			
-			// Execute the tick
-			if (te.tickable != null) {
-				DTime interval = te.tickable.getTickInterval();
+		// Execute the tick
+		if (te.tickable != null) {
+			DTime interval = te.tickable.getTickInterval();
 			te.tickable.onTick(tickTime, interval);
 			entitySystem.updateTagValue(te.entity, te.lastTickTag, tickTime.toMilliseconds(), targetTime);
-		} else if (te.acting != null) {
-			DTime interval = te.acting.getActionInterval();
-			aas.processActingEntitySingleTick(te.acting, (Actor) te.entity, interval);
-			entitySystem.updateTagValue(te.entity, te.lastTickTag, tickTime.toMilliseconds(), targetTime);				// If entity has a pending action, also schedule a tick for when it completes
-				try {
-					com.benleskey.textengine.model.Reference pendingAction = aas.getPendingAction((Actor) te.entity);
-					if (pendingAction != null) {
-						long actionReadyTime = aas.getActionReadyTime(pendingAction);
-						log.log("Entity %d has pending action ready at %d (current=%d, tickTime=%d)", 
-							te.entity.getId(), actionReadyTime, tickTime.toMilliseconds(), tickTime.toMilliseconds());
-						if (actionReadyTime > tickTime.toMilliseconds() && actionReadyTime <= targetTime.toMilliseconds()) {
-							log.log("Scheduling action completion tick at %d", actionReadyTime);
-							tickQueue.offer(new EntityTick(te, actionReadyTime));
-						}
-					}
-				} catch (DatabaseException e) {
-					log.log("Error checking pending action: %s", e.getMessage());
-				}
-			}
 			
-			// Schedule next tick for this entity
-			DTime interval = te.tickable != null ? te.tickable.getTickInterval() : te.acting.getActionInterval();
+			// Schedule next regular tick
 			long nextTickTime = tickTime.toMilliseconds() + interval.toMilliseconds();
-			
 			if (nextTickTime <= targetTime.toMilliseconds()) {
 				tickQueue.offer(new EntityTick(te, nextTickTime));
 			}
+		} else if (te.acting != null) {
+			DTime interval = te.acting.getActionInterval();
+			aas.processActingEntitySingleTick(te.acting, (Actor) te.entity, interval);
+			entitySystem.updateTagValue(te.entity, te.lastTickTag, tickTime.toMilliseconds(), targetTime);
+			
+			// Check if entity has a pending action and schedule tick for completion
+			boolean scheduledActionTick = false;
+			try {
+				com.benleskey.textengine.model.Reference pendingAction = aas.getPendingAction((Actor) te.entity);
+				if (pendingAction != null) {
+					long actionReadyTime = aas.getActionReadyTime(pendingAction);
+					if (actionReadyTime > tickTime.toMilliseconds() && actionReadyTime <= targetTime.toMilliseconds()) {
+						log.log("Entity %d: scheduling action completion tick at %d", 
+							te.entity.getId(), actionReadyTime);
+						tickQueue.offer(new EntityTick(te, actionReadyTime));
+						scheduledActionTick = true;
+					}
+				}
+			} catch (DatabaseException e) {
+				log.log("Error checking pending action: %s", e.getMessage());
+			}
+			
+			// Only schedule regular interval tick if we didn't schedule an action completion
+			if (!scheduledActionTick) {
+				long nextTickTime = tickTime.toMilliseconds() + interval.toMilliseconds();
+				if (nextTickTime <= targetTime.toMilliseconds()) {
+					log.log("Entity %d: scheduling next regular tick at %d", 
+						te.entity.getId(), nextTickTime);
+					tickQueue.offer(new EntityTick(te, nextTickTime));
+				}
+			}
 		}
-		
-		// Restore world time to target time
+	}		// Restore world time to target time
 		worldSystem.setCurrentTime(targetTime);
 	}
 	
