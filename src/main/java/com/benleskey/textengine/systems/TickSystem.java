@@ -147,13 +147,19 @@ public class TickSystem extends SingletonGameSystem implements OnSystemInitializ
 			boolean scheduledActionTick = false;
 			try {
 				com.benleskey.textengine.model.Reference pendingAction = aas.getPendingAction((Actor) te.entity);
+				log.log("Entity %d: checked for pending action, result=%s", 
+					te.entity.getId(), pendingAction != null ? "found #" + pendingAction.getId() : "none");
 				if (pendingAction != null) {
 					long actionReadyTime = aas.getActionReadyTime(pendingAction);
+					log.log("Entity %d: pending action #%d ready at %d, tickTime=%d, targetTime=%d", 
+						te.entity.getId(), pendingAction.getId(), actionReadyTime, tickTime.toMilliseconds(), targetTime.toMilliseconds());
 					if (actionReadyTime > tickTime.toMilliseconds() && actionReadyTime <= targetTime.toMilliseconds()) {
 						log.log("Entity %d: scheduling action completion tick at %d", 
 							te.entity.getId(), actionReadyTime);
 						tickQueue.offer(new EntityTick(te, actionReadyTime));
 						scheduledActionTick = true;
+					} else {
+						log.log("Entity %d: action not in range for scheduling", te.entity.getId());
 					}
 				}
 			} catch (DatabaseException e) {
