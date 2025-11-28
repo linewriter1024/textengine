@@ -102,8 +102,22 @@ public class EntityTagSystem extends SingletonGameSystem implements OnSystemInit
 	 * Check if an entity has a specific tag at a given time.
 	 */
 	public synchronized boolean hasTag(Entity entity, UniqueType tag, DTime when) {
-		Set<Entity> tagged = findEntitiesByTag(tag, when);
-		return tagged.contains(entity);
+		try {
+			findTagsByEntityStatement.setLong(1, entity.getId());
+			eventSystem.setValidEventsSubqueryParameters(findTagsByEntityStatement, 2, etEntityTag, when);
+			
+			try (ResultSet rs = findTagsByEntityStatement.executeQuery()) {
+				while (rs.next()) {
+					long tagType = rs.getLong(2);
+					if (tagType == tag.type()) {
+						return true;
+					}
+				}
+			}
+			return false;
+		} catch (SQLException e) {
+			throw new DatabaseException("Unable to check if entity has tag", e);
+		}
 	}
 
 	/**

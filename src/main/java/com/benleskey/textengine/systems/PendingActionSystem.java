@@ -13,6 +13,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Generic system for managing pending actions that take time to complete.
@@ -88,23 +90,25 @@ public class PendingActionSystem extends SingletonGameSystem implements OnSystem
 		ACTION_ITEM_DROP = uniqueTypeSystem.getType("action_item_drop");
 	}
 	
+	/**
+	 * Queue an action for an actor.
+	 * For players (TAG_AVATAR), auto-increments world time to complete instantly.
+	 * For NPCs, creates an event in the database.
+	 * 
+	 * Currently enforces single-action-at-a-time by checking for existing actions.
+	 * To support action queues in the future, remove the existing action check.
+	 */
 	public void queueAction(Entity actor, UniqueType actionType, DTime timeRequired, Entity targetEntity) throws DatabaseException {
 		DTime currentTime = worldSystem.getCurrentTime();
 		
-		boolean isPlayer = entityTagSystem.getTagValue(actor, entitySystem.TAG_AVATAR, currentTime) != null;
+		boolean isPlayer = entityTagSystem.hasTag(actor, entitySystem.TAG_AVATAR, currentTime);
 		
 		if (isPlayer) {
 			worldSystem.incrementCurrentTime(timeRequired);
-			log.log("Player %d action %s completed instantly (advanced time by %d s)", 
-actor.getId(), actionType, timeRequired);
+			log.log("Player %d action %s completed instantly (advanced time by %d ms)", 
+				actor.getId(), actionType, timeRequired.toMilliseconds());
 		} else {
-			PendingAction existing = getPendingAction(actor);
-			if (existing != null) {
-				log.log("NPC %d already has pending action %s, skipping new %s", 
-actor.getId(), existing.type, actionType);
-				return;
-			}
-			
+			// NPCs queue the action for execution over time
 			long actionId = game.getNewGlobalId();
 			
 			try (PreparedStatement ps = game.db().prepareStatement(
@@ -126,16 +130,22 @@ actor.getId(), actionType, actionId, timeRequired.toMilliseconds());
 		}
 	}
 	
+	/**
+	 * Get the next pending action for an actor (for single-action execution).
+	 * Returns the oldest action. To support multiple actions in the future,
+	 * use getPendingActions() instead.
+	 */
 	public PendingAction getPendingAction(Entity actor) throws DatabaseException {
 		DTime currentTime = worldSystem.getCurrentTime();
 		
 		try (PreparedStatement ps = game.db().prepareStatement(
-"SELECT action_id, action_type, target_entity_id, time_required_ms, event.time " +
-"FROM pending_action " +
-"JOIN event ON event.reference = pending_action.action_id " +
-"WHERE pending_action.actor_id = ? " +
-"AND event.reference IN " + eventSystem.getValidEventsSubquery("pending_action.action_id") + 
-" LIMIT 1")) {
+			"SELECT action_id, action_type, target_entity_id, time_required_ms, event.time " +
+			"FROM pending_action " +
+			"JOIN event ON event.reference = pending_action.action_id " +
+			"WHERE pending_action.actor_id = ? " +
+			"AND event.reference IN " + eventSystem.getValidEventsSubquery("pending_action.action_id") + 
+			" ORDER BY event.time ASC " +
+			"LIMIT 1")) {
 			
 			ps.setLong(1, actor.getId());
 			eventSystem.setValidEventsSubqueryParameters(ps, 2, ACTION_MOVE, currentTime);
@@ -160,7 +170,44 @@ actor.getId(), actionType, actionId, timeRequired.toMilliseconds());
 		return null;
 	}
 	
-	public void clearPendingAction(Entity actor) throws DatabaseException {
+	/**
+	 * Get all pending actions for an actor.
+	 * Future enhancement: returns list of all queued actions ordered by creation time.
+	 */
+	public List<PendingAction> getPendingActions(Entity actor) throws DatabaseException {
+		DTime currentTime = worldSystem.getCurrentTime();
+		List<PendingAction> actions = new ArrayList<>();
+		
+		try (PreparedStatement ps = game.db().prepareStatement(
+			"SELECT action_id, action_type, target_entity_id, time_required_ms, event.time " +
+			"FROM pending_action " +
+			"JOIN event ON event.reference = pending_action.action_id " +
+			"WHERE pending_action.actor_id = ? " +
+			"AND event.reference IN " + eventSystem.getValidEventsSubquery("pending_action.action_id") + 
+			" ORDER BY event.time ASC")) {
+			
+			ps.setLong(1, actor.getId());
+			eventSystem.setValidEventsSubqueryParameters(ps, 2, ACTION_MOVE, currentTime);
+			
+			try (ResultSet rs = ps.executeQuery()) {
+				while (rs.next()) {
+					long actionId = rs.getLong("action_id");
+					long actionTypeId = rs.getLong("action_type");
+					long targetId = rs.getLong("target_entity_id");
+					long timeRequiredMs = rs.getLong("time_required_ms");
+					long createdAtMs = rs.getLong("time");
+					
+					UniqueType actionType = new UniqueType(actionTypeId, uniqueTypeSystem);
+					
+					actions.add(new PendingAction(actionId, actionType, DTime.fromMilliseconds(timeRequiredMs), targetId, DTime.fromMilliseconds(createdAtMs)));
+				}
+			}
+		} catch (SQLException e) {
+			throw new DatabaseException("Unable to query pending actions", e);
+		}
+		
+		return actions;
+	}	public void clearPendingAction(Entity actor) throws DatabaseException {
 		PendingAction action = getPendingAction(actor);
 		if (action != null) {
 			eventSystem.cancelEvent(new Reference(action.actionId, game));

@@ -249,7 +249,7 @@ public class ProceduralWorldPlugin extends Plugin implements OnPluginInitialize,
 			rs.getReceivingRelationships(startingPlace, rs.rvContains, ws.getCurrentTime())
 			.stream()
 			.filter(rd -> rd.getReceiver() instanceof Actor)
-			.filter(rd -> ets.getTagValue(rd.getReceiver(), es.TAG_AVATAR, ws.getCurrentTime()) != null) // Only avatars
+			.filter(rd -> ets.hasTag(rd.getReceiver(), es.TAG_AVATAR, ws.getCurrentTime())) // Only avatars
 			.toList();
 		
 		if (!actorsInStartingPlace.isEmpty()) {

@@ -65,6 +65,13 @@ public class Goblin extends Actor implements Tickable {
 				log.log("Goblin %d still working on %s", getId(), pending.type);
 				return;
 			}
+		} else {
+			// Check if we already have a pending action before queueing a new one
+			PendingActionSystem.PendingAction existingAction = pas.getPendingAction(this);
+			if (existingAction != null) {
+				log.log("Goblin %d already has pending action %s, skipping new action", getId(), existingAction.type);
+				return;
+			}
 		}
 		
 		LookSystem.LookEnvironment env = ls.getLookEnvironment(this);
@@ -119,7 +126,7 @@ public class Goblin extends Actor implements Tickable {
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		
 		List<Entity> pickupableItems = env.itemsHere.stream()
-			.filter(e -> is.getTagValue(e, is.TAG_CONTAINER, ws.getCurrentTime()) == null)
+			.filter(e -> !is.hasTag(e, is.TAG_CONTAINER, ws.getCurrentTime()))
 			.toList();
 		
 		if (!env.itemsCarried.isEmpty() && (pickupableItems.isEmpty() || random.nextBoolean())) {
