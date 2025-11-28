@@ -2,6 +2,7 @@ package com.benleskey.textengine.plugins.highfantasy;
 
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.Plugin;
+import com.benleskey.textengine.exceptions.InternalException;
 import com.benleskey.textengine.hooks.core.OnCoreSystemsReady;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.plugins.highfantasy.entities.*;
@@ -115,27 +116,14 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 
 		// Register cutting interaction: TAG_CUT + TAG_CUTTABLE
 		tagInteractionSystem.registerInteraction(itemSystem.TAG_CUT, itemSystem.TAG_CUTTABLE,
-				(actor, tool, toolName, target, targetName) -> {
-					// If target implements Cuttable interface, delegate to it
-					// The Cuttable implementation handles broadcasting to nearby entities
+				(actor, tool, target) -> {
 					if (target instanceof Cuttable cuttable) {
-						return cuttable.onCut(actor, tool, toolName, targetName);
+						return cuttable.onCut(actor, tool);
+					} else {
+						throw new InternalException("Entity with TAG_CUTTABLE does not implement Cuttable interface: "
+								+ target);
 					}
-
-					// Default behavior if target doesn't implement Cuttable
-					// This simple case returns output directly (could be enhanced with broadcast)
-					return com.benleskey.textengine.commands.CommandOutput.make("use")
-							.put(ItemSystem.M_ITEM_ID, tool.getKeyId())
-							.put(RelationshipSystem.M_TARGET, target.getKeyId())
-							.text(com.benleskey.textengine.util.Markup.concat(
-									com.benleskey.textengine.util.Markup.raw("You use "),
-									com.benleskey.textengine.util.Markup.em(toolName),
-									com.benleskey.textengine.util.Markup.raw(" on "),
-									com.benleskey.textengine.util.Markup.em(targetName),
-									com.benleskey.textengine.util.Markup.raw(".")));
 				});
-
-		log.log("Registered cutting interaction (TAG_CUT + TAG_CUTTABLE)");
 	}
 
 	private void registerBiomes() {

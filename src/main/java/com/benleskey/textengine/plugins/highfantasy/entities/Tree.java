@@ -3,6 +3,7 @@ package com.benleskey.textengine.plugins.highfantasy.entities;
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.entities.Item;
+import com.benleskey.textengine.exceptions.InternalException;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.plugins.highfantasy.Cuttable;
 import com.benleskey.textengine.systems.BroadcastSystem;
@@ -27,8 +28,6 @@ public class Tree extends Item implements Cuttable {
 	// Command and broadcast constants
 	public static final String CMD_CUT_TREE = "cut_tree";
 	public static final String BROADCAST_CUTS_TREE = "actor_cuts_tree";
-	// Error codes
-	private static final String ERR_TREE_NOWHERE = "tree_nowhere";
 
 	private static final String[] DESCRIPTIONS = {
 			"a tree",
@@ -65,7 +64,7 @@ public class Tree extends Item implements Cuttable {
 	}
 
 	@Override
-	public CommandOutput onCut(Entity actor, Entity tool, String toolName, String targetName) {
+	public boolean onCut(Entity actor, Entity tool) {
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		EventSystem evs = game.getSystem(EventSystem.class);
@@ -75,9 +74,8 @@ public class Tree extends Item implements Cuttable {
 		// Find current location
 		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
 		if (containers.isEmpty()) {
-			return CommandOutput.make(CMD_CUT_TREE)
-					.put(CommandOutput.M_ERROR, ERR_TREE_NOWHERE)
-					.text(Markup.escape("You are nowhere."));
+			throw new InternalException(
+					String.format("Tree %s is nowhere, and cannot be cut down by %s using %s", this, actor, tool));
 		}
 
 		Entity currentLocation = containers.get(0).getProvider();
@@ -98,6 +96,8 @@ public class Tree extends Item implements Cuttable {
 
 		// Get actor description for broadcast
 		String actorDesc = eds.getSimpleDescription(actor, ws.getCurrentTime(), "someone");
+		String toolName = eds.getSimpleDescription(tool, ws.getCurrentTime());
+		String targetName = eds.getSimpleDescription(this, ws.getCurrentTime());
 
 		// Broadcast to all entities in location (using new markup system)
 		// The broadcast is the only output - no separate client-specific return value
@@ -128,7 +128,6 @@ public class Tree extends Item implements Cuttable {
 						Markup.raw(".")));
 
 		bs.broadcast(actor, broadcast);
-		// Return broadcast - no longer client-specific
-		return broadcast;
+		return true;
 	}
 }

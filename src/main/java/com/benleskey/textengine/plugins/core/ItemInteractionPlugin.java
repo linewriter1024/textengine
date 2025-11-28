@@ -9,7 +9,6 @@ import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.commands.CommandVariant;
 import com.benleskey.textengine.entities.Item;
 import com.benleskey.textengine.entities.UsableItem;
-import com.benleskey.textengine.entities.UsableOnTarget;
 import com.benleskey.textengine.entities.actions.ActionValidation;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.model.DTime;
@@ -666,11 +665,6 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 	}
 
 	private void handleUseOn(Client client, Entity actor, Entity item, String targetInput) {
-
-		// Get item description
-		List<LookDescriptor> itemLooks = lookSystem.getLooksFromEntity(item, worldSystem.getCurrentTime());
-		String itemName = !itemLooks.isEmpty() ? itemLooks.get(0).getDescription() : "the item";
-
 		// Find current location
 		var containers = relationshipSystem.getProvidingRelationships(actor, relationshipSystem.rvContains,
 				worldSystem.getCurrentTime());
@@ -723,34 +717,15 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 
 		Entity target = result.getUniqueMatch();
 
-		// Get target description
-		List<LookDescriptor> targetLooks = lookSystem.getLooksFromEntity(target, worldSystem.getCurrentTime());
-		String targetName = !targetLooks.isEmpty() ? targetLooks.get(0).getDescription() : "the target";
-
 		// GENERIC TAG-BASED INTERACTIONS
 
 		// Check TagInteractionSystem for registered tag interactions
 
-		// Get actor name for broadcasting
-		List<LookDescriptor> actorLooks = lookSystem.getLooksFromEntity(actor, worldSystem.getCurrentTime());
-		String actorName = !actorLooks.isEmpty() ? actorLooks.get(0).getDescription() : "someone";
+		boolean tagInteractionOutput = tagInteractionSystem.executeInteraction(
+				actor, item, target, worldSystem.getCurrentTime());
 
-		Optional<CommandOutput> tagInteractionOutput = tagInteractionSystem.executeInteractionWithBroadcast(
-				actor, actorName, item, itemName, target, targetName, worldSystem.getCurrentTime());
-
-		if (tagInteractionOutput.isPresent()) {
-			client.sendOutput(tagInteractionOutput.get());
+		if (tagInteractionOutput) {
 			return;
-		}
-
-		// Check if item implements UsableOnTarget interface (legacy/custom
-		// interactions)
-		if (item instanceof UsableOnTarget usableOnTarget) {
-			CommandOutput output = usableOnTarget.useOn(client, actor, target, targetName);
-			if (output != null) {
-				client.sendOutput(output);
-				return;
-			}
 		}
 
 		// Default: no interaction defined
@@ -758,9 +733,9 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 				.error(ERR_NO_INTERACTION)
 				.text(Markup.concat(
 						Markup.raw("You can't use "),
-						Markup.em(itemName),
+						Markup.em(entityDescriptionSystem.getDescription(item, worldSystem.getCurrentTime())),
 						Markup.raw(" on "),
-						Markup.em(targetName),
+						Markup.em(entityDescriptionSystem.getDescription(target, worldSystem.getCurrentTime())),
 						Markup.raw("."))));
 	}
 

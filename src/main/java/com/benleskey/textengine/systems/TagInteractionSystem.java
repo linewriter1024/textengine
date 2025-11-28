@@ -35,17 +35,14 @@ public class TagInteractionSystem extends SingletonGameSystem implements OnSyste
 		/**
 		 * Handle the interaction between tool and target.
 		 * 
-		 * @param actor      The actor using the tool (could be player or NPC)
-		 * @param tool       The tool entity (has toolTag) - may be the same as actor
-		 *                   for self-interactions
-		 * @param toolName   Human-readable name of the tool
-		 * @param target     The target entity (has targetTag)
-		 * @param targetName Human-readable name of the target
-		 * @return CommandOutput describing what happened, or null if interaction should
-		 *         fall through
+		 * @param actor  The actor using the tool (could be player or NPC)
+		 * @param tool   The tool entity (has toolTag) - may be the same as actor
+		 *               for self-interactions
+		 * @param target The target entity (has targetTag)
+		 * @return Boolean indicating if the interaction was handled
 		 */
-		CommandOutput handle(Entity actor, Entity tool, String toolName,
-				Entity target, String targetName);
+		boolean handle(Entity actor, Entity tool,
+				Entity target);
 	}
 
 	/**
@@ -94,12 +91,11 @@ public class TagInteractionSystem extends SingletonGameSystem implements OnSyste
 	 * @param target      The target entity
 	 * @param targetName  Human-readable name of the target
 	 * @param currentTime The current game time
-	 * @return Optional containing CommandOutput if an interaction was found and
-	 *         executed, empty otherwise
+	 * @return Boolean indicating if an interaction was handled
 	 */
-	public Optional<CommandOutput> executeInteraction(Entity actor,
-			Entity tool, String toolName,
-			Entity target, String targetName,
+	public boolean executeInteraction(Entity actor,
+			Entity tool,
+			Entity target,
 			com.benleskey.textengine.model.DTime currentTime) {
 		EntityTagSystem tagSystem = game.getSystem(EntityTagSystem.class);
 
@@ -114,46 +110,12 @@ public class TagInteractionSystem extends SingletonGameSystem implements OnSyste
 				TagInteractionHandler handler = interactions.get(key);
 
 				if (handler != null) {
-					// Found a matching interaction!
-					CommandOutput output = handler.handle(actor, tool, toolName, target, targetName);
-					if (output != null) {
-						return Optional.of(output);
-					}
+					return handler.handle(actor, tool, target);
 				}
 			}
 		}
 
-		return Optional.empty();
-	}
-
-	/**
-	 * Execute an interaction. The interaction handler is responsible for
-	 * broadcasting
-	 * to all observers using BroadcastSystem if needed.
-	 * 
-	 * This method now simply executes the interaction - the handler itself (e.g.,
-	 * Tree.onCut)
-	 * uses BroadcastSystem to notify all nearby entities with proper markup.
-	 * 
-	 * @param actor       The actor performing the interaction
-	 * @param actorName   Human-readable name of the actor (unused now, kept for
-	 *                    compatibility)
-	 * @param tool        The tool being used
-	 * @param toolName    Human-readable name of the tool
-	 * @param target      The target of the interaction
-	 * @param targetName  Human-readable name of the target
-	 * @param currentTime The current game time
-	 * @return Optional containing CommandOutput for the actor, empty if no
-	 *         interaction found
-	 */
-	public Optional<CommandOutput> executeInteractionWithBroadcast(
-			Entity actor, String actorName,
-			Entity tool, String toolName,
-			Entity target, String targetName,
-			com.benleskey.textengine.model.DTime currentTime) {
-
-		// Simply execute the interaction - the handler uses BroadcastSystem internally
-		return executeInteraction(actor, tool, toolName, target, targetName, currentTime);
+		return false;
 	}
 
 	/**
