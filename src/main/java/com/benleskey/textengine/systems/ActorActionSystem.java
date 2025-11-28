@@ -39,124 +39,125 @@ import java.util.Map;
  * - Commands queue and execute actions instantly (auto-advance time)
  */
 public class ActorActionSystem extends SingletonGameSystem implements OnSystemInitialize {
-	
+
 	// Action type registry
 	private final Map<UniqueType, Class<? extends Action>> actionTypes = new HashMap<>();
-	
+
 	// Event type for all actions (reference points to action table)
 	public UniqueType ACTION;
-	
+
 	// Action type constants
 	public UniqueType ACTION_MOVE;
 	public UniqueType ACTION_ITEM_TAKE;
 	public UniqueType ACTION_ITEM_DROP;
 	public UniqueType ACTION_WAIT;
-	
+
 	// Tag for Acting entities
 	public UniqueType TAG_ACTING;
 	public UniqueType TAG_LAST_ACTION_CHECK;
-	
+
 	// Event type for entity tags
 	private UniqueType etEntityTag;
-	
+
 	private EventSystem eventSystem;
 	private WorldSystem worldSystem;
 	private EntitySystem entitySystem;
 	private EntityTagSystem entityTagSystem;
-	
+
 	// Prepared statements
 	private PreparedStatement insertActionStatement;
 	private PreparedStatement loadActionStatement;
 	private PreparedStatement getPendingActionStatement;
 	private PreparedStatement getActionReadyTimeStatement;
 	private PreparedStatement getActingEntitiesStatement;
-	
+
 	public ActorActionSystem(Game game) {
 		super(game);
 	}
-	
+
 	@Override
 	public void onSystemInitialize() throws DatabaseException {
 		int v = getSchema().getVersionNumber();
 		if (v == 0) {
 			try (Statement s = game.db().createStatement()) {
 				s.executeUpdate(
-"CREATE TABLE action (" +
-"action_id INTEGER PRIMARY KEY, " +
-"actor_id INTEGER NOT NULL, " +
-"action_type INTEGER NOT NULL, " +
-"target_entity_id INTEGER NOT NULL, " +
-"time_required_ms INTEGER NOT NULL" +
-")"
-);
+						"CREATE TABLE action (" +
+								"action_id INTEGER PRIMARY KEY, " +
+								"actor_id INTEGER NOT NULL, " +
+								"action_type INTEGER NOT NULL, " +
+								"target_entity_id INTEGER NOT NULL, " +
+								"time_required_ms INTEGER NOT NULL" +
+								")");
 			} catch (SQLException e) {
 				throw new DatabaseException("Unable to create action table", e);
 			}
 			getSchema().setVersionNumber(1);
 		}
-		
+
 		eventSystem = game.getSystem(EventSystem.class);
 		worldSystem = game.getSystem(WorldSystem.class);
 		entitySystem = game.getSystem(EntitySystem.class);
 		entityTagSystem = game.getSystem(EntityTagSystem.class);
-		
+
 		UniqueTypeSystem uts = game.getSystem(UniqueTypeSystem.class);
-		
+
 		// Define event types
 		etEntityTag = uts.getType("entity_tag");
 		ACTION = uts.getType("action");
-		
+
 		// Define action types
 		ACTION_MOVE = uts.getType("action_move");
 		ACTION_ITEM_TAKE = uts.getType("action_item_take");
 		ACTION_ITEM_DROP = uts.getType("action_item_drop");
 		ACTION_WAIT = uts.getType("action_wait");
-		
+
 		// Define tags
 		TAG_ACTING = uts.getType("entity_tag_acting");
 		TAG_LAST_ACTION_CHECK = uts.getType("entity_tag_last_action_check");
-		
+
 		// Prepare SQL statements
 		try {
 			insertActionStatement = game.db().prepareStatement(
-				"INSERT INTO action (action_id, actor_id, action_type, target_entity_id, time_required_ms) VALUES (?, ?, ?, ?, ?)");
-			
+					"INSERT INTO action (action_id, actor_id, action_type, target_entity_id, time_required_ms) VALUES (?, ?, ?, ?, ?)");
+
 			loadActionStatement = game.db().prepareStatement(
-				"SELECT actor_id, action_type, target_entity_id, time_required_ms, event.time " +
-				"FROM action " +
-				"JOIN event ON event.reference = action.action_id " +
-				"WHERE action.action_id = ? " +
-				"AND event.reference IN " + eventSystem.getValidEventsSubquery("action.action_id"));
-			
-		getPendingActionStatement = game.db().prepareStatement(
-			"SELECT action.action_id, event.time, action.time_required_ms " +
-			"FROM action " +
-			"JOIN event ON event.reference = action.action_id AND event.type = ? " +
-			"WHERE action.actor_id = ? " +
-			"AND event.time <= ? " +
-			"AND NOT EXISTS (SELECT 1 FROM event AS event_cancel WHERE event_cancel.type = ? AND event_cancel.reference = action.action_id AND event_cancel.time <= ?) " +
-			"ORDER BY event.time ASC LIMIT 1");			getActionReadyTimeStatement = game.db().prepareStatement(
-				"SELECT event.time, time_required_ms " +
-				"FROM action " +
-				"JOIN event ON event.reference = action.action_id " +
-				"WHERE action.action_id = ?");
-			
+					"SELECT actor_id, action_type, target_entity_id, time_required_ms, event.time " +
+							"FROM action " +
+							"JOIN event ON event.reference = action.action_id " +
+							"WHERE action.action_id = ? " +
+							"AND event.reference IN " + eventSystem.getValidEventsSubquery("action.action_id"));
+
+			getPendingActionStatement = game.db().prepareStatement(
+					"SELECT action.action_id, event.time, action.time_required_ms " +
+							"FROM action " +
+							"JOIN event ON event.reference = action.action_id AND event.type = ? " +
+							"WHERE action.actor_id = ? " +
+							"AND event.time <= ? " +
+							"AND NOT EXISTS (SELECT 1 FROM event AS event_cancel WHERE event_cancel.type = ? AND event_cancel.reference = action.action_id AND event_cancel.time <= ?) "
+							+
+							"ORDER BY event.time ASC LIMIT 1");
+			getActionReadyTimeStatement = game.db().prepareStatement(
+					"SELECT event.time, time_required_ms " +
+							"FROM action " +
+							"JOIN event ON event.reference = action.action_id " +
+							"WHERE action.action_id = ?");
+
 			getActingEntitiesStatement = game.db().prepareStatement(
-				"SELECT DISTINCT entity_id FROM entity_tag " +
-				"JOIN event ON event.reference = entity_tag.entity_tag_id " +
-				"WHERE entity_tag.entity_tag_type = ? " +
-				"AND event.reference IN " + eventSystem.getValidEventsSubquery("entity_tag.entity_tag_id"));
+					"SELECT DISTINCT entity_id FROM entity_tag " +
+							"JOIN event ON event.reference = entity_tag.entity_tag_id " +
+							"WHERE entity_tag.entity_tag_type = ? " +
+							"AND event.reference IN " + eventSystem.getValidEventsSubquery("entity_tag.entity_tag_id"));
 		} catch (SQLException e) {
 			throw new DatabaseException("Unable to prepare action statements", e);
 		}
-		
+
 		// Register action classes
 		registerActionType(ACTION_MOVE, MoveAction.class);
 		registerActionType(ACTION_ITEM_TAKE, TakeItemAction.class);
 		registerActionType(ACTION_ITEM_DROP, DropItemAction.class);
 		registerActionType(ACTION_WAIT, WaitAction.class);
 	}
-	
+
 	/**
 	 * Register an action type with its implementation class.
 	 */
@@ -164,27 +165,28 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 		actionTypes.put(actionType, actionClass);
 		log.log("Registered action type %s to class %s", actionType, actionClass.getCanonicalName());
 	}
-	
+
 	/**
 	 * Create an action instance from a Reference.
 	 */
-	private synchronized Action createActionFromReference(Reference actionRef, DTime currentTime) throws DatabaseException {
+	private synchronized Action createActionFromReference(Reference actionRef, DTime currentTime)
+			throws DatabaseException {
 		try {
 			loadActionStatement.setLong(1, actionRef.getId());
 			eventSystem.setValidEventsSubqueryParameters(loadActionStatement, 2, ACTION, currentTime);
-			
+
 			try (ResultSet rs = loadActionStatement.executeQuery()) {
 				if (rs.next()) {
 					long actorId = rs.getLong("actor_id");
 					long actionTypeId = rs.getLong("action_type");
 					long targetId = rs.getLong("target_entity_id");
 					long timeRequiredMs = rs.getLong("time_required_ms");
-					
+
 					Actor actor = (Actor) entitySystem.get(actorId);
 					Entity target = entitySystem.get(targetId);
 					UniqueType actionType = new UniqueType(actionTypeId, game.getSystem(UniqueTypeSystem.class));
 					DTime timeRequired = DTime.fromMilliseconds(timeRequiredMs);
-					
+
 					return createAction(actionType, actor, target, timeRequired);
 				}
 			}
@@ -193,7 +195,7 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 		}
 		return null;
 	}
-	
+
 	/**
 	 * Create an action instance from parameters.
 	 */
@@ -203,61 +205,65 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 			log.log("Unknown action type: %s", actionType);
 			return null;
 		}
-		
+
 		try {
 			Constructor<? extends Action> constructor = actionClass.getDeclaredConstructor(
-Game.class, Actor.class, Entity.class, DTime.class);
+					Game.class, Actor.class, Entity.class, DTime.class);
 			return constructor.newInstance(game, actor, target, timeRequired);
 		} catch (Exception e) {
 			log.log("Failed to create action of type %s: %s", actionType, e.getMessage());
 			return null;
 		}
 	}
-	
+
 	/**
 	 * Queue an action for an actor.
-	 * Validates the action first. If invalid, returns the validation result with error output.
+	 * Validates the action first. If invalid, returns the validation result with
+	 * error output.
 	 * Players: auto-advance time and execute immediately.
 	 * NPCs: store in database for later execution.
 	 * 
-	 * @return ActionValidation indicating success or failure with error output for players
+	 * @return ActionValidation indicating success or failure with error output for
+	 *         players
 	 */
-	public ActionValidation queueAction(Actor actor, UniqueType actionType, Entity target, DTime timeRequired) throws DatabaseException {
+	public ActionValidation queueAction(Actor actor, UniqueType actionType, Entity target, DTime timeRequired)
+			throws DatabaseException {
 		// Validate the action first
 		Action action = createAction(actionType, actor, target, timeRequired);
 		if (action == null) {
 			return ActionValidation.failure(
-				CommandOutput.make("action")
-					.error("invalid_action_type")
-					.text(Markup.escape("That action doesn't exist.")));
+					CommandOutput.make("action")
+							.error("invalid_action_type")
+							.text(Markup.escape("That action doesn't exist.")));
 		}
-		
+
 		ActionValidation validation = action.canExecute();
 		if (!validation.isValid()) {
-			log.log("Actor %d cannot queue %s action: %s", 
-				actor.getId(), actionType, validation.getErrorCode());
+			log.log("Actor %d cannot queue %s action: %s",
+					actor.getId(), actionType, validation.getErrorCode());
 			return validation;
 		}
-		
+
 		DTime currentTime = worldSystem.getCurrentTime();
 		boolean isPlayer = entityTagSystem.hasTag(actor, entitySystem.TAG_AVATAR, currentTime);
-		
+
 		if (isPlayer) {
-		// Players execute immediately with time auto-advance
-		worldSystem.incrementCurrentTime(timeRequired);
-		CommandOutput result = action.execute();
-		log.log("%s action %s %s (advanced time by %d ms)", 
-			actor, actionType, result != null ? "succeeded" : "failed", timeRequired.toMilliseconds());			if (result == null) {
+			// Players execute immediately with time auto-advance
+			worldSystem.incrementCurrentTime(timeRequired);
+			CommandOutput result = action.execute();
+			log.log("%s action %s %s (advanced time by %d ms)",
+					actor, actionType, result != null ? "succeeded" : "failed", timeRequired.toMilliseconds());
+			if (result == null) {
 				return ActionValidation.failure(
-					CommandOutput.make("action")
-						.error("execution_failed")
-						.text(Markup.escape("Something went wrong.")));
+						CommandOutput.make("action")
+								.error("execution_failed")
+								.text(Markup.escape("Something went wrong.")));
 			}
 			// Result was already broadcast by the action, player will receive via broadcast
 		} else {
 			// NPCs queue action in database for later execution
 			long actionId = game.getNewGlobalId();
-			
+
 			synchronized (this) {
 				try {
 					insertActionStatement.setLong(1, actionId);
@@ -268,18 +274,19 @@ Game.class, Actor.class, Entity.class, DTime.class);
 					insertActionStatement.executeUpdate();
 				} catch (SQLException e) {
 					throw new DatabaseException("Unable to create action", e);
+				}
 			}
+
+			// Create generic ACTION event with reference to action table entry
+			eventSystem.addEvent(ACTION, currentTime, new Reference(actionId, game));
+			log.log("%s queued action %s#%d (id=%d, requires %d ms) at time %d, will be ready at %d",
+					actor, actionType.toString(), actionType.type(), actionId, timeRequired.toMilliseconds(),
+					currentTime.toMilliseconds(), currentTime.toMilliseconds() + timeRequired.toMilliseconds());
 		}
-		
-		// Create generic ACTION event with reference to action table entry
-		eventSystem.addEvent(ACTION, currentTime, new Reference(actionId, game));			log.log("%s queued action %s#%d (id=%d, requires %d ms) at time %d, will be ready at %d", 
-				actor, actionType.toString(), actionType.type(), actionId, timeRequired.toMilliseconds(),
-				currentTime.toMilliseconds(), currentTime.toMilliseconds() + timeRequired.toMilliseconds());
-		}
-		
+
 		return ActionValidation.success();
 	}
-	
+
 	/**
 	 * Execute an action.
 	 * Used internally for NPC action execution.
@@ -289,32 +296,32 @@ Game.class, Actor.class, Entity.class, DTime.class);
 		if (action == null) {
 			return false;
 		}
-		
+
 		// Check if action can be executed
 		ActionValidation validation = action.canExecute();
 		if (!validation.isValid()) {
 			log.log("%s cannot execute %s action: %s", actor, actionType, validation.getErrorCode());
 			return false;
 		}
-		
+
 		CommandOutput result = action.execute();
 		log.log("%s executed %s action: %s", actor, actionType, result != null ? "success" : "failed");
 		return result != null;
 	}
-	
+
 	/**
 	 * Get pending action for an actor.
 	 */
 	public synchronized Reference getPendingAction(Actor actor) throws DatabaseException {
 		DTime currentTime = worldSystem.getCurrentTime();
-		
+
 		try {
 			getPendingActionStatement.setLong(1, ACTION.type());
 			getPendingActionStatement.setLong(2, actor.getId());
 			getPendingActionStatement.setLong(3, currentTime.raw());
 			getPendingActionStatement.setLong(4, eventSystem.etCancel.type());
 			getPendingActionStatement.setLong(5, currentTime.raw());
-			
+
 			try (ResultSet rs = getPendingActionStatement.executeQuery()) {
 				if (rs.next()) {
 					long actionId = rs.getLong("action_id");
@@ -324,17 +331,17 @@ Game.class, Actor.class, Entity.class, DTime.class);
 		} catch (SQLException e) {
 			throw new DatabaseException("Unable to query pending action", e);
 		}
-		
+
 		return null;
 	}
-	
+
 	/**
 	 * Get the time when an action will be ready to execute.
 	 */
 	public synchronized long getActionReadyTime(Reference actionRef) throws DatabaseException {
 		try {
 			getActionReadyTimeStatement.setLong(1, actionRef.getId());
-			
+
 			try (ResultSet rs = getActionReadyTimeStatement.executeQuery()) {
 				if (rs.next()) {
 					long createdAtMs = rs.getLong("time");
@@ -345,17 +352,19 @@ Game.class, Actor.class, Entity.class, DTime.class);
 		} catch (SQLException e) {
 			throw new DatabaseException("Unable to get action ready time", e);
 		}
-		
+
 		return Long.MAX_VALUE; // Action not found
 	}
-	
+
 	/**
 	 * Check if an action is ready to execute.
 	 */
 	public boolean isActionReady(Reference actionRef, DTime currentTime) throws DatabaseException {
 		long readyTime = getActionReadyTime(actionRef);
 		return readyTime != Long.MAX_VALUE && currentTime.toMilliseconds() >= readyTime;
-	}	/**
+	}
+
+	/**
 	 * Execute and clear a pending action.
 	 */
 	public boolean executePendingAction(Actor actor, Reference actionRef, DTime currentTime) throws DatabaseException {
@@ -363,17 +372,17 @@ Game.class, Actor.class, Entity.class, DTime.class);
 		if (action == null) {
 			return false;
 		}
-		
+
 		CommandOutput result = action.execute();
 		eventSystem.cancelEvent(actionRef);
-		
+
 		UniqueType actionType = action.getActionType();
-		log.log("%s executed pending action %s#%d (id=%d): %s", actor, 
-			actionType.toString(), actionType.type(), actionRef.getId(), result != null ? "success" : "failed");
-		
+		log.log("%s executed pending action %s#%d (id=%d): %s", actor,
+				actionType.toString(), actionType.type(), actionRef.getId(), result != null ? "success" : "failed");
+
 		return result != null;
 	}
-	
+
 	/**
 	 * Get description of pending action for observers.
 	 */
@@ -382,21 +391,23 @@ Game.class, Actor.class, Entity.class, DTime.class);
 		if (actionRef == null) {
 			return null;
 		}
-		
+
 		Action action = createActionFromReference(actionRef, worldSystem.getCurrentTime());
 		return action != null ? action.getDescription() : null;
 	}
-	
+
 	/**
-	 * Process a single tick for an Acting entity (called by TickSystem for fair time-ordered processing).
+	 * Process a single tick for an Acting entity (called by TickSystem for fair
+	 * time-ordered processing).
 	 * This processes one decision/action cycle:
 	 * 1. If has pending action and it's ready, execute it
 	 * 2. If no pending action (or just executed one), make a new decision
 	 */
-	public void processActingEntitySingleTick(Actor actor, Acting acting, DTime tickTime, DTime currentTime) throws DatabaseException {
+	public void processActingEntitySingleTick(Actor actor, Acting acting, DTime tickTime, DTime currentTime)
+			throws DatabaseException {
 		// Check if entity has pending action
 		Reference pendingAction = getPendingAction(actor);
-		
+
 		if (pendingAction != null) {
 			// Has pending action - check if ready to execute
 			if (isActionReady(pendingAction, tickTime)) {
@@ -409,27 +420,28 @@ Game.class, Actor.class, Entity.class, DTime.class);
 				return;
 			}
 		}
-		
+
 		// No pending action (or just finished one) - make decision
 		log.log("Acting entity %d: ready for new action", actor.getId());
 		acting.onActionReady();
 	}
-	
+
 	/**
 	 * Tick Acting entities - check if ready for new action.
 	 * Called by TickSystem.
+	 * 
 	 * @deprecated Use TickSystem's unified time-ordered processing instead
 	 */
 	@Deprecated
 	public void tickActingEntities(DTime currentTime, DTime timeSinceLastTick) throws DatabaseException {
 		// Get all Acting entities
 		List<Entity> actingEntities = new ArrayList<>();
-		
+
 		synchronized (this) {
 			try {
 				getActingEntitiesStatement.setLong(1, TAG_ACTING.type());
 				eventSystem.setValidEventsSubqueryParameters(getActingEntitiesStatement, 2, etEntityTag, currentTime);
-				
+
 				try (ResultSet rs = getActingEntitiesStatement.executeQuery()) {
 					while (rs.next()) {
 						Entity entity = entitySystem.get(rs.getLong("entity_id"));
@@ -442,18 +454,20 @@ Game.class, Actor.class, Entity.class, DTime.class);
 				throw new DatabaseException("Unable to query acting entities", e);
 			}
 		}
-		
+
 		// Process each Acting entity
 		for (Entity entity : actingEntities) {
 			processActingEntity((Acting) entity, (Actor) entity, currentTime);
 		}
-	}	/**
+	}
+
+	/**
 	 * Process a single Acting entity.
 	 */
 	private void processActingEntity(Acting acting, Actor actor, DTime currentTime) throws DatabaseException {
 		// Check if entity has pending action
 		Reference pendingAction = getPendingAction(actor);
-		
+
 		if (pendingAction != null) {
 			// Has pending action - check if ready to execute
 			if (isActionReady(pendingAction, currentTime)) {
@@ -464,7 +478,7 @@ Game.class, Actor.class, Entity.class, DTime.class);
 			// No pending action - check if time to decide on new action
 			Long lastCheckMs = entityTagSystem.getTagValue(actor, TAG_LAST_ACTION_CHECK, currentTime);
 			DTime lastCheck;
-			
+
 			if (lastCheckMs == null) {
 				// Never checked before - use entity creation time
 				Long creationMs = entityTagSystem.getTagValue(actor, entitySystem.TAG_ENTITY_CREATED, currentTime);
@@ -477,21 +491,22 @@ Game.class, Actor.class, Entity.class, DTime.class);
 			} else {
 				lastCheck = DTime.fromMilliseconds(lastCheckMs);
 			}
-			
+
 			DTime interval = acting.getActionInterval();
-			DTime timeSinceLastCheck = DTime.fromMilliseconds(currentTime.toMilliseconds() - lastCheck.toMilliseconds());
-			
+			DTime timeSinceLastCheck = DTime
+					.fromMilliseconds(currentTime.toMilliseconds() - lastCheck.toMilliseconds());
+
 			// Check if enough time has passed for action decision(s)
 			if (timeSinceLastCheck.toMilliseconds() >= interval.toMilliseconds()) {
 				// Calculate how many action decisions should have occurred
 				long decisionCount = timeSinceLastCheck.toMilliseconds() / interval.toMilliseconds();
-				
+
 				// Trigger action decision(s) with correct time for each check
-			for (int i = 0; i < decisionCount; i++) {
-				log.log("Acting entity %d: ready for new action (decision %d/%d)", 
-					actor.getId(), i + 1, decisionCount);					// Call entity to decide what action to take
+				for (int i = 0; i < decisionCount; i++) {
+					log.log("Acting entity %d: ready for new action (decision %d/%d)",
+							actor.getId(), i + 1, decisionCount); // Call entity to decide what action to take
 					acting.onActionReady();
-					
+
 					// If entity queued an action, stop - don't make multiple decisions
 					Reference newAction = getPendingAction(actor);
 					if (newAction != null) {
@@ -499,14 +514,16 @@ Game.class, Actor.class, Entity.class, DTime.class);
 						break;
 					}
 				}
-				
+
 				// Update last check time to account for all processed intervals
-				DTime newLastCheck = DTime.fromMilliseconds(lastCheck.toMilliseconds() + (decisionCount * interval.toMilliseconds()));
-				entityTagSystem.updateTagValue(actor, TAG_LAST_ACTION_CHECK, newLastCheck.toMilliseconds(), currentTime);
+				DTime newLastCheck = DTime
+						.fromMilliseconds(lastCheck.toMilliseconds() + (decisionCount * interval.toMilliseconds()));
+				entityTagSystem.updateTagValue(actor, TAG_LAST_ACTION_CHECK, newLastCheck.toMilliseconds(),
+						currentTime);
 			}
 		}
 	}
-	
+
 	/**
 	 * Process a single tick for an Acting entity.
 	 * Uses worldSystem.getCurrentTime() for all time references.
@@ -514,12 +531,12 @@ Game.class, Actor.class, Entity.class, DTime.class);
 	 */
 	public boolean processActingEntitySingleTick(Acting acting, Actor actor, DTime interval) throws DatabaseException {
 		DTime currentTime = worldSystem.getCurrentTime();
-		log.log("processActingEntitySingleTick: actor=%s, currentTime=%d, interval=%d", 
-			actor, currentTime.toMilliseconds(), interval.toMilliseconds());
-		
+		log.log("processActingEntitySingleTick: actor=%s, currentTime=%d, interval=%d",
+				actor, currentTime.toMilliseconds(), interval.toMilliseconds());
+
 		// Check if entity has pending action
 		Reference pendingAction = getPendingAction(actor);
-		
+
 		if (pendingAction != null) {
 			Action action = createActionFromReference(pendingAction, currentTime);
 			UniqueType actionType = action != null ? action.getActionType() : null;
@@ -527,20 +544,22 @@ Game.class, Actor.class, Entity.class, DTime.class);
 			log.log("%s has pending action %s (id=%d)", actor, actionTypeStr, pendingAction.getId());
 			// Has pending action - check if ready to execute
 			if (isActionReady(pendingAction, currentTime)) {
-				log.log("%s pending action %s (id=%d) is ready, executing", actor, actionTypeStr, pendingAction.getId());
+				log.log("%s pending action %s (id=%d) is ready, executing", actor, actionTypeStr,
+						pendingAction.getId());
 				executePendingAction(actor, pendingAction, currentTime);
 				// Action completed - continue to potentially queue new action
 			} else {
-				log.log("%s pending action %s (id=%d) not ready yet, waiting", actor, actionTypeStr, pendingAction.getId());
+				log.log("%s pending action %s (id=%d) not ready yet, waiting", actor, actionTypeStr,
+						pendingAction.getId());
 				// Action not ready yet, wait
 				return true;
 			}
 		}
-		
+
 		// No pending action (or action just completed) - call entity to decide
 		log.log("%s calling onActionReady", actor);
 		acting.onActionReady();
-		
+
 		return true;
 	}
 }
