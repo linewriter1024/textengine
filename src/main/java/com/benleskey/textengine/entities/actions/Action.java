@@ -57,6 +57,15 @@ public abstract class Action {
 	public abstract boolean execute();
 	
 	/**
+	 * Check if this action can be executed.
+	 * Called before queueing and before execution to validate preconditions.
+	 * Examples: check if item is takeable, not too heavy, target still exists, etc.
+	 * 
+	 * @return ActionValidation result indicating if action can execute and why not if it can't
+	 */
+	public abstract ActionValidation canExecute();
+	
+	/**
 	 * Get a human-readable description of this action for observers.
 	 * Used when other entities look at the actor performing this action.
 	 * Example: "moving north", "taking a sword", "dropping a shield"

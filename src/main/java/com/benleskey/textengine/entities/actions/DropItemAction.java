@@ -28,6 +28,26 @@ public class DropItemAction extends Action {
 	}
 	
 	@Override
+	public ActionValidation canExecute() {
+		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
+		WorldSystem ws = game.getSystem(WorldSystem.class);
+		
+		// Verify actor has the item
+		var itemContainers = rs.getProvidingRelationships(target, rs.rvContains, ws.getCurrentTime());
+		if (itemContainers.isEmpty() || !itemContainers.get(0).getProvider().equals(actor)) {
+			return ActionValidation.failure("not_carrying", "Actor is not carrying this item");
+		}
+		
+		// Check if actor has a location to drop into
+		var actorContainers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
+		if (actorContainers.isEmpty()) {
+			return ActionValidation.failure("nowhere", "Actor has no location to drop item into");
+		}
+		
+		return ActionValidation.success();
+	}
+	
+	@Override
 	public boolean execute() {
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);

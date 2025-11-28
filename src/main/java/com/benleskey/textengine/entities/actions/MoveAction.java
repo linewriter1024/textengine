@@ -28,6 +28,28 @@ public class MoveAction extends Action {
 	}
 	
 	@Override
+	public ActionValidation canExecute() {
+		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
+		WorldSystem ws = game.getSystem(WorldSystem.class);
+		EntitySystem es = game.getSystem(EntitySystem.class);
+		
+		// Check if actor has a current location
+		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
+		if (containers.isEmpty()) {
+			return ActionValidation.failure("nowhere", "Actor has no current location");
+		}
+		
+		// Check if destination still exists
+		try {
+			es.get(target.getId());
+		} catch (Exception e) {
+			return ActionValidation.failure("destination_not_found", "Destination no longer exists");
+		}
+		
+		return ActionValidation.success();
+	}
+	
+	@Override
 	public boolean execute() {
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);

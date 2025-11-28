@@ -215,6 +215,13 @@ Game.class, Actor.class, Entity.class, DTime.class);
 			return false;
 		}
 		
+		// Check if action can be executed
+		ActionValidation validation = action.canExecute();
+		if (!validation.isValid()) {
+			log.log("Actor %d cannot execute %s action: %s", actor.getId(), actionType, validation.getErrorMessage());
+			return false;
+		}
+		
 		boolean success = action.execute();
 		log.log("Actor %d executed %s action: %s", actor.getId(), actionType, success ? "success" : "failed");
 		return success;

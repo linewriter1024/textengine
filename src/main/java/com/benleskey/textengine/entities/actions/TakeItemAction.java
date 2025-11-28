@@ -29,6 +29,40 @@ public class TakeItemAction extends Action {
 	}
 	
 	@Override
+	public ActionValidation canExecute() {
+		ItemSystem is = game.getSystem(ItemSystem.class);
+		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
+		WorldSystem ws = game.getSystem(WorldSystem.class);
+		
+		// Check if item still exists and has a container
+		var itemContainers = rs.getProvidingRelationships(target, rs.rvContains, ws.getCurrentTime());
+		if (itemContainers.isEmpty()) {
+			return ActionValidation.failure("item_not_found", "Item no longer exists or has no location");
+		}
+		
+		// Check if item is takeable
+		if (!is.hasTag(target, is.TAG_TAKEABLE, ws.getCurrentTime())) {
+			return ActionValidation.failure("not_takeable", "Item cannot be taken");
+		}
+		
+		// Check weight constraints
+		Long itemWeightGrams = is.getTagValue(target, is.TAG_WEIGHT, ws.getCurrentTime());
+		Long carryWeightGrams = is.getTagValue(actor, is.TAG_CARRY_WEIGHT, ws.getCurrentTime());
+		
+		if (itemWeightGrams != null && carryWeightGrams != null) {
+			com.benleskey.textengine.model.DWeight itemWeight = com.benleskey.textengine.model.DWeight.fromGrams(itemWeightGrams);
+			com.benleskey.textengine.model.DWeight carryWeight = com.benleskey.textengine.model.DWeight.fromGrams(carryWeightGrams);
+			
+			if (itemWeight.isGreaterThan(carryWeight)) {
+				return ActionValidation.failure("too_heavy", 
+					"Item weighs " + itemWeight + " but actor can only carry " + carryWeight);
+			}
+		}
+		
+		return ActionValidation.success();
+	}
+	
+	@Override
 	public boolean execute() {
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);

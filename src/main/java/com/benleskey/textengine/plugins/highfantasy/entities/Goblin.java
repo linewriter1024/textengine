@@ -4,6 +4,8 @@ import com.benleskey.textengine.Game;
 import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.entities.Acting;
 import com.benleskey.textengine.entities.Actor;
+import com.benleskey.textengine.entities.actions.ActionValidation;
+import com.benleskey.textengine.entities.actions.TakeItemAction;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.UniqueType;
@@ -145,8 +147,17 @@ public class Goblin extends Actor implements Acting {
 			aas.queueAction(this, aas.ACTION_ITEM_DROP, itemToDrop, DTime.fromSeconds(30));
 		} else if (!pickupableItems.isEmpty()) {
 			Entity itemToTake = pickupableItems.get(random.nextInt(pickupableItems.size()));
-			log.log("Goblin %d: queueing take of item %d", getId(), itemToTake.getId());
-			aas.queueAction(this, aas.ACTION_ITEM_TAKE, itemToTake, DTime.fromSeconds(30));
+			
+			// Check if goblin can actually take this item before queueing
+			TakeItemAction testAction = new TakeItemAction(game, this, itemToTake, DTime.fromSeconds(30));
+			ActionValidation validation = testAction.canExecute();
+			
+			if (validation.isValid()) {
+				log.log("Goblin %d: queueing take of item %d", getId(), itemToTake.getId());
+				aas.queueAction(this, aas.ACTION_ITEM_TAKE, itemToTake, DTime.fromSeconds(30));
+			} else {
+				log.log("Goblin %d: cannot take item %d - %s", getId(), itemToTake.getId(), validation.getErrorMessage());
+			}
 		} else {
 			log.log("Goblin %d: nothing to do with items", getId());
 		}
