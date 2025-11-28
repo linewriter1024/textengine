@@ -529,7 +529,7 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 				}
 				
 				parts.add(Markup.concat(
-					Markup.raw(" Nearby: "),
+					Markup.raw("\nNearby: "),
 					Markup.concat(joined.toArray(new Markup.Safe[0])),
 					Markup.raw(".")
 				));
