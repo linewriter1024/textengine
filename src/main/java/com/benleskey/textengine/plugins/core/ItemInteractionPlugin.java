@@ -921,36 +921,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 			java.util.function.Function<T, String> descriptionExtractor) {
 		
 		DisambiguationSystem ds = game.getSystem(DisambiguationSystem.class);
-		
-		// Build disambiguated list with numeric IDs
-		DisambiguationSystem.DisambiguatedList list = ds.buildDisambiguatedList(matches, descriptionExtractor);
-		
-		// Update client's numeric ID map so they can use numbers
-		client.setNumericIdMap(list.getNumericIdMap());
-		
-		// Format output
-		java.util.List<Markup.Safe> parts = new java.util.ArrayList<>();
-		parts.add(Markup.raw("Which "));
-		parts.add(Markup.em(userInput));
-		parts.add(Markup.raw(" did you mean? "));
-		
-		List<Markup.Safe> itemParts = list.getMarkupParts();
-		for (int i = 0; i < itemParts.size(); i++) {
-			if (i > 0) {
-				if (i == itemParts.size() - 1) {
-					parts.add(Markup.raw(", or "));
-				} else {
-					parts.add(Markup.raw(", "));
-				}
-			}
-			parts.add(itemParts.get(i));
-		}
-		parts.add(Markup.raw("?"));
-		
-		client.sendOutput(CommandOutput.make(commandId)
-			.put(M_SUCCESS, false)
-			.put(M_ERROR, "ambiguous")
-			.text(Markup.concat(parts.toArray(new Markup.Safe[0]))));
+		ds.sendDisambiguationPrompt(client, commandId, userInput, matches, descriptionExtractor);
 	}
 	
 	private CommandInput parseOpen(Matcher matcher) {

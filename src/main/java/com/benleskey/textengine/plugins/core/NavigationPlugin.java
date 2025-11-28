@@ -134,7 +134,10 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 	
 	if (result.isAmbiguous()) {
 		// Multiple matches - show disambiguation
-		DisambiguationSystem.DisambiguatedList list = ds.buildDisambiguatedList(
+		ds.sendDisambiguationPrompt(
+			client,
+			M_GO_FAIL,
+			userInput,
 			result.getAmbiguousMatches(),
 			destination -> {
 				var looks = game.getSystem(com.benleskey.textengine.systems.LookSystem.class)
@@ -142,31 +145,6 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 				return !looks.isEmpty() ? looks.get(0).getDescription() : null;
 			}
 		);
-		
-		// Update client's numeric ID map
-		client.setNumericIdMap(list.getNumericIdMap());
-		
-		// Format output
-		java.util.List<Markup.Safe> parts = new java.util.ArrayList<>();
-		parts.add(Markup.raw("Which "));
-		parts.add(Markup.em(userInput));
-		parts.add(Markup.raw(" did you mean? "));
-		
-		List<Markup.Safe> itemParts = list.getMarkupParts();
-		for (int i = 0; i < itemParts.size(); i++) {
-			parts.add(itemParts.get(i));
-			if (i < itemParts.size() - 1) {
-				parts.add(Markup.raw(", "));
-			}
-			if (i == itemParts.size() - 2) {
-				parts.add(Markup.raw("or "));
-			}
-		}
-		parts.add(Markup.raw("?"));
-		
-		client.sendOutput(CommandOutput.make(M_GO_FAIL)
-			.put(M_GO_ERROR, "ambiguous")
-			.text(Markup.concat(parts.toArray(new Markup.Safe[0]))));
 		return;
 	}
 	

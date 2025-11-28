@@ -3,6 +3,7 @@ package com.benleskey.textengine.systems;
 import com.benleskey.textengine.Client;
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.SingletonGameSystem;
+import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.util.Markup;
 
@@ -321,5 +322,53 @@ public class DisambiguationSystem extends SingletonGameSystem {
 		
 		ResolutionResult<T> result = resolveEntityWithAmbiguity(client, userInput, candidates, descriptionExtractor);
 		return result.isUnique() ? result.getUniqueMatch() : null;
+	}
+	
+	/**
+	 * Send a disambiguation prompt to the client when multiple entities match user input.
+	 * Updates the client's numeric ID map and sends a formatted "Which X did you mean?" message.
+	 * 
+	 * @param client The client to send the message to
+	 * @param commandId The command ID for the output message
+	 * @param userInput The original user input that was ambiguous
+	 * @param matches The list of matching entities
+	 * @param descriptionExtractor Function to extract description from each entity
+	 * @param <T> The type of entity
+	 */
+	public <T extends Entity> void sendDisambiguationPrompt(
+			Client client,
+			String commandId,
+			String userInput,
+			List<T> matches,
+			Function<T, String> descriptionExtractor) {
+		
+		// Build disambiguated list with numeric IDs
+		DisambiguatedList list = buildDisambiguatedList(matches, descriptionExtractor);
+		
+		// Update client's numeric ID map so they can use numbers
+		client.setNumericIdMap(list.getNumericIdMap());
+		
+		// Format output
+		java.util.List<Markup.Safe> parts = new java.util.ArrayList<>();
+		parts.add(Markup.raw("Which "));
+		parts.add(Markup.em(userInput));
+		parts.add(Markup.raw(" did you mean? "));
+		
+		List<Markup.Safe> itemParts = list.getMarkupParts();
+		for (int i = 0; i < itemParts.size(); i++) {
+			if (i > 0) {
+				if (i == itemParts.size() - 1) {
+					parts.add(Markup.raw(", or "));
+				} else {
+					parts.add(Markup.raw(", "));
+				}
+			}
+			parts.add(itemParts.get(i));
+		}
+		parts.add(Markup.raw("?"));
+		
+		client.sendOutput(CommandOutput.make(commandId)
+			.error("ambiguous")
+			.text(Markup.concat(parts.toArray(new Markup.Safe[0]))));
 	}
 }
