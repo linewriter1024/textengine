@@ -104,7 +104,6 @@ public class WaitCommandPlugin extends Plugin implements OnCoreSystemsReady {
 				}
 			} else {
 				client.sendOutput(CommandOutput.make(M_WAIT)
-					.put("success", false)
 					.put("error", "invalid_duration")
 					.text(Markup.escape("Invalid duration format. Use: wait, wait 30, wait 1 minute, wait 2 hours")));
 				return;
@@ -141,7 +140,6 @@ public class WaitCommandPlugin extends Plugin implements OnCoreSystemsReady {
 		}
 		
 		client.sendOutput(CommandOutput.make(M_WAIT)
-			.put("success", true)
 			.put("duration_seconds", String.valueOf(seconds))
 			.put("before_time", GameCalendar.formatFull(beforeTime))
 			.put("after_time", GameCalendar.formatFull(afterTime))

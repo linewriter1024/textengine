@@ -62,7 +62,6 @@ public class Rattle extends Item implements UsableItem {
 		String itemName = !looks.isEmpty() ? looks.get(0).getDescription() : "the rattle";
 		
 		return CommandOutput.make("use")
-			.put("success", true)
 			.put("item", this.getKeyId())
 			.put("item_name", itemName)
 			.text(Markup.concat(

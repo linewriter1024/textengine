@@ -99,6 +99,24 @@ Markup.raw("<em>text</em>");   // Trusts markup
 Markup.em("emphasized");       // <em>emphasized</em>
 ```
 
+## CommandOutput Pattern
+
+**Success = no error field. Failure = error field present.**
+
+```java
+// ✅ Success
+client.sendOutput(CommandOutput.make(TAKE)
+    .put(M_ITEM, item.getKeyId())
+    .text(...));
+
+// ✅ Failure
+client.sendOutput(CommandOutput.make(TAKE)
+    .error("not_found")
+    .text(...));
+
+// ❌ BAD - don't use M_SUCCESS or "success" fields
+```
+
 ## Entity References
 
 - **Disambiguation IDs** (1, 2, 3): Temporary, context-specific from ambiguous matches

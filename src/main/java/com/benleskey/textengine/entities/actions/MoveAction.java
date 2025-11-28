@@ -47,7 +47,6 @@ public class MoveAction extends Action {
 		
 		// Broadcast departure to entities in current location
 		bs.broadcast(actor, CommandOutput.make("actor_leaves")
-			.put("success", true)
 			.put("actor_id", actor.getKeyId())
 			.put("actor_name", actorDesc)
 			.put("from", currentLocation.getKeyId())
@@ -65,7 +64,6 @@ public class MoveAction extends Action {
 		
 		// Broadcast arrival to entities in destination
 		bs.broadcast(actor, CommandOutput.make("actor_arrives")
-			.put("success", true)
 			.put("actor_id", actor.getKeyId())
 			.put("actor_name", actorDesc)
 			.put("to", target.getKeyId())

@@ -60,7 +60,6 @@ public class DropItemAction extends Action {
 		
 		// Broadcast action
 		bs.broadcast(actor, CommandOutput.make("actor_drops")
-			.put("success", true)
 			.put("actor_id", actor.getKeyId())
 			.put("actor_name", actorDesc)
 			.put("item_id", target.getKeyId())

@@ -98,7 +98,6 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 			
 			// Default behavior if target doesn't implement Cuttable
 			return com.benleskey.textengine.commands.CommandOutput.make("use")
-				.put("success", true)
 				.put("item", tool.getKeyId())
 				.put("target", target.getKeyId())
 				.text(com.benleskey.textengine.util.Markup.concat(

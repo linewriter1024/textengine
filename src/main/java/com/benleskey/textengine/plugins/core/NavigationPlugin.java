@@ -36,7 +36,7 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 	public static final String M_GO_FAIL = "go_fail";
 	public static final String M_GO_DESTINATION = "destination";
 	public static final String M_GO_EXIT = "exit";
-	public static final String M_GO_ERROR = "error";
+
 
 	public NavigationPlugin(Game game) {
 		super(game);
@@ -67,7 +67,7 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		Optional<Object> exitOptional = input.getO(M_GO_EXIT);
 		if (exitOptional.isEmpty()) {
 			client.sendOutput(CommandOutput.make(M_GO_FAIL)
-				.put(M_GO_ERROR, "no_direction")
+				.put(CommandOutput.M_ERROR, "no_direction")
 				.text(Markup.escape("Where do you want to go?")));
 			return;
 		}
@@ -82,7 +82,7 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
 		if (containers.isEmpty()) {
 			client.sendOutput(CommandOutput.make(M_GO_FAIL)
-				.put(M_GO_ERROR, "nowhere")
+				.put(CommandOutput.M_ERROR, "nowhere")
 				.text(Markup.escape("You are nowhere. This should not happen.")));
 			return;
 		}
@@ -127,7 +127,7 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 	
 	if (result.isNotFound()) {
 		client.sendOutput(CommandOutput.make(M_GO_FAIL)
-			.put(M_GO_ERROR, "no_exit")
+			.put(CommandOutput.M_ERROR, "no_exit")
 			.text(Markup.escape("You can't go that way.")));
 		return;
 	}
@@ -159,7 +159,7 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 			
 			if (exits.isEmpty()) {
 				client.sendOutput(CommandOutput.make(M_GO_FAIL)
-					.put(M_GO_ERROR, "no_exits")
+					.put(CommandOutput.M_ERROR, "no_exits")
 					.text(Markup.escape("You can't move from here.")));
 				return;
 			}
@@ -198,7 +198,7 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		// This should never happen since we matched the destination, but check anyway
 		if (matchedExit == null) {
 			client.sendOutput(CommandOutput.make(M_GO_FAIL)
-				.put(M_GO_ERROR, "no_exit")
+				.put(CommandOutput.M_ERROR, "no_exit")
 				.text(Markup.escape("You can't go that way.")));
 			return;
 		}
@@ -222,7 +222,7 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		
 		if (!moved) {
 			client.sendOutput(CommandOutput.make(M_GO_FAIL)
-				.put(M_GO_ERROR, "nowhere")
+				.put(CommandOutput.M_ERROR, "nowhere")
 				.text(Markup.escape("You are nowhere. This should not happen.")));
 			return;
 		}

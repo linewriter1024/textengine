@@ -65,7 +65,6 @@ public class Tree extends Item implements Cuttable {
 		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
 		if (containers.isEmpty()) {
 			return CommandOutput.make("use")
-				.put("success", false)
 				.put("error", "nowhere")
 				.text(Markup.escape("You are nowhere."));
 		}
@@ -88,7 +87,6 @@ public class Tree extends Item implements Cuttable {
 		
 		// Return output for the actor (broadcasting handled by TagInteractionSystem)
 		return CommandOutput.make("use")
-			.put("success", true)
 			.put("item", tool.getKeyId())
 			.put("target", this.getKeyId())
 			.text(Markup.concat(

@@ -52,8 +52,6 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 	public static final String M_ITEM = "item";
 	public static final String M_ENTITY_ID = "entity_id";
 	public static final String M_ITEM_NAME = "item_name";
-	public static final String M_SUCCESS = "success";
-	public static final String M_ERROR = "error";
 	public static final String M_TARGET = "target";
 	public static final String M_CONTAINER = "container";
 	public static final String M_ITEMS = "items";
@@ -159,8 +157,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
 		if (containers.isEmpty()) {
 			client.sendOutput(CommandOutput.make(TAKE)
-				.put(M_SUCCESS, false)
-				.put(M_ERROR, "nowhere")
+				.error("nowhere")
 				.text(Markup.escape("You are nowhere.")));
 			return;
 		}
@@ -183,8 +180,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 			
 			if (containersHere.isEmpty()) {
 				client.sendOutput(CommandOutput.make(TAKE)
-					.put(M_SUCCESS, false)
-					.put(M_ERROR, "no_containers")
+					.error("no_containers")
 					.text(Markup.escape("There are no containers here.")));
 				return;
 			}
@@ -204,8 +200,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 			
 			if (containerResult.isNotFound()) {
 				client.sendOutput(CommandOutput.make(TAKE)
-					.put(M_SUCCESS, false)
-					.put(M_ERROR, "container_not_found")
+					.error("container_not_found")
 					.text(Markup.concat(
 						Markup.raw("You don't see "),
 						Markup.em(containerInput),
@@ -227,8 +222,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 				List<LookDescriptor> looks = ls.getLooksFromEntity(sourceContainer, ws.getCurrentTime());
 				String containerName = !looks.isEmpty() ? looks.get(0).getDescription() : "the container";
 				client.sendOutput(CommandOutput.make(TAKE)
-					.put(M_SUCCESS, false)
-					.put(M_ERROR, "container_closed")
+					.error("container_closed")
 					.text(Markup.concat(
 						Markup.em(containerName.substring(0, 1).toUpperCase() + containerName.substring(1)),
 						Markup.raw(" is closed.")
@@ -282,8 +276,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 			
 			if (result.isNotFound()) {
 				client.sendOutput(CommandOutput.make(TAKE)
-					.put(M_SUCCESS, false)
-					.put(M_ERROR, "not_found")
+					.error("not_found")
 					.text(Markup.concat(
 						Markup.raw("You don't see "),
 						Markup.em(itemInput),
@@ -307,8 +300,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		// Check if item is takeable
 		if (!is.hasTag(item, is.TAG_TAKEABLE, ws.getCurrentTime())) {
 			client.sendOutput(CommandOutput.make(TAKE)
-				.put(M_SUCCESS, false)
-				.put(M_ERROR, "not_takeable")
+				.error("not_takeable")
 				.text(Markup.concat(
 					Markup.raw("You can't take "),
 					Markup.em(itemName),
@@ -327,8 +319,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 			
 			if (itemWeight.isGreaterThan(carryWeight)) {
 				client.sendOutput(CommandOutput.make(TAKE)
-					.put(M_SUCCESS, false)
-					.put(M_ERROR, "too_heavy")
+					.error("too_heavy")
 					.put(M_WEIGHT, itemWeightGrams)
 					.put(M_CARRY_WEIGHT, carryWeightGrams)
 					.text(Markup.concat(
@@ -360,8 +351,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		
 		if (!success) {
 			client.sendOutput(CommandOutput.make(TAKE)
-				.put(M_SUCCESS, false)
-				.put(M_ERROR, "cannot_take")
+				.error("cannot_take")
 				.text(Markup.concat(
 					Markup.raw("You can't take "),
 					Markup.em(itemName),
@@ -371,7 +361,6 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		}
 		
 		client.sendOutput(CommandOutput.make(TAKE)
-			.put(M_SUCCESS, true)
 			.put(M_ENTITY_ID, String.valueOf(item.getId()))
 			.put(M_ITEM_NAME, itemName)
 			.text(Markup.concat(
@@ -396,8 +385,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
 		if (containers.isEmpty()) {
 			client.sendOutput(CommandOutput.make(DROP)
-				.put(M_SUCCESS, false)
-				.put(M_ERROR, "nowhere")
+				.error("nowhere")
 				.text(Markup.escape("You are nowhere.")));
 			return;
 		}
@@ -411,8 +399,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		
 		if (carriedItems.isEmpty()) {
 			client.sendOutput(CommandOutput.make(DROP)
-				.put(M_SUCCESS, false)
-				.put(M_ERROR, "empty_inventory")
+				.error("empty_inventory")
 				.text(Markup.escape("You aren't carrying anything.")));
 			return;
 		}
@@ -435,8 +422,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		
 		if (result.isNotFound()) {
 			client.sendOutput(CommandOutput.make(DROP)
-				.put(M_SUCCESS, false)
-				.put(M_ERROR, "not_carrying")
+				.error("not_carrying")
 				.text(Markup.concat(
 					Markup.raw("You aren't carrying "),
 					Markup.em(itemInput),
@@ -465,8 +451,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		
 		if (!success) {
 			client.sendOutput(CommandOutput.make(DROP)
-				.put(M_SUCCESS, false)
-				.put(M_ERROR, "cannot_drop")
+				.error("cannot_drop")
 				.text(Markup.concat(
 					Markup.raw("You can't drop "),
 					Markup.em(itemName),
@@ -476,7 +461,6 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		}
 		
 		client.sendOutput(CommandOutput.make(DROP)
-			.put(M_SUCCESS, true)
 			.put(M_ENTITY_ID, String.valueOf(targetItem.getId()))
 			.put(M_ITEM_NAME, itemName)
 			.text(Markup.concat(
@@ -538,8 +522,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		
 		if (result.isNotFound()) {
 			client.sendOutput(CommandOutput.make(EXAMINE)
-				.put(M_SUCCESS, false)
-				.put(M_ERROR, "not_found")
+				.error("not_found")
 				.text(Markup.concat(
 					Markup.raw("You don't see "),
 					Markup.em(itemInput),
@@ -639,7 +622,6 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		}
 		
 		client.sendOutput(CommandOutput.make(EXAMINE)
-			.put(M_SUCCESS, true)
 			.put(M_ENTITY_ID, String.valueOf(targetItem.getId()))
 			.put(M_ITEM, targetItem)
 			.put(M_ITEMS, itemsList)
@@ -666,8 +648,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		
 		if (carriedItems.isEmpty()) {
 			client.sendOutput(CommandOutput.make(USE)
-				.put(M_SUCCESS, false)
-				.put(M_ERROR, "empty_inventory")
+				.error("empty_inventory")
 				.text(Markup.escape("You aren't carrying anything to use.")));
 			return;
 		}
@@ -690,8 +671,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		
 		if (result.isNotFound()) {
 			client.sendOutput(CommandOutput.make(USE)
-				.put(M_SUCCESS, false)
-				.put(M_ERROR, "not_carrying")
+				.error("not_carrying")
 				.text(Markup.concat(
 					Markup.raw("You aren't carrying "),
 					Markup.em(itemInput),
@@ -735,8 +715,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		
 		// Default: item has no solo use
 		client.sendOutput(CommandOutput.make(USE)
-			.put(M_SUCCESS, false)
-			.put(M_ERROR, "no_use")
+			.error("no_use")
 			.text(Markup.concat(
 				Markup.raw("You're not sure how to use "),
 				Markup.em(itemName),
@@ -757,8 +736,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
 		if (containers.isEmpty()) {
 			client.sendOutput(CommandOutput.make(USE)
-				.put(M_SUCCESS, false)
-				.put(M_ERROR, "nowhere")
+				.error("nowhere")
 				.text(Markup.escape("You are nowhere.")));
 			return;
 		}
@@ -791,8 +769,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		
 		if (result.isNotFound()) {
 			client.sendOutput(CommandOutput.make(USE)
-				.put(M_SUCCESS, false)
-				.put(M_ERROR, "target_not_found")
+				.error("target_not_found")
 				.text(Markup.concat(
 					Markup.raw("You don't see "),
 					Markup.em(targetInput),
@@ -841,8 +818,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		
 		// Default: no interaction defined
 		client.sendOutput(CommandOutput.make(USE)
-			.put(M_SUCCESS, false)
-			.put(M_ERROR, "no_interaction")
+			.error("no_interaction")
 			.text(Markup.concat(
 				Markup.raw("You can't use "),
 				Markup.em(itemName),
@@ -872,7 +848,6 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		
 		if (carriedItems.isEmpty()) {
 			client.sendOutput(CommandOutput.make(INVENTORY)
-				.put(M_SUCCESS, true)
 				.put(M_ITEMS, new java.util.ArrayList<String>())
 				.text(Markup.escape("You aren't carrying anything.")));
 			return;
@@ -899,7 +874,6 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		parts.add(Markup.raw("."));
 		
 		client.sendOutput(CommandOutput.make(INVENTORY)
-			.put(M_SUCCESS, true)
 			.text(Markup.concat(parts.toArray(new Markup.Safe[0]))));
 	}
 	
@@ -955,8 +929,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
 		if (containers.isEmpty()) {
 			client.sendOutput(CommandOutput.make(OPEN)
-				.put(M_SUCCESS, false)
-				.put(M_ERROR, "nowhere")
+				.error("nowhere")
 				.text(Markup.escape("You are nowhere.")));
 			return;
 		}
@@ -987,8 +960,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		
 		if (availableContainers.isEmpty()) {
 			client.sendOutput(CommandOutput.make(OPEN)
-				.put(M_SUCCESS, false)
-				.put(M_ERROR, "no_containers")
+				.error("no_containers")
 				.text(Markup.escape("There are no containers here.")));
 			return;
 		}
@@ -1004,8 +976,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		
 		if (result.isNotFound()) {
 			client.sendOutput(CommandOutput.make(OPEN)
-				.put(M_SUCCESS, false)
-				.put(M_ERROR, "not_found")
+				.error("not_found")
 				.text(Markup.concat(
 					Markup.raw("You don't see "),
 					Markup.em(containerInput),
@@ -1031,8 +1002,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		Long openValue = is.getTagValue(container, is.TAG_OPEN, ws.getCurrentTime());
 		if (openValue != null && openValue == 1) {
 			client.sendOutput(CommandOutput.make(OPEN)
-				.put(M_SUCCESS, false)
-				.put(M_ERROR, "already_open")
+				.error("already_open")
 				.put(M_CONTAINER, container.getKeyId())
 				.put(M_CONTAINER_NAME, containerName)
 				.text(Markup.concat(
@@ -1054,7 +1024,6 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		
 		if (contents.isEmpty()) {
 			client.sendOutput(CommandOutput.make(OPEN)
-				.put(M_SUCCESS, true)
 				.put(M_CONTAINER, container.getKeyId())
 				.put(M_CONTAINER_NAME, containerName)
 				.put(M_ITEMS, new java.util.ArrayList<String>())
@@ -1097,7 +1066,6 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 			contentParts.add(Markup.raw("."));
 			
 			client.sendOutput(CommandOutput.make(OPEN)
-				.put(M_SUCCESS, true)
 				.put(M_CONTAINER, container.getKeyId())
 				.put(M_CONTAINER_NAME, containerName)
 				.put(M_ITEMS, itemsList)
@@ -1122,8 +1090,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
 		if (containers.isEmpty()) {
 			client.sendOutput(CommandOutput.make(CLOSE)
-				.put(M_SUCCESS, false)
-				.put(M_ERROR, "nowhere")
+				.error("nowhere")
 				.text(Markup.escape("You are nowhere.")));
 			return;
 		}
@@ -1149,8 +1116,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		
 		if (availableContainers.isEmpty()) {
 			client.sendOutput(CommandOutput.make(CLOSE)
-				.put(M_SUCCESS, false)
-				.put(M_ERROR, "no_containers")
+				.error("no_containers")
 				.text(Markup.escape("There are no containers here.")));
 			return;
 		}
@@ -1165,8 +1131,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		
 		if (result.isNotFound()) {
 			client.sendOutput(CommandOutput.make(CLOSE)
-				.put(M_SUCCESS, false)
-				.put(M_ERROR, "not_found")
+				.error("not_found")
 				.text(Markup.concat(
 					Markup.raw("You don't see "),
 					Markup.em(containerInput),
@@ -1192,8 +1157,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		Long openValue = is.getTagValue(container, is.TAG_OPEN, ws.getCurrentTime());
 		if (openValue == null || openValue == 0) {
 			client.sendOutput(CommandOutput.make(CLOSE)
-				.put(M_SUCCESS, false)
-				.put(M_ERROR, "already_closed")
+				.error("already_closed")
 				.put(M_CONTAINER, container.getKeyId())
 				.put(M_CONTAINER_NAME, containerName)
 				.text(Markup.concat(
@@ -1207,7 +1171,6 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		is.updateTagValue(container, is.TAG_OPEN, 0, ws.getCurrentTime());
 		
 		client.sendOutput(CommandOutput.make(CLOSE)
-			.put(M_SUCCESS, true)
 			.put(M_CONTAINER, container.getKeyId())
 			.put(M_CONTAINER_NAME, containerName)
 			.text(Markup.concat(
@@ -1235,8 +1198,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		var locationContainers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
 		if (locationContainers.isEmpty()) {
 			client.sendOutput(CommandOutput.make(PUT)
-				.put(M_SUCCESS, false)
-				.put(M_ERROR, "nowhere")
+				.error("nowhere")
 				.text(Markup.escape("You are nowhere.")));
 			return;
 		}
@@ -1252,8 +1214,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		
 		if (inventory.isEmpty()) {
 			client.sendOutput(CommandOutput.make(PUT)
-				.put(M_SUCCESS, false)
-				.put(M_ERROR, "nothing_to_put")
+				.error("nothing_to_put")
 				.text(Markup.escape("You aren't carrying anything.")));
 			return;
 		}
@@ -1269,8 +1230,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		
 		if (itemResult.isNotFound()) {
 			client.sendOutput(CommandOutput.make(PUT)
-				.put(M_SUCCESS, false)
-				.put(M_ERROR, "not_carrying")
+				.error("not_carrying")
 				.text(Markup.concat(
 					Markup.raw("You aren't carrying "),
 					Markup.em(itemInput),
@@ -1307,8 +1267,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		
 		if (availableContainers.isEmpty()) {
 			client.sendOutput(CommandOutput.make(PUT)
-				.put(M_SUCCESS, false)
-				.put(M_ERROR, "no_containers")
+				.error("no_containers")
 				.text(Markup.escape("There are no containers here.")));
 			return;
 		}
@@ -1324,8 +1283,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		
 		if (containerResult.isNotFound()) {
 			client.sendOutput(CommandOutput.make(PUT)
-				.put(M_SUCCESS, false)
-				.put(M_ERROR, "container_not_found")
+				.error("container_not_found")
 				.text(Markup.concat(
 					Markup.raw("You don't see "),
 					Markup.em(containerInput),
@@ -1351,8 +1309,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		Long openValue = is.getTagValue(container, is.TAG_OPEN, ws.getCurrentTime());
 		if (openValue == null || openValue == 0) {
 			client.sendOutput(CommandOutput.make(PUT)
-				.put(M_SUCCESS, false)
-				.put(M_ERROR, "container_closed")
+				.error("container_closed")
 				.put(M_CONTAINER, container.getKeyId())
 				.put(M_CONTAINER_NAME, containerName)
 				.text(Markup.concat(
@@ -1365,8 +1322,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		// Can't put container inside itself
 		if (item.getId() == container.getId()) {
 			client.sendOutput(CommandOutput.make(PUT)
-				.put(M_SUCCESS, false)
-				.put(M_ERROR, "container_self")
+				.error("container_self")
 				.text(Markup.escape("You can't put something inside itself.")));
 			return;
 		}
@@ -1382,7 +1338,6 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		rs.add(container, item, rs.rvContains);
 		
 		client.sendOutput(CommandOutput.make(PUT)
-			.put(M_SUCCESS, true)
 			.put(M_ITEM, item.getKeyId())
 			.put(M_ITEM_NAME, itemName)
 			.put(M_CONTAINER, container.getKeyId())

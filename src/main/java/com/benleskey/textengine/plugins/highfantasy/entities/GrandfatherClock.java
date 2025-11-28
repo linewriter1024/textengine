@@ -64,7 +64,6 @@ public class GrandfatherClock extends Item implements Tickable, DynamicDescripti
 			
 			String chimes = "BONG ".repeat(chimeCount).trim();
 			CommandOutput chimeOutput = CommandOutput.make("clock_chime")
-				.put("success", true)
 				.put("entity_id", String.valueOf(getId()))
 				.text(Markup.escape(String.format("The grandfather clock chimes %d %s. %s", 
 					chimeCount, 

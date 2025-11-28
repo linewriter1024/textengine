@@ -61,7 +61,6 @@ public class TakeItemAction extends Action {
 		if (isFromContainer) {
 			String containerDesc = getEntityDescription(fromContainer);
 			broadcast = CommandOutput.make("actor_takes_from")
-				.put("success", true)
 				.put("actor_id", actor.getKeyId())
 				.put("actor_name", actorDesc)
 				.put("item_id", target.getKeyId())
@@ -78,7 +77,6 @@ public class TakeItemAction extends Action {
 				));
 		} else {
 			broadcast = CommandOutput.make("actor_takes")
-				.put("success", true)
 				.put("actor_id", actor.getKeyId())
 				.put("actor_name", actorDesc)
 				.put("item_id", target.getKeyId())
