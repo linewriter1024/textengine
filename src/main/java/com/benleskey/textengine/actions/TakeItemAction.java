@@ -1,4 +1,4 @@
-package com.benleskey.textengine.entities.actions;
+package com.benleskey.textengine.actions;
 
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.commands.CommandOutput;
