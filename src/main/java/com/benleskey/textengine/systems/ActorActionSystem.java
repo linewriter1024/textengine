@@ -126,18 +126,17 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 			getPendingActionStatement = game.db().prepareStatement(
 					"SELECT action.action_id, event.time, action.time_required_ms " +
 							"FROM action " +
-							"JOIN event ON event.reference = action.action_id AND event.type = ? " +
+							"JOIN event ON event.reference = action.action_id " +
 							"WHERE action.actor_id = ? " +
 							"AND event.time <= ? " +
-							"AND NOT EXISTS (SELECT 1 FROM event AS event_cancel WHERE event_cancel.type = ? AND event_cancel.reference = action.action_id AND event_cancel.time <= ?) "
-							+
+							"AND action.action_id IN " + eventSystem.getValidEventsSubquery("action.action_id") + " " +
 							"ORDER BY event.time ASC LIMIT 1");
 			getActionReadyTimeStatement = game.db().prepareStatement(
 					"SELECT event.time, time_required_ms " +
 							"FROM action " +
 							"JOIN event ON event.reference = action.action_id " +
-							"WHERE action.action_id = ?");
-
+							"WHERE action.action_id = ? " +
+							"AND action.action_id IN " + eventSystem.getValidEventsSubquery("action.action_id"));
 			getActingEntitiesStatement = game.db().prepareStatement(
 					"SELECT DISTINCT entity_id FROM entity_tag " +
 							"JOIN event ON event.reference = entity_tag.entity_tag_id " +
@@ -312,11 +311,9 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 		DTime currentTime = worldSystem.getCurrentTime();
 
 		try {
-			getPendingActionStatement.setLong(1, ACTION.type());
-			getPendingActionStatement.setLong(2, actor.getId());
-			getPendingActionStatement.setLong(3, currentTime.raw());
-			getPendingActionStatement.setLong(4, eventSystem.etCancel.type());
-			getPendingActionStatement.setLong(5, currentTime.raw());
+			getPendingActionStatement.setLong(1, actor.getId());
+			getPendingActionStatement.setLong(2, currentTime.raw());
+			eventSystem.setValidEventsSubqueryParameters(getPendingActionStatement, 3, ACTION, currentTime);
 
 			try (ResultSet rs = getPendingActionStatement.executeQuery()) {
 				if (rs.next()) {
@@ -335,8 +332,10 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 	 * Get the time when an action will be ready to execute.
 	 */
 	public synchronized long getActionReadyTime(Reference actionRef) throws DatabaseException {
+		DTime currentTime = worldSystem.getCurrentTime();
 		try {
 			getActionReadyTimeStatement.setLong(1, actionRef.getId());
+			eventSystem.setValidEventsSubqueryParameters(getActionReadyTimeStatement, 2, ACTION, currentTime);
 
 			try (ResultSet rs = getActionReadyTimeStatement.executeQuery()) {
 				if (rs.next()) {
@@ -436,7 +435,8 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 		synchronized (this) {
 			try {
 				getActingEntitiesStatement.setLong(1, TAG_ACTING.type());
-				eventSystem.setValidEventsSubqueryParameters(getActingEntitiesStatement, 2, entityTagSystem.etEntityTag, currentTime);
+				eventSystem.setValidEventsSubqueryParameters(getActingEntitiesStatement, 2, entityTagSystem.etEntityTag,
+						currentTime);
 
 				try (ResultSet rs = getActingEntitiesStatement.executeQuery()) {
 					while (rs.next()) {
