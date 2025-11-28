@@ -256,7 +256,7 @@ public class DisambiguationSystem extends SingletonGameSystem {
 			List<T> candidates,
 			Function<T, String> descriptionExtractor) {
 		
-		// Try to parse as numeric ID first
+		// Try to parse as numeric disambiguation ID (1, 2, 3...) first
 		try {
 			int numericId = Integer.parseInt(userInput);
 			var entityOpt = client.getEntityByNumericId(numericId);
@@ -266,7 +266,23 @@ public class DisambiguationSystem extends SingletonGameSystem {
 				return ResolutionResult.unique(entity);
 			}
 		} catch (NumberFormatException e) {
-			// Not a number, will do fuzzy match below
+			// Not a number, will check for # prefix or do fuzzy match below
+		}
+		
+		// Try to parse as entity ID with # prefix (#1234)
+		if (userInput.startsWith("#")) {
+			try {
+				long entityId = Long.parseLong(userInput.substring(1));
+				EntitySystem entitySystem = game.getSystem(EntitySystem.class);
+				Entity entityById = entitySystem.get(entityId);
+				if (entityById != null && candidates.contains(entityById)) {
+					@SuppressWarnings("unchecked")
+					T entity = (T) entityById;
+					return ResolutionResult.unique(entity);
+				}
+			} catch (NumberFormatException e) {
+				// Invalid entity ID format, will do fuzzy match below
+			}
 		}
 		
 		// Fall back to fuzzy matching using extracted keywords

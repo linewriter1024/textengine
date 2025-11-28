@@ -26,6 +26,7 @@ import com.benleskey.textengine.systems.WorldSystem;
 import com.benleskey.textengine.util.Markup;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.stream.Collectors;
@@ -66,17 +67,18 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 	@Override
 	public void onPluginInitialize() {
 		// Take/get item (or take from container)
+		// Accepts entity names or entity IDs with # prefix (e.g., "take #1234" or "take coin")
 		game.registerCommand(new Command(TAKE, this::handleTake,
 			new CommandVariant("take_from", "^(?:take|get)\\s+(.+?)\\s+from\\s+(.+?)\\s*$", this::parseTakeFrom),
 			new CommandVariant("take_item", "^(?:take|get|pickup|grab)\\s+(.+?)\\s*$", this::parseTake)
 		));
 		
-		// Drop item
+		// Drop item (accepts entity names or #IDs)
 		game.registerCommand(new Command(DROP, this::handleDrop,
 			new CommandVariant("drop_item", "^drop\\s+(.+?)\\s*$", this::parseDrop)
 		));
 		
-		// Examine item (detailed look)
+		// Examine item (accepts entity names or #IDs)
 		game.registerCommand(new Command(EXAMINE, this::handleExamine,
 			new CommandVariant("examine_item", "^(?:examine|inspect|x)\\s+(.+?)\\s*$", this::parseExamine)
 		));
@@ -85,6 +87,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		// NOTE: Variants stored in HashMap (no guaranteed order), so regexes must be mutually exclusive
 		// "use_on" matches: "use X on Y" or "use X with Y"
 		// "use_item" matches: "use X" (but NOT if it contains "on" or "with" followed by more words)
+		// Accepts entity names or #IDs for both item and target
 		game.registerCommand(new Command(USE, this::handleUse,
 			new CommandVariant("use_on", "^use\\s+(.+?)\\s+(?:on|with)\\s+(.+?)\\s*$", this::parseUseOn),
 			new CommandVariant("use_item", "^use\\s+(?!.+?\\s+(?:on|with)\\s+)(.+?)\\s*$", this::parseUse)
@@ -95,17 +98,17 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 			new CommandVariant("inventory", "^(?:inventory|inv|i)\\s*$", args -> CommandInput.makeNone())
 		));
 		
-		// Open container
+		// Open container (accepts entity names or #IDs)
 		game.registerCommand(new Command(OPEN, this::handleOpen,
 			new CommandVariant("open_container", "^open\\s+(.+?)\\s*$", this::parseOpen)
 		));
 		
-		// Close container
+		// Close container (accepts entity names or #IDs)
 		game.registerCommand(new Command(CLOSE, this::handleClose,
 			new CommandVariant("close_container", "^close\\s+(.+?)\\s*$", this::parseClose)
 		));
 		
-		// Put item in container
+		// Put item in container (accepts entity names or #IDs)
 		game.registerCommand(new Command(PUT, this::handlePut,
 			new CommandVariant("put_in", "^put\\s+(.+?)\\s+(?:in|into)\\s+(.+?)\\s*$", this::parsePut)
 		));
@@ -608,10 +611,23 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 			examineMarkup.add(Markup.raw("."));
 		}
 		
+		// Build machine-readable contents list
+		List<Map<String, Object>> itemsList = new java.util.ArrayList<>();
+		for (Entity item : contents) {
+			List<LookDescriptor> itemLooks = ls.getLooksFromEntity(item, ws.getCurrentTime());
+			String desc = !itemLooks.isEmpty() ? itemLooks.get(0).getDescription() : "something";
+			
+			Map<String, Object> itemData = new java.util.HashMap<>();
+			itemData.put(M_ENTITY_ID, item.getKeyId());
+			itemData.put(M_ITEM_NAME, desc);
+			itemsList.add(itemData);
+		}
+		
 		client.sendOutput(CommandOutput.make(EXAMINE)
 			.put(M_SUCCESS, true)
 			.put(M_ENTITY_ID, String.valueOf(targetItem.getId()))
 			.put(M_ITEM, targetItem)
+			.put(M_ITEMS, itemsList)
 			.text(Markup.concat(examineMarkup.toArray(new Markup.Safe[0]))));
 	}
 	
@@ -1055,19 +1071,34 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 				.put(M_SUCCESS, true)
 				.put(M_CONTAINER, container.getKeyId())
 				.put(M_CONTAINER_NAME, containerName)
+				.put(M_ITEMS, new java.util.ArrayList<String>())
 				.text(Markup.concat(
 					Markup.raw("You open "),
 					Markup.em(containerName),
 					Markup.raw(". It is empty.")
 				)));
 		} else {
-			// Format contents list
+			// Build machine-readable contents list
+			List<Map<String, Object>> itemsList = new java.util.ArrayList<>();
+			
+			// Format contents list for human-readable text
 			List<Markup.Safe> contentParts = new java.util.ArrayList<>();
 			contentParts.add(Markup.raw("You open "));
 			contentParts.add(Markup.em(containerName));
 			contentParts.add(Markup.raw(". Inside you see "));
 			
 			for (int i = 0; i < contents.size(); i++) {
+				Entity item = contents.get(i);
+				var looks = ls.getLooksFromEntity(item, ws.getCurrentTime());
+				String desc = !looks.isEmpty() ? looks.get(0).getDescription() : "something";
+				
+				// Add to machine-readable list
+				Map<String, Object> itemData = new java.util.HashMap<>();
+				itemData.put(M_ENTITY_ID, item.getKeyId());
+				itemData.put(M_ITEM_NAME, desc);
+				itemsList.add(itemData);
+				
+				// Add to human-readable text
 				if (i > 0) {
 					if (i == contents.size() - 1) {
 						contentParts.add(Markup.raw(", and "));
@@ -1075,8 +1106,6 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 						contentParts.add(Markup.raw(", "));
 					}
 				}
-				var looks = ls.getLooksFromEntity(contents.get(i), ws.getCurrentTime());
-				String desc = !looks.isEmpty() ? looks.get(0).getDescription() : "something";
 				contentParts.add(Markup.em(desc));
 			}
 			contentParts.add(Markup.raw("."));
@@ -1085,6 +1114,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 				.put(M_SUCCESS, true)
 				.put(M_CONTAINER, container.getKeyId())
 				.put(M_CONTAINER_NAME, containerName)
+				.put(M_ITEMS, itemsList)
 				.text(Markup.concat(contentParts.toArray(new Markup.Safe[0]))));
 		}
 	}

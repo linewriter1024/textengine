@@ -339,7 +339,7 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 				e -> ls.getLooksFromEntity(e, ws.getCurrentTime())
 			));
 		
-		client.sendOutput(buildEnhancedLookOutput(client, locationLooks, exits, nearbyLooks, itemLooks, distantLooks, ls, ws));
+		client.sendOutput(buildEnhancedLookOutput(client, locationLooks, exits, nearbyLooks, itemLooks, distantLooks, ls, rs, ws));
 	}
 
 	private CommandOutput buildEnhancedLookOutput(
@@ -350,6 +350,7 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 		Map<Entity, List<LookDescriptor>> itemLooks,
 		Map<Entity, List<LookDescriptor>> distantLooks,
 		LookSystem ls,
+		RelationshipSystem rs,
 		WorldSystem ws
 	) {
 		CommandOutput output = CommandOutput.make(M_LOOK);
@@ -476,6 +477,35 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 				}
 				
 				entityMessage.put(M_LOOK_ENTITY_LOOKS, entityLooks);
+				
+				// Add container contents if this item is a container
+				if (item instanceof Item) {
+					List<com.benleskey.textengine.model.RelationshipDescriptor> itemContents = 
+						rs.getReceivingRelationships(item, rs.rvContains, ws.getCurrentTime());
+					
+					if (!itemContents.isEmpty()) {
+						List<Map<String, Object>> contentsList = new java.util.ArrayList<>();
+						
+						for (com.benleskey.textengine.model.RelationshipDescriptor rd : itemContents) {
+							Entity contentItem = rd.getReceiver();
+							if (contentItem instanceof Item) {
+								List<LookDescriptor> contentLooks = ls.getLooksFromEntity(contentItem, ws.getCurrentTime());
+								String contentDesc = !contentLooks.isEmpty() ? 
+									contentLooks.get(0).getDescription() : "something";
+								
+								Map<String, Object> contentData = new java.util.HashMap<>();
+								contentData.put("entity_id", contentItem.getKeyId());
+								contentData.put("item_name", contentDesc);
+								contentsList.add(contentData);
+							}
+						}
+						
+						if (!contentsList.isEmpty()) {
+							entityMessage.put("container_contents", contentsList);
+						}
+					}
+				}
+				
 				itemEntities.put(item.getKeyId(), entityMessage);
 			}
 			

@@ -329,10 +329,43 @@ You take a wet leaf.
 - `Client.setNumericIdMap(Map<Integer, Entity>)` - stores the mapping
 - `Client.getEntityByNumericId(int)` - retrieves entity by numeric ID
 - `DisambiguationSystem.buildDisambiguatedList()` - assigns IDs when presenting ambiguous choices
-- `DisambiguationSystem.resolveEntityWithAmbiguity()` - checks numeric IDs first, then fuzzy matches
-- Commands check numeric IDs first, then fall back to fuzzy matching
+- `DisambiguationSystem.resolveEntityWithAmbiguity()` - checks disambiguation IDs first (1, 2, 3...), then entity IDs (#1234), then fuzzy matches
+- Commands check disambiguation IDs first, then entity IDs, then fall back to fuzzy matching
 
 **Pattern**: IDs appear only when needed for disambiguation, keeping normal output clean. Users see IDs only after an ambiguous command, then use numbers to clarify their intent.
+
+### Entity ID References
+
+Users can reference entities by their database IDs using the `#` prefix (e.g., `take #1234`).
+
+**How it works**:
+1. **Entity IDs** use `#` prefix to distinguish from disambiguation IDs (e.g., `#1366` vs `1`)
+2. **Discovery**: Use `--apidebug` flag to see entity IDs in API output
+3. **Resolution order**: Disambiguation IDs (1, 2, 3...) → Entity IDs (#1234) → Fuzzy matching
+4. **All commands support entity IDs**: `take #1234`, `go #5678`, `open #9012`, etc.
+
+**Example flow**:
+```bash
+# Discover entity IDs with --apidebug
+printf "look\nquit\n" | mvn -q exec:java ... -Dexec.args="--seed 12345 --apidebug"
+# Output: (entity_id: '1366', description: 'a battered chest')
+
+# Use entity ID in commands
+printf "open #1366\nquit\n" | mvn -q exec:java ... -Dexec.args="--seed 12345"
+# Works: You open a battered chest.
+```
+
+**Why this matters**:
+- **Testing**: Entity IDs are stable and deterministic with same seed
+- **Disambiguation**: No ambiguity when entity descriptions are randomized
+- **Consistency**: Tests don't break when LLM generates different descriptions
+- **Separation**: `#1366` (entity ID) vs `1` (disambiguation ID) are clearly different
+
+**Implementation**:
+- `DisambiguationSystem.resolveEntityWithAmbiguity()` - checks for `#` prefix, parses as entity ID
+- `EntitySystem.get(long)` - retrieves entity by database ID
+- All command parsers accept `.+?` which includes `#` prefix
+- Entity IDs only visible in `--apidebug` output, not user-facing text
 
 ### Navigation to Duplicate Destinations
 

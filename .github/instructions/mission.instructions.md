@@ -63,8 +63,15 @@ This engine simulates worlds through **emergent entity relationships**, not scri
   - Success/error flags (`M_SUCCESS`, `M_ERROR`)
   - Relevant entity references (`M_ITEM`, `M_ACTOR`, `M_PLACE`)
   - Context data (names, quantities, states)
+  - **Complete structured data** - all information in text should also be in structured fields
+  - Lists of entities (e.g., container contents) with entity IDs and names
   - Human-readable `text` field last
+- **Critical**: Machine-readable API must provide COMPLETE information - never require text parsing
 - Use `--apidebug` flag to see the structured data: `(input: 'take sword', item: 'entity_123', success: 'true', text: 'You take...')`
+- **Examples of complete API data**:
+  - Container contents: `items: [{entity_id: '1234', item_name: 'coin'}, {entity_id: '5678', item_name: 'key'}]`
+  - Inventory: `items: [{entity_id: '9012', item_name: 'sword', weight: '2.5'}]`
+  - Room exits: `exits: [{entity_id: '3456', direction: 'north', destination: 'forest'}]`
 
 ## Anti-Patterns to Reject
 

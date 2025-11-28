@@ -53,11 +53,63 @@ Shows the structured Message data (key-value pairs) sent between client and game
 printf "look\ngo forest\nlook\nquit\n" | mvn -q exec:java -Dexec.mainClass="com.benleskey.textengine.cli.Main" -Dexec.args="--apidebug"
 ```
 
+**Important**: The `--apidebug` flag shows entity IDs in the API output which can be used for testing.
+
 ### With Both Logging and API Debug
 
 ```bash
 printf "look\ngo forest\nlook\nquit\n" | mvn -q exec:java -Dexec.mainClass="com.benleskey.textengine.cli.Main" -Dexec.args="--showlog --apidebug"
 ```
+
+## Using Entity IDs for Testing
+
+**For simpler, more consistent tests (especially with randomized descriptions), you can reference entities by their IDs using the `#` prefix.**
+
+All commands that accept entity references also accept entity IDs with # prefix:
+- `take #1234` instead of `take coin`
+- `drop #5678` instead of `drop sword`
+- `examine #9012` instead of `examine chest`
+- `use #1111 on #2222` instead of `use axe on tree`
+- `open #3456` instead of `open chest`
+- `put #1234 in #5678` instead of `put coin in chest`
+- `take #1234 from #5678` instead of `take coin from chest`
+- `go #7890` instead of `go forest`
+
+**Note**: Disambiguation numeric IDs (1, 2, 3...) do NOT require the # prefix - those are temporary IDs shown when ambiguous matches are found.
+
+### How to Use Entity IDs in Tests
+
+1. **Run with `--apidebug` to see entity IDs** in the structured API output
+2. **Extract the IDs** from the first run's API output
+3. **Use those IDs** in subsequent test commands for consistency
+
+**Example workflow**:
+
+```bash
+# First: Run with --apidebug to discover entity IDs
+printf "look\nquit\n" | mvn -q exec:java -Dexec.mainClass="com.benleskey.textengine.cli.Main" -Dexec.args="--seed 12345 --apidebug"
+
+# Output shows entity IDs in the API data:
+# (entity_id: '1234', description: 'a wooden chest')
+# (entity_id: '5678', description: 'a gold coin')
+
+# Then: Use those IDs with # prefix in tests for consistency
+printf "open #1234\ntake #5678 from #1234\ninventory\nquit\n" | mvn -q exec:java -Dexec.mainClass="com.benleskey.textengine.cli.Main" -Dexec.args="--seed 12345"
+```
+
+**When to use entity IDs**:
+- ✅ Testing core command functionality (does "take from" work?)
+- ✅ When entity descriptions are randomized (avoids guessing "coin" vs "tarnished coin")
+- ✅ For regression tests that need to be stable across code changes
+- ✅ When testing with complex scenarios where naming is ambiguous
+
+**When to use entity names**:
+- ✅ Testing fuzzy matching and disambiguation logic
+- ✅ Demonstrating user-facing behavior
+- ✅ Testing specific entity name patterns
+- ✅ Examples in documentation
+
+**Note**: Entity IDs are **not shown** in normal human-readable output - they only appear in the `--apidebug` API data. This keeps the user experience clean while providing a powerful testing mechanism.
 
 ### Testing Persistence
 

@@ -44,7 +44,8 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 	@Override
 	public void onPluginInitialize() {
 		game.registerCommand(new Command(GO, this::handleGo,
-			// Match: go north, go n, go castle, etc.
+			// Match: go north, go n, go castle, go #1234 (entity ID), etc.
+			// Accepts both destination names and entity IDs with # prefix
 			new CommandVariant(GO_DIRECTION, "^(?:go|move|travel)\\s+(.+?)\\s*$", this::parseGo)
 		));
 	}
