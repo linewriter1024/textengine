@@ -10,7 +10,7 @@ public class Actor extends Entity {
 	public Actor(long id, Game game) {
 		super(id, game);
 	}
-	
+
 	/**
 	 * Receive a broadcast event from another entity.
 	 * Relays the broadcast to this actor's client, if one exists.
@@ -26,7 +26,7 @@ public class Actor extends Entity {
 			if (client.getEntity().isPresent() && client.getEntity().get().getId() == this.getId()) {
 				// Send broadcast directly - client handles markup conversion
 				game.getSystem(com.benleskey.textengine.systems.AvatarBroadcastSystem.class)
-					.deliverBroadcast(this, output);
+						.deliverBroadcast(this, output);
 				break;
 			}
 		}

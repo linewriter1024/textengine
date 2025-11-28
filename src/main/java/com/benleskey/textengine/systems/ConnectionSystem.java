@@ -21,7 +21,7 @@ public class ConnectionSystem extends SingletonGameSystem implements OnSystemIni
 	public UniqueType rvConnectsTo;
 	private EventSystem eventSystem;
 	private RelationshipSystem relationshipSystem;
-	
+
 	private PreparedStatement getConnectionsStatement;
 
 	public ConnectionSystem(Game game) {
@@ -45,11 +45,10 @@ public class ConnectionSystem extends SingletonGameSystem implements OnSystemIni
 		try {
 			// Get all connections from a place
 			getConnectionsStatement = game.db().prepareStatement(
-				"SELECT relationship_id, receiver_id FROM entity_relationship " +
-				"WHERE provider_id = ? AND relationship_verb = ? AND relationship_id IN " +
-				eventSystem.getValidEventsSubquery("entity_relationship.relationship_id") +
-				" ORDER BY relationship_id"
-			);
+					"SELECT relationship_id, receiver_id FROM entity_relationship " +
+							"WHERE provider_id = ? AND relationship_verb = ? AND relationship_id IN " +
+							eventSystem.getValidEventsSubquery("entity_relationship.relationship_id") +
+							" ORDER BY relationship_id");
 		} catch (SQLException e) {
 			throw new DatabaseException("Unable to prepare connection statements", e);
 		}
@@ -57,8 +56,9 @@ public class ConnectionSystem extends SingletonGameSystem implements OnSystemIni
 
 	/**
 	 * Create a one-way connection from one place to another.
+	 * 
 	 * @param from The place the connection starts from
-	 * @param to The place the connection leads to
+	 * @param to   The place the connection leads to
 	 * @return The relationship event representing this connection
 	 */
 	public synchronized FullEvent<Relationship> connect(Entity from, Entity to) {
@@ -67,6 +67,7 @@ public class ConnectionSystem extends SingletonGameSystem implements OnSystemIni
 
 	/**
 	 * Create a bidirectional connection between two places.
+	 * 
 	 * @param place1 First place
 	 * @param place2 Second place
 	 */
@@ -77,6 +78,7 @@ public class ConnectionSystem extends SingletonGameSystem implements OnSystemIni
 
 	/**
 	 * Get all connections from a place at a specific time.
+	 * 
 	 * @param from The place to get connections from
 	 * @param when The time to query
 	 * @return List of connection descriptors
@@ -86,19 +88,20 @@ public class ConnectionSystem extends SingletonGameSystem implements OnSystemIni
 			List<ConnectionDescriptor> connections = new ArrayList<>();
 			getConnectionsStatement.setLong(1, from.getId());
 			getConnectionsStatement.setLong(2, rvConnectsTo.type());
-			eventSystem.setValidEventsSubqueryParameters(getConnectionsStatement, 3, relationshipSystem.etEntityRelationship, when);
-			
+			eventSystem.setValidEventsSubqueryParameters(getConnectionsStatement, 3,
+					relationshipSystem.etEntityRelationship, when);
+
 			try (ResultSet rs = getConnectionsStatement.executeQuery()) {
 				EntitySystem entitySystem = game.getSystem(EntitySystem.class);
 				while (rs.next()) {
 					Relationship rel = new Relationship(rs.getLong(1), game);
 					Entity to = entitySystem.get(rs.getLong(2));
-					
+
 					connections.add(ConnectionDescriptor.builder()
-						.from(from)
-						.to(to)
-						.relationship(rel)
-						.build());
+							.from(from)
+							.to(to)
+							.relationship(rel)
+							.build());
 				}
 			}
 			return connections;

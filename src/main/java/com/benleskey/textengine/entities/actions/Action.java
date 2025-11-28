@@ -24,13 +24,14 @@ public abstract class Action {
 	protected final Actor actor;
 	protected final Entity target;
 	protected final DTime timeRequired;
-	
+
 	/**
 	 * Create an action instance.
 	 * 
-	 * @param game The game instance
-	 * @param actor The actor performing the action
-	 * @param target The target entity (destination for move, item for take/drop, etc.)
+	 * @param game         The game instance
+	 * @param actor        The actor performing the action
+	 * @param target       The target entity (destination for move, item for
+	 *                     take/drop, etc.)
 	 * @param timeRequired How long this action takes to complete
 	 */
 	public Action(Game game, Actor actor, Entity target, DTime timeRequired) {
@@ -39,7 +40,7 @@ public abstract class Action {
 		this.target = target;
 		this.timeRequired = timeRequired;
 	}
-	
+
 	/**
 	 * Get the unique type identifying this action class.
 	 * Used to store/retrieve action type from database.
@@ -47,25 +48,28 @@ public abstract class Action {
 	 * @return The action type
 	 */
 	public abstract UniqueType getActionType();
-	
+
 	/**
 	 * Execute this action.
 	 * Called when the action's time requirement is met.
-	 * Should return CommandOutput that will be broadcast to the actor and nearby entities.
+	 * Should return CommandOutput that will be broadcast to the actor and nearby
+	 * entities.
 	 * 
-	 * @return CommandOutput to broadcast (both to actor and nearby entities), or null if action failed
+	 * @return CommandOutput to broadcast (both to actor and nearby entities), or
+	 *         null if action failed
 	 */
 	public abstract CommandOutput execute();
-	
+
 	/**
 	 * Check if this action can be executed.
 	 * Called before queueing and before execution to validate preconditions.
 	 * Examples: check if item is takeable, not too heavy, target still exists, etc.
 	 * 
-	 * @return ActionValidation result indicating if action can execute and why not if it can't
+	 * @return ActionValidation result indicating if action can execute and why not
+	 *         if it can't
 	 */
 	public abstract ActionValidation canExecute();
-	
+
 	/**
 	 * Get a human-readable description of this action for observers.
 	 * Used when other entities look at the actor performing this action.
@@ -74,7 +78,7 @@ public abstract class Action {
 	 * @return Description of what the actor is doing
 	 */
 	public abstract String getDescription();
-	
+
 	/**
 	 * Get the time required for this action to complete.
 	 * 
@@ -83,7 +87,7 @@ public abstract class Action {
 	public DTime getTimeRequired() {
 		return timeRequired;
 	}
-	
+
 	/**
 	 * Get the target entity for this action.
 	 * 
@@ -92,7 +96,7 @@ public abstract class Action {
 	public Entity getTarget() {
 		return target;
 	}
-	
+
 	/**
 	 * Get the actor performing this action.
 	 * 

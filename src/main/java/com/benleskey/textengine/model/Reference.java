@@ -29,8 +29,10 @@ public class Reference {
 
 	@Override
 	public boolean equals(Object o) {
-		if (this == o) return true;
-		if (!(o instanceof Reference reference)) return false;
+		if (this == o)
+			return true;
+		if (!(o instanceof Reference reference))
+			return false;
 		return id == reference.id;
 	}
 }

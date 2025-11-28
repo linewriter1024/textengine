@@ -25,23 +25,22 @@ import java.util.regex.Pattern;
  * Allows players to advance time deliberately.
  */
 public class WaitCommandPlugin extends Plugin implements OnCoreSystemsReady {
-	
+
 	private static final String WAIT = "wait";
 	private static final String WAIT_DURATION = "wait_duration";
 	private static final String M_WAIT = "wait";
 	private static final String M_DURATION = "duration";
-	
+
 	// Error codes
 	private static final String ERR_INVALID_DURATION = "invalid_duration";
-	
+
 	// System fields
 	private ActorActionSystem actorActionSystem;
-	
+
 	// Pattern for parsing durations like "1 minute", "2 hours", "30 seconds", "30"
 	private static final Pattern DURATION_PATTERN = Pattern.compile(
-		"^(\\d+)\\s*(second|seconds|minute|minutes|hour|hours|s|m|h)?$",
-		Pattern.CASE_INSENSITIVE
-	);
+			"^(\\d+)\\s*(second|seconds|minute|minutes|hour|hours|s|m|h)?$",
+			Pattern.CASE_INSENSITIVE);
 
 	public WaitCommandPlugin(Game game) {
 		super(game);
@@ -56,27 +55,26 @@ public class WaitCommandPlugin extends Plugin implements OnCoreSystemsReady {
 	public void onCoreSystemsReady() {
 		// Initialize systems
 		actorActionSystem = game.getSystem(ActorActionSystem.class);
-		
+
 		game.registerCommand(new Command(WAIT, this::handleWait,
-			new CommandVariant(WAIT_DURATION, "^(?:wait)(?:\\s+(.+?))?\\s*$", this::parseWait)
-		));
+				new CommandVariant(WAIT_DURATION, "^(?:wait)(?:\\s+(.+?))?\\s*$", this::parseWait)));
 	}
-	
+
 	private CommandInput parseWait(Matcher matcher) {
 		String duration = matcher.group(1);
 		return CommandInput.make(WAIT).put(M_DURATION, duration != null ? duration.trim() : "");
 	}
-	
+
 	private void handleWait(Client client, CommandInput input) {
 		Entity actor = client.getEntity().orElse(null);
 		if (actor == null) {
 			client.sendOutput(Client.NO_ENTITY);
 			return;
 		}
-		
+
 		// Default: wait 1 second
 		long seconds = 1;
-		
+
 		// Parse duration from input arguments
 		String args = input.get(M_DURATION);
 		if (args != null && !args.isEmpty()) {
@@ -84,7 +82,7 @@ public class WaitCommandPlugin extends Plugin implements OnCoreSystemsReady {
 			if (m.matches()) {
 				int amount = Integer.parseInt(m.group(1));
 				String unit = m.group(2);
-				
+
 				if (unit == null) {
 					// No unit specified - treat as seconds
 					seconds = amount;
@@ -110,24 +108,25 @@ public class WaitCommandPlugin extends Plugin implements OnCoreSystemsReady {
 				}
 			} else {
 				client.sendOutput(CommandOutput.make(M_WAIT)
-					.put(CommandOutput.M_ERROR, ERR_INVALID_DURATION)
-					.text(Markup.escape("Invalid duration format. Use: wait, wait 30, wait 1 minute, wait 2 hours")));
+						.put(CommandOutput.M_ERROR, ERR_INVALID_DURATION)
+						.text(Markup
+								.escape("Invalid duration format. Use: wait, wait 30, wait 1 minute, wait 2 hours")));
 				return;
 			}
 		}
-		
+
 		// Queue wait action (time advancement happens inside queueAction for players)
 		ActionValidation validation = actorActionSystem.queueAction(
-			(com.benleskey.textengine.entities.Actor) actor, 
-			actorActionSystem.ACTION_WAIT, 
-			actor, // target is unused for wait action
-			DTime.fromSeconds(seconds));
-		
+				(com.benleskey.textengine.entities.Actor) actor,
+				actorActionSystem.ACTION_WAIT,
+				actor, // target is unused for wait action
+				DTime.fromSeconds(seconds));
+
 		if (!validation.isValid()) {
 			client.sendOutput(validation.getErrorOutput());
 			return;
 		}
-		
+
 		// Success - action has already broadcast the result to player
 	}
 }

@@ -20,6 +20,7 @@ public class Version {
 	}
 
 	public static RawMessage toMessage() {
-		return Message.make().put(M_INTERNAL_NAME, internalName).put(M_HUMAN_NAME, humanName).put(M_VERSION_NUMBER, versionNumber.toString()).put(M_URL, url);
+		return Message.make().put(M_INTERNAL_NAME, internalName).put(M_HUMAN_NAME, humanName)
+				.put(M_VERSION_NUMBER, versionNumber.toString()).put(M_URL, url);
 	}
 }

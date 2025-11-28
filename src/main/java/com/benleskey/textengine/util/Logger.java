@@ -27,7 +27,6 @@ public class Logger {
 		return prefix.isEmpty() ? "" : "[" + prefix + "] ";
 	}
 
-
 	public void log(String fmt, Object... args) {
 		stream.printf("[%s] %s%s\n", LocalDateTime.now(), getFullPrefix(), String.format(fmt, args));
 	}

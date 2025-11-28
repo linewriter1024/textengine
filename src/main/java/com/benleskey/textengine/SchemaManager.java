@@ -20,11 +20,13 @@ public class SchemaManager {
 	public void initialize() throws DatabaseException {
 		try {
 			// Use IF NOT EXISTS to allow reconnecting to existing databases
-			try (PreparedStatement s = game.db().prepareStatement("CREATE TABLE IF NOT EXISTS system_schema(system_id TEXT PRIMARY KEY, version_number INTEGER)")) {
+			try (PreparedStatement s = game.db().prepareStatement(
+					"CREATE TABLE IF NOT EXISTS system_schema(system_id TEXT PRIMARY KEY, version_number INTEGER)")) {
 				s.execute();
 			}
 
-			try (PreparedStatement s = game.db().prepareStatement("CREATE TABLE IF NOT EXISTS system_id(id INTEGER PRIMARY KEY)")) {
+			try (PreparedStatement s = game.db()
+					.prepareStatement("CREATE TABLE IF NOT EXISTS system_id(id INTEGER PRIMARY KEY)")) {
 				s.execute();
 			}
 
@@ -71,7 +73,8 @@ public class SchemaManager {
 
 		public int getVersionNumber() throws DatabaseException {
 			try {
-				try (PreparedStatement s = game.db().prepareStatement("SELECT version_number FROM system_schema WHERE system_id = ?")) {
+				try (PreparedStatement s = game.db()
+						.prepareStatement("SELECT version_number FROM system_schema WHERE system_id = ?")) {
 					s.setString(1, systemId);
 					try (ResultSet rs = s.executeQuery()) {
 						while (rs.next()) {
@@ -87,7 +90,8 @@ public class SchemaManager {
 
 		public void setVersionNumber(int versionNumber) throws DatabaseException {
 			try {
-				try (PreparedStatement s = game.db().prepareStatement("INSERT OR REPLACE INTO system_schema(system_id, version_number) VALUES(?, ?)")) {
+				try (PreparedStatement s = game.db().prepareStatement(
+						"INSERT OR REPLACE INTO system_schema(system_id, version_number) VALUES(?, ?)")) {
 					s.setString(1, systemId);
 					s.setInt(2, versionNumber);
 					s.executeUpdate();

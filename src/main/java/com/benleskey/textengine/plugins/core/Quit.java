@@ -16,6 +16,6 @@ public class Quit extends Plugin implements OnPluginInitialize {
 	@Override
 	public void onPluginInitialize() {
 		game.registerCommand(new Command(Client.M_QUIT_FROM_CLIENT, (c, i) -> c.quitFromServer(),
-			new CommandVariant(Client.M_QUIT_FROM_CLIENT, "^quit([^\\w]+|$)", args -> CommandInput.makeNone())));
+				new CommandVariant(Client.M_QUIT_FROM_CLIENT, "^quit([^\\w]+|$)", args -> CommandInput.makeNone())));
 	}
 }

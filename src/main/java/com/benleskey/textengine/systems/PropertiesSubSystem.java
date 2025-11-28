@@ -22,7 +22,8 @@ public class PropertiesSubSystem<TGroup, TProperty, TValue> extends GameSystem i
 	private PreparedStatement setPreparedStatement;
 	private PreparedStatement deletePreparedStatement;
 
-	public PropertiesSubSystem(Game game, String tableName, Handler<TGroup> group, Handler<TProperty> property, Handler<TValue> value) {
+	public PropertiesSubSystem(Game game, String tableName, Handler<TGroup> group, Handler<TProperty> property,
+			Handler<TValue> value) {
 		super(game);
 		this.log = game.log.withPrefix(this.getClass().getSimpleName() + "$" + tableName);
 		this.tableName = tableName;
@@ -51,7 +52,9 @@ public class PropertiesSubSystem<TGroup, TProperty, TValue> extends GameSystem i
 		if (v == 0) {
 			try {
 				try (Statement s = game.db().createStatement()) {
-					s.executeUpdate("CREATE TABLE " + tableName + " (pgroup " + groupHandler.sqlType() + ", property " + propertyHandler.sqlType() + ", value " + valueHandler.sqlType() + ", PRIMARY KEY (pgroup, property))");
+					s.executeUpdate("CREATE TABLE " + tableName + " (pgroup " + groupHandler.sqlType() + ", property "
+							+ propertyHandler.sqlType() + ", value " + valueHandler.sqlType()
+							+ ", PRIMARY KEY (pgroup, property))");
 				}
 			} catch (SQLException e) {
 				throw new DatabaseException("Unable to initialize properties table " + this, e);
@@ -61,9 +64,12 @@ public class PropertiesSubSystem<TGroup, TProperty, TValue> extends GameSystem i
 		}
 
 		try {
-			getPreparedStatement = game.db().prepareStatement("SELECT value FROM " + tableName + " WHERE pgroup = ? AND property = ?");
-			setPreparedStatement = game.db().prepareStatement("INSERT OR REPLACE INTO " + tableName + " (pgroup, property, value) VALUES (?, ?, ?)");
-			deletePreparedStatement = game.db().prepareStatement("DELETE FROM " + tableName + " WHERE pgroup = ? AND property = ?");
+			getPreparedStatement = game.db()
+					.prepareStatement("SELECT value FROM " + tableName + " WHERE pgroup = ? AND property = ?");
+			setPreparedStatement = game.db().prepareStatement(
+					"INSERT OR REPLACE INTO " + tableName + " (pgroup, property, value) VALUES (?, ?, ?)");
+			deletePreparedStatement = game.db()
+					.prepareStatement("DELETE FROM " + tableName + " WHERE pgroup = ? AND property = ?");
 		} catch (SQLException e) {
 			throw new DatabaseException("Unable to prepare properties statements " + this, e);
 		}

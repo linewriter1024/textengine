@@ -58,10 +58,11 @@ public class Game {
 		registerPlugin(new NavigationPlugin(this));
 		registerPlugin(new Quit(this));
 		registerPlugin(new UnknownCommand(this));
-		
-		// Pass seed to ProceduralWorldPlugin (can be null - will use persisted or generate)
+
+		// Pass seed to ProceduralWorldPlugin (can be null - will use persisted or
+		// generate)
 		registerPlugin(new ProceduralWorldPlugin(this, seed));
-		
+
 		// Register HighFantasyPlugin to populate biomes, items, and landmarks
 		registerPlugin(new com.benleskey.textengine.plugins.highfantasy.HighFantasyPlugin(this));
 	}
@@ -78,7 +79,8 @@ public class Game {
 		try {
 			hooks.calculateOrder();
 
-			for(Plugin plugin : plugins.values().stream().sorted(Comparator.comparing(Plugin::getEventOrder)).toList()) {
+			for (Plugin plugin : plugins.values().stream().sorted(Comparator.comparing(Plugin::getEventOrder))
+					.toList()) {
 				log.log("Plugin %s event order %d", plugin.getId(), plugin.getEventOrder());
 			}
 
@@ -108,9 +110,11 @@ public class Game {
 				if (previousVersion == nextVersion) {
 					log.log("System %s (order %d) version %d", system.getId(), system.getEventOrder(), nextVersion);
 				} else if (previousVersion == 0) {
-					log.log("System %s (order %d) initialized to version %d", system.getId(), system.getEventOrder(), nextVersion);
+					log.log("System %s (order %d) initialized to version %d", system.getId(), system.getEventOrder(),
+							nextVersion);
 				} else {
-					log.log("System %s (order %d) upgraded from version %d to version %d", system.getId(), system.getEventOrder(), previousVersion, nextVersion);
+					log.log("System %s (order %d) upgraded from version %d to version %d", system.getId(),
+							system.getEventOrder(), previousVersion, nextVersion);
 				}
 			});
 
@@ -173,7 +177,8 @@ public class Game {
 
 		Set<Class<? extends HookEvent>> events = hooks.registerHookHandler(plugin);
 
-		log.log("Registered plugin %s with event handlers [%s]", plugin.getId(), String.join(", ", events.stream().map(Class::getSimpleName).sorted().toList()));
+		log.log("Registered plugin %s with event handlers [%s]", plugin.getId(),
+				String.join(", ", events.stream().map(Class::getSimpleName).sorted().toList()));
 	}
 
 	public void registerCommand(Command command) {
@@ -186,7 +191,8 @@ public class Game {
 		client.setId(String.valueOf(getNewSessionId()));
 		log.log("Registering client: %s", client);
 		clients.add(client);
-		client.sendOutput(CommandOutput.make(M_WELCOME).put(M_VERSION, Version.toMessage()).textf("Welcome to %s %s <%s>", Version.humanName, Version.versionNumber, Version.url));
+		client.sendOutput(CommandOutput.make(M_WELCOME).put(M_VERSION, Version.toMessage())
+				.textf("Welcome to %s %s <%s>", Version.humanName, Version.versionNumber, Version.url));
 		hooks.doEvent(OnStartClient.class, plugin -> plugin.onStartClient(client));
 	}
 
@@ -194,29 +200,33 @@ public class Game {
 	public <T extends GameSystem> T registerSystem(T system) {
 		systems.put(system.getId(), system);
 		Set<Class<? extends HookEvent>> events = hooks.registerHookHandler(system);
-		log.log("Registered system %s with event handlers [%s]", system.getId(), String.join(", ", events.stream().map(Class::getSimpleName).sorted().toList()));
+		log.log("Registered system %s with event handlers [%s]", system.getId(),
+				String.join(", ", events.stream().map(Class::getSimpleName).sorted().toList()));
 		return system;
 	}
 
 	private boolean anyClientAlive() {
 		return clients.stream().anyMatch(Client::isAlive);
 	}
-	
+
 	/**
 	 * Get all registered clients.
+	 * 
 	 * @return Collection of all clients
 	 */
 	public Collection<Client> getClients() {
 		return clients;
 	}
-	
+
 	/**
 	 * Process ticks for all tickable entities in the world.
-	 * This is called after all client commands have been processed in the game loop.
+	 * This is called after all client commands have been processed in the game
+	 * loop.
 	 * Ticks are based on world time advancement, not individual clients.
 	 */
 	private void processTicks() throws InternalException {
-		com.benleskey.textengine.systems.TickSystem tickSystem = getSystem(com.benleskey.textengine.systems.TickSystem.class);
+		com.benleskey.textengine.systems.TickSystem tickSystem = getSystem(
+				com.benleskey.textengine.systems.TickSystem.class);
 		tickSystem.processWorldTicks();
 	}
 
@@ -230,10 +240,10 @@ public class Game {
 				for (Client client : clients) {
 					feedCommand(client, client.waitForInput());
 				}
-				
+
 				// Process ticks after all client commands
 				processTicks();
-				
+
 				try {
 					databaseConnection.commit();
 				} catch (SQLException e) {
@@ -266,14 +276,16 @@ public class Game {
 			}
 		}
 
-		return CommandInput.make(CommandOutput.M_UNKNOWN_COMMAND).put(CommandOutput.M_ORIGINAL_UNKNOWN_COMMAND_LINE, line);
+		return CommandInput.make(CommandOutput.M_UNKNOWN_COMMAND).put(CommandOutput.M_ORIGINAL_UNKNOWN_COMMAND_LINE,
+				line);
 	}
 
 	public void feedCommand(Client client, CommandInput input) throws InternalException {
 		if (commands.containsKey(input.getId())) {
 			commands.get(input.getId()).getFunction().run(client, input);
 		} else {
-			CommandInput unknown = CommandInput.make(CommandOutput.M_UNKNOWN_COMMAND).put(CommandOutput.M_ORIGINAL_UNKNOWN_COMMAND_COMMAND, input);
+			CommandInput unknown = CommandInput.make(CommandOutput.M_UNKNOWN_COMMAND)
+					.put(CommandOutput.M_ORIGINAL_UNKNOWN_COMMAND_COMMAND, input);
 			input.getLine().ifPresent(line -> unknown.put(CommandOutput.M_ORIGINAL_UNKNOWN_COMMAND_LINE, line));
 			feedCommand(client, unknown);
 		}

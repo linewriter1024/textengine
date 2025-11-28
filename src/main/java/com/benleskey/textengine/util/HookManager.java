@@ -16,7 +16,8 @@ public class HookManager<THandler extends HookHandler> {
 
 	public <T extends HookEvent> void doEvent(Class<T> pluginEvent, Consumer<T> runner) throws InternalException {
 		for (THandler handler : eventHandlers.getOrDefault(pluginEvent, Collections.emptyList())) {
-			@SuppressWarnings("unchecked") T castHandler = (T) handler;
+			@SuppressWarnings("unchecked")
+			T castHandler = (T) handler;
 			runner.accept(castHandler);
 		}
 	}
@@ -27,7 +28,8 @@ public class HookManager<THandler extends HookHandler> {
 
 		for (Class<?> event : Interfaces.getAllInterfaces(handler.getClass())) {
 			if (HookEvent.class.isAssignableFrom(event)) {
-				@SuppressWarnings("unchecked") Class<? extends HookEvent> castEvent = (Class<? extends HookEvent>) event;
+				@SuppressWarnings("unchecked")
+				Class<? extends HookEvent> castEvent = (Class<? extends HookEvent>) event;
 				events.add(castEvent);
 				eventHandlers.compute(castEvent, (k, v) -> {
 					List<THandler> handlers = v;

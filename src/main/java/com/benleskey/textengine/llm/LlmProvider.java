@@ -32,18 +32,18 @@ public class LlmProvider {
 
 	public ChatLanguageModel getModelForPurpose(Purpose purpose) {
 		return OllamaChatModel.builder()
-			.baseUrl(OLLAMA_BASE_URL)
-			.modelName(getModelFromPurpose(purpose))
-			.supportedCapabilities(getCapabilitiesFromPurpose(purpose))
-			.build();
+				.baseUrl(OLLAMA_BASE_URL)
+				.modelName(getModelFromPurpose(purpose))
+				.supportedCapabilities(getCapabilitiesFromPurpose(purpose))
+				.build();
 	}
 
 	public StreamingChatLanguageModel getStreamingModelForPurpose(Purpose purpose) {
 		return OllamaStreamingChatModel.builder()
-			.baseUrl(OLLAMA_BASE_URL)
-			.modelName(getModelFromPurpose(purpose))
-			.supportedCapabilities(getCapabilitiesFromPurpose(purpose))
-			.build();
+				.baseUrl(OLLAMA_BASE_URL)
+				.modelName(getModelFromPurpose(purpose))
+				.supportedCapabilities(getCapabilitiesFromPurpose(purpose))
+				.build();
 	}
 
 	public enum Purpose {

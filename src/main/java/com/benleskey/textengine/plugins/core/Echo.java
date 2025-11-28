@@ -27,36 +27,39 @@ public class Echo extends Plugin implements OnPluginInitialize {
 
 	@Override
 	public void onPluginInitialize() {
-		game.registerCommand(new Command(ECHO, (c, i) -> c.sendOutput(CommandOutput.make(ECHO).text(Markup.escape(i.get(M_ECHO_TEXT)))),
-			new CommandVariant(ECHO, "^echo[^\\w]*(.*)$", args -> CommandInput.makeNone().put(M_ECHO_TEXT, args.group(1)))));
+		game.registerCommand(new Command(ECHO,
+				(c, i) -> c.sendOutput(CommandOutput.make(ECHO).text(Markup.escape(i.get(M_ECHO_TEXT)))),
+				new CommandVariant(ECHO, "^echo[^\\w]*(.*)$",
+						args -> CommandInput.makeNone().put(M_ECHO_TEXT, args.group(1)))));
 
 		game.registerCommand(new Command(CHAT, (c, i) -> {
-				LlmProvider llmProvider = new LlmProvider();
-				StreamingChatLanguageModel model = llmProvider.getStreamingModelForPurpose(LlmProvider.Purpose.CHAT);
-				String text = i.get(M_ECHO_TEXT);
-				SubmissionPublisher<String> publisher = new SubmissionPublisher<>();
-				CompletableFuture<String> future = new CompletableFuture<>();
+			LlmProvider llmProvider = new LlmProvider();
+			StreamingChatLanguageModel model = llmProvider.getStreamingModelForPurpose(LlmProvider.Purpose.CHAT);
+			String text = i.get(M_ECHO_TEXT);
+			SubmissionPublisher<String> publisher = new SubmissionPublisher<>();
+			CompletableFuture<String> future = new CompletableFuture<>();
 
-				model.chat(text, new StreamingChatResponseHandler() {
-					@Override
-					public void onPartialResponse(String partialResponse) {
-						publisher.submit(partialResponse);
-					}
+			model.chat(text, new StreamingChatResponseHandler() {
+				@Override
+				public void onPartialResponse(String partialResponse) {
+					publisher.submit(partialResponse);
+				}
 
-					@Override
-					public void onCompleteResponse(ChatResponse completeResponse) {
-						future.complete(completeResponse.aiMessage().text());
-						publisher.close();
-					}
+				@Override
+				public void onCompleteResponse(ChatResponse completeResponse) {
+					future.complete(completeResponse.aiMessage().text());
+					publisher.close();
+				}
 
-					@Override
-					public void onError(Throwable error) {
-						log.logError(error);
-					}
-				});
+				@Override
+				public void onError(Throwable error) {
+					log.logError(error);
+				}
+			});
 
-				c.sendStreamedOutput(CommandOutput.make(CHAT).text(Markup.escape("")), publisher, future);
-			},
-			new CommandVariant(CHAT, "^chat[^\\w]*(.*)$", args -> CommandInput.makeNone().put(M_ECHO_TEXT, args.group(1)))));
+			c.sendStreamedOutput(CommandOutput.make(CHAT).text(Markup.escape("")), publisher, future);
+		},
+				new CommandVariant(CHAT, "^chat[^\\w]*(.*)$",
+						args -> CommandInput.makeNone().put(M_ECHO_TEXT, args.group(1)))));
 	}
 }

@@ -35,7 +35,8 @@ public class EntityTagSystem extends SingletonGameSystem implements OnSystemInit
 		if (v == 0) {
 			try {
 				try (Statement s = game.db().createStatement()) {
-					s.executeUpdate("CREATE TABLE entity_tag(entity_tag_id INTEGER PRIMARY KEY, entity_id INTEGER, entity_tag_type INTEGER, tag_value INTEGER DEFAULT NULL)");
+					s.executeUpdate(
+							"CREATE TABLE entity_tag(entity_tag_id INTEGER PRIMARY KEY, entity_id INTEGER, entity_tag_type INTEGER, tag_value INTEGER DEFAULT NULL)");
 				}
 			} catch (SQLException e) {
 				throw new DatabaseException("Unable to create entity tag table", e);
@@ -47,9 +48,14 @@ public class EntityTagSystem extends SingletonGameSystem implements OnSystemInit
 		entitySystem = game.getSystem(EntitySystem.class);
 
 		try {
-			addStatement = game.db().prepareStatement("INSERT INTO entity_tag (entity_tag_id, entity_id, entity_tag_type, tag_value) VALUES (?, ?, ?, ?)");
-			findByTagStatement = game.db().prepareStatement("SELECT entity_id FROM entity_tag WHERE entity_tag_type = ? AND entity_tag_id IN " + eventSystem.getValidEventsSubquery("entity_tag_id"));
-			findTagsByEntityStatement = game.db().prepareStatement("SELECT entity_tag_id, entity_tag_type, tag_value FROM entity_tag WHERE entity_id = ? AND entity_tag_id IN " + eventSystem.getValidEventsSubquery("entity_tag_id"));
+			addStatement = game.db().prepareStatement(
+					"INSERT INTO entity_tag (entity_tag_id, entity_id, entity_tag_type, tag_value) VALUES (?, ?, ?, ?)");
+			findByTagStatement = game.db()
+					.prepareStatement("SELECT entity_id FROM entity_tag WHERE entity_tag_type = ? AND entity_tag_id IN "
+							+ eventSystem.getValidEventsSubquery("entity_tag_id"));
+			findTagsByEntityStatement = game.db().prepareStatement(
+					"SELECT entity_tag_id, entity_tag_type, tag_value FROM entity_tag WHERE entity_id = ? AND entity_tag_id IN "
+							+ eventSystem.getValidEventsSubquery("entity_tag_id"));
 		} catch (SQLException e) {
 			throw new DatabaseException("Unable to prepare entity tag statements", e);
 		}
@@ -87,7 +93,7 @@ public class EntityTagSystem extends SingletonGameSystem implements OnSystemInit
 			eventSystem.setValidEventsSubqueryParameters(findByTagStatement, 2, etEntityTag, when);
 
 			Set<Entity> entities = new HashSet<>();
-			try(ResultSet rs = findByTagStatement.executeQuery()) {
+			try (ResultSet rs = findByTagStatement.executeQuery()) {
 				while (rs.next()) {
 					entities.add(entitySystem.get(rs.getLong(1)));
 				}
@@ -105,7 +111,7 @@ public class EntityTagSystem extends SingletonGameSystem implements OnSystemInit
 		try {
 			findTagsByEntityStatement.setLong(1, entity.getId());
 			eventSystem.setValidEventsSubqueryParameters(findTagsByEntityStatement, 2, etEntityTag, when);
-			
+
 			try (ResultSet rs = findTagsByEntityStatement.executeQuery()) {
 				while (rs.next()) {
 					long tagType = rs.getLong(2);
@@ -142,11 +148,11 @@ public class EntityTagSystem extends SingletonGameSystem implements OnSystemInit
 		try {
 			findTagsByEntityStatement.setLong(1, entity.getId());
 			eventSystem.setValidEventsSubqueryParameters(findTagsByEntityStatement, 2, etEntityTag, when);
-			
+
 			try (ResultSet rs = findTagsByEntityStatement.executeQuery()) {
 				while (rs.next()) {
 					long tagType = rs.getLong(2);
-					
+
 					if (tagType == tag.type()) {
 						long value = rs.getLong(3);
 						if (rs.wasNull()) {
@@ -170,12 +176,12 @@ public class EntityTagSystem extends SingletonGameSystem implements OnSystemInit
 		try {
 			findTagsByEntityStatement.setLong(1, entity.getId());
 			eventSystem.setValidEventsSubqueryParameters(findTagsByEntityStatement, 2, etEntityTag, when);
-			
+
 			try (ResultSet rs = findTagsByEntityStatement.executeQuery()) {
 				while (rs.next()) {
 					long tagId = rs.getLong(1);
 					long tagType = rs.getLong(2);
-					
+
 					// If this tag matches the type we're removing
 					if (tagType == tag.type()) {
 						// Cancel the event
@@ -196,7 +202,7 @@ public class EntityTagSystem extends SingletonGameSystem implements OnSystemInit
 		try {
 			findTagsByEntityStatement.setLong(1, entity.getId());
 			eventSystem.setValidEventsSubqueryParameters(findTagsByEntityStatement, 2, etEntityTag, when);
-			
+
 			Set<UniqueType> tags = new HashSet<>();
 			UniqueTypeSystem uts = game.getSystem(UniqueTypeSystem.class);
 			try (ResultSet rs = findTagsByEntityStatement.executeQuery()) {
@@ -210,7 +216,7 @@ public class EntityTagSystem extends SingletonGameSystem implements OnSystemInit
 			throw new DatabaseException("Unable to get tags", e);
 		}
 	}
-	
+
 	/**
 	 * Update a tag value by canceling the old tag and adding a new one.
 	 * This maintains temporal history of value changes.

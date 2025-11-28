@@ -25,35 +25,37 @@ public abstract class Client {
 
 	public static final String M_NO_ENTITY = "no_entity";
 
-	public static CommandOutput NO_ENTITY = CommandOutput.make(M_NO_ENTITY).text(Markup.escape("You are not connected to an in-world entity"));
+	public static CommandOutput NO_ENTITY = CommandOutput.make(M_NO_ENTITY)
+			.text(Markup.escape("You are not connected to an in-world entity"));
 
 	protected Game game;
 	protected Optional<Entity> entity;
 	protected boolean alive;
 	protected String id = "?";
-	
+
 	/**
 	 * Client-specific mapping of numeric IDs to entities for disambiguation.
 	 * Reset each time a command generates a new list (look, inventory, etc.).
 	 * Allows users to type "1", "2", "3" instead of ambiguous keywords.
 	 */
 	protected Map<Integer, Entity> numericIdMap = new HashMap<>();
-	
+
 	/**
 	 * Set the numeric ID mapping for this client.
-	 * This allows users to reference entities by number when keywords are ambiguous.
+	 * This allows users to reference entities by number when keywords are
+	 * ambiguous.
 	 */
 	public void setNumericIdMap(Map<Integer, Entity> map) {
 		this.numericIdMap = new HashMap<>(map);
 	}
-	
+
 	/**
 	 * Get an entity by its numeric ID, if mapped.
 	 */
 	public Optional<Entity> getEntityByNumericId(int numericId) {
 		return Optional.ofNullable(numericIdMap.get(numericId));
 	}
-	
+
 	/**
 	 * Clear the numeric ID mapping.
 	 */
@@ -65,7 +67,8 @@ public abstract class Client {
 
 	public abstract void sendOutput(CommandOutput output);
 
-	public abstract void sendStreamedOutput(CommandOutput output, Flow.Publisher<String> stream, CompletableFuture<String> future);
+	public abstract void sendStreamedOutput(CommandOutput output, Flow.Publisher<String> stream,
+			CompletableFuture<String> future);
 
 	public void quitFromServer() {
 		if (alive) {

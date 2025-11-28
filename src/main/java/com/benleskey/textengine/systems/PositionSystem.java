@@ -36,8 +36,10 @@ public class PositionSystem extends SingletonGameSystem implements OnSystemIniti
 		}
 
 		try {
-			getScaleStatement = game.db().prepareStatement("SELECT scale FROM entity_position_scale WHERE entity_id = ?");
-			setScaleStatement = game.db().prepareStatement("INSERT OR REPLACE INTO entity_position_scale (entity_id, scale) VALUES (?, ?)");
+			getScaleStatement = game.db()
+					.prepareStatement("SELECT scale FROM entity_position_scale WHERE entity_id = ?");
+			setScaleStatement = game.db()
+					.prepareStatement("INSERT OR REPLACE INTO entity_position_scale (entity_id, scale) VALUES (?, ?)");
 		} catch (SQLException e) {
 			throw new DatabaseException("Could not prepare statements for position system", e);
 		}

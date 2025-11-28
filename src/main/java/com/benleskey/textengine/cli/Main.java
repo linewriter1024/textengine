@@ -17,10 +17,13 @@ import java.sql.DriverManager;
 public class Main {
 	public static void main(String[] args) {
 		ArgumentParser parser = ArgumentParsers.newFor(Version.toHumanString()).build();
-		parser.addArgument("--apidebug").help("Print API debug information with each command").action(new StoreTrueArgumentAction());
+		parser.addArgument("--apidebug").help("Print API debug information with each command")
+				.action(new StoreTrueArgumentAction());
 		parser.addArgument("--showlog").help("Print game log to standard output").action(new StoreTrueArgumentAction());
-		parser.addArgument("--seed").help("World generation seed for deterministic procedural generation").type(Long.class);
-		parser.addArgument("--database").help("Database file path for persistence (default: timestamped temp file)").type(String.class);
+		parser.addArgument("--seed").help("World generation seed for deterministic procedural generation")
+				.type(Long.class);
+		parser.addArgument("--database").help("Database file path for persistence (default: timestamped temp file)")
+				.type(String.class);
 
 		Namespace ns = parser.parseArgsOrFail(args);
 
@@ -30,8 +33,8 @@ public class Main {
 		String databasePath = ns.getString("database");
 
 		Logger logger = Logger.builder()
-			.stream(showLog ? System.out : OutputStream.nullOutputStream())
-			.build();
+				.stream(showLog ? System.out : OutputStream.nullOutputStream())
+				.build();
 
 		// Use specified database path or default to timestamped temp file
 		String dbFile;

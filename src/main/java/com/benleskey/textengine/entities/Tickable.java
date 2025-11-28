@@ -11,16 +11,17 @@ import com.benleskey.textengine.model.DTime;
  * game.getSystem(BroadcastSystem.class).broadcast(this, commandOutput)
  */
 public interface Tickable {
-	
+
 	/**
 	 * Called when this entity should tick.
 	 * To send output to nearby entities, use BroadcastSystem.broadcast().
 	 * 
-	 * @param currentTime The current game time
-	 * @param timeSinceLastTick The amount of time that has passed since the last tick
+	 * @param currentTime       The current game time
+	 * @param timeSinceLastTick The amount of time that has passed since the last
+	 *                          tick
 	 */
 	void onTick(DTime currentTime, DTime timeSinceLastTick);
-	
+
 	/**
 	 * How often this entity should tick.
 	 * For example, DTime.fromSeconds(60) means tick every minute.

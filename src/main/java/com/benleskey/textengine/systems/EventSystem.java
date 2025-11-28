@@ -30,7 +30,8 @@ public class EventSystem extends SingletonGameSystem implements OnSystemInitiali
 		if (v == 0) {
 			try {
 				try (Statement s = game.db().createStatement()) {
-					s.executeUpdate("CREATE TABLE event(event_order INTEGER PRIMARY KEY, event_id INTEGER, type INTEGER, time INTEGER, reference INTEGER)");
+					s.executeUpdate(
+							"CREATE TABLE event(event_order INTEGER PRIMARY KEY, event_id INTEGER, type INTEGER, time INTEGER, reference INTEGER)");
 				}
 			} catch (SQLException e) {
 				throw new DatabaseException("Unable to create event system tables", e);
@@ -40,7 +41,8 @@ public class EventSystem extends SingletonGameSystem implements OnSystemInitiali
 		}
 
 		try {
-			addEventStatement = game.db().prepareStatement("INSERT INTO event (event_id, type, time, reference) VALUES (?, ?, ?, ?)");
+			addEventStatement = game.db()
+					.prepareStatement("INSERT INTO event (event_id, type, time, reference) VALUES (?, ?, ?, ?)");
 		} catch (SQLException e) {
 			throw new DatabaseException("Unable to prepare look statements", e);
 		}
@@ -52,7 +54,8 @@ public class EventSystem extends SingletonGameSystem implements OnSystemInitiali
 	}
 
 	@SuppressWarnings("null") // Generic type T will never be null
-	public synchronized <T extends Reference> FullEvent<T> addEvent(UniqueType type, DTime time, T reference) throws DatabaseException {
+	public synchronized <T extends Reference> FullEvent<T> addEvent(UniqueType type, DTime time, T reference)
+			throws DatabaseException {
 		try {
 			long id = game.getNewGlobalId();
 			addEventStatement.setLong(1, id);
@@ -72,6 +75,7 @@ public class EventSystem extends SingletonGameSystem implements OnSystemInitiali
 
 	/**
 	 * Cancel an event by creating a cancel-event.
+	 * 
 	 * @param eventToCancel The reference (event) to cancel
 	 */
 	public synchronized void cancelEvent(Reference eventToCancel) {
@@ -79,10 +83,14 @@ public class EventSystem extends SingletonGameSystem implements OnSystemInitiali
 	}
 
 	public String getValidEventsSubquery(String reference) {
-		// Returns a subquery that finds the most recent non-canceled event for a given reference
-		// An event is canceled if there exists a cancel-event whose reference matches this event's reference
+		// Returns a subquery that finds the most recent non-canceled event for a given
+		// reference
+		// An event is canceled if there exists a cancel-event whose reference matches
+		// this event's reference
 		// (both point to the same underlying entity, e.g. the same relationship_id)
-		return "(SELECT event.reference FROM event WHERE event.type = ? AND event.time <= ? AND event.reference = " + reference + " AND event.reference NOT IN (SELECT event_cancel.reference FROM event AS event_cancel WHERE event_cancel.type = ? AND event_cancel.time <= ?) ORDER BY event.event_order DESC LIMIT 1)";
+		return "(SELECT event.reference FROM event WHERE event.type = ? AND event.time <= ? AND event.reference = "
+				+ reference
+				+ " AND event.reference NOT IN (SELECT event_cancel.reference FROM event AS event_cancel WHERE event_cancel.type = ? AND event_cancel.time <= ?) ORDER BY event.event_order DESC LIMIT 1)";
 	}
 
 	/**
@@ -90,14 +98,16 @@ public class EventSystem extends SingletonGameSystem implements OnSystemInitiali
 	 * @param offset
 	 * @return the parameter number AFTER the last subquery parameter
 	 */
-	public int setValidEventsSubqueryParameters(PreparedStatement statement, int offset, UniqueType eventType, DTime when) {
+	public int setValidEventsSubqueryParameters(PreparedStatement statement, int offset, UniqueType eventType,
+			DTime when) {
 		try {
 			statement.setLong(offset++, eventType.type());
 			statement.setLong(offset++, when.raw());
 			statement.setLong(offset++, etCancel.type());
 			statement.setLong(offset++, when.raw());
 		} catch (SQLException e) {
-			throw new DatabaseException(String.format("Could not set valid events subquery parameters for %s; %s", eventType, when), e);
+			throw new DatabaseException(
+					String.format("Could not set valid events subquery parameters for %s; %s", eventType, when), e);
 		}
 		return offset;
 	}

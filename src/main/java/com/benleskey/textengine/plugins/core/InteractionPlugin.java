@@ -43,7 +43,7 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 	public static final String M_LOOK_EXITS = "look_exits";
 	public static final String M_LOOK_NEARBY = "look_nearby";
 	public static final String M_LOOK_DISTANT = "look_distant";
-	
+
 	// System fields
 	private RelationshipSystem relationshipSystem;
 	private WorldSystem worldSystem;
@@ -58,13 +58,12 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 	public InteractionPlugin(Game game) {
 		super(game);
 	}
-	
+
 	@Override
 	public Set<Plugin> getDependencies() {
 		return Set.of(
-			game.getPlugin(EntityPlugin.class),
-			game.getPlugin(ProceduralWorldPlugin.class)
-		);
+				game.getPlugin(EntityPlugin.class),
+				game.getPlugin(ProceduralWorldPlugin.class));
 	}
 
 	@Override
@@ -79,143 +78,147 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 		spatialSystem = game.getSystem(SpatialSystem.class);
 		entityDescriptionSystem = game.getSystem(EntityDescriptionSystem.class);
 		actorActionSystem = game.getSystem(ActorActionSystem.class);
-		
+
 		game.registerCommand(new Command(LOOK, (client, input) -> {
 			Entity entity = client.getEntity().orElse(null);
 			if (entity != null) {
 				// Get current location
-				var containers = relationshipSystem.getProvidingRelationships(entity, relationshipSystem.rvContains, worldSystem.getCurrentTime());
-				
+				var containers = relationshipSystem.getProvidingRelationships(entity, relationshipSystem.rvContains,
+						worldSystem.getCurrentTime());
+
 				if (!containers.isEmpty()) {
 					Entity currentLocation = containers.get(0).getProvider();
-					
-				// Check if looking at a specific target
-				java.util.Optional<Object> targetOpt = input.getO(M_LOOK_TARGET);
-				if (targetOpt.isPresent()) {
-					// Look at specific direction/place
-					String target = targetOpt.get().toString().toLowerCase();
-					lookAtTarget(client, currentLocation, target);
-				} else {
-					// Look at current location (normal look)
-					performNormalLook(client, entity, currentLocation);
-				}
+
+					// Check if looking at a specific target
+					java.util.Optional<Object> targetOpt = input.getO(M_LOOK_TARGET);
+					if (targetOpt.isPresent()) {
+						// Look at specific direction/place
+						String target = targetOpt.get().toString().toLowerCase();
+						lookAtTarget(client, currentLocation, target);
+					} else {
+						// Look at current location (normal look)
+						performNormalLook(client, entity, currentLocation);
+					}
 				} else {
 					// Entity has no location
 					client.sendOutput(CommandOutput.make(M_LOOK)
-						.text(Markup.escape("You are nowhere. This should not happen.")));
+							.text(Markup.escape("You are nowhere. This should not happen.")));
 				}
 			} else {
 				client.sendOutput(Client.NO_ENTITY);
 			}
-		}, 
-		new CommandVariant(LOOK_AT_TARGET, "^look\\s+(?:at\\s+)?(.+?)\\s*$", args -> 
-			CommandInput.makeNone().put(M_LOOK_TARGET, args.group(1))),
-		new CommandVariant(LOOK_WITHOUT_ARGUMENTS, "^look([^\\w]+|$)", args -> CommandInput.makeNone())));
+		},
+				new CommandVariant(LOOK_AT_TARGET, "^look\\s+(?:at\\s+)?(.+?)\\s*$",
+						args -> CommandInput.makeNone().put(M_LOOK_TARGET, args.group(1))),
+				new CommandVariant(LOOK_WITHOUT_ARGUMENTS, "^look([^\\w]+|$)", args -> CommandInput.makeNone())));
 	}
-	
+
 	/**
 	 * Look at a specific target (direction, exit, or distant landmark).
 	 */
 	private void lookAtTarget(Client client, Entity currentLocation, String target) {
-		
+
 		Entity actor = client.getEntity().orElse(null);
 		if (actor == null) {
 			client.sendOutput(Client.NO_ENTITY);
 			return;
 		}
-		
+
 		// Get available exits from current location
-		List<ConnectionDescriptor> exits = connectionSystem.getConnections(currentLocation, worldSystem.getCurrentTime());
-		
+		List<ConnectionDescriptor> exits = connectionSystem.getConnections(currentLocation,
+				worldSystem.getCurrentTime());
+
 		// Get distant landmarks visible from here
 		List<Entity> distantLandmarks = visibilitySystem.getVisibleEntities(actor).stream()
-			.filter(vd -> vd.getDistanceLevel() == VisibilitySystem.VisibilityLevel.DISTANT)
-			.map(vd -> vd.getEntity())
-			.toList();
-		
+				.filter(vd -> vd.getDistanceLevel() == VisibilitySystem.VisibilityLevel.DISTANT)
+				.map(vd -> vd.getEntity())
+				.toList();
+
 		// Combine exits and landmarks for matching
 		List<Entity> allTargets = new java.util.ArrayList<>();
 		List<Entity> exitDestinations = exits.stream()
-			.map(ConnectionDescriptor::getTo)
-			.toList();
+				.map(ConnectionDescriptor::getTo)
+				.toList();
 		allTargets.addAll(exitDestinations);
 		allTargets.addAll(distantLandmarks);
-		
+
 		// Use DisambiguationSystem to resolve the target
 		Entity matchedTarget = disambiguationSystem.resolveEntity(
-			client,
-			target,
-			allTargets,
-			entity -> entityDescriptionSystem.getSimpleDescription(entity, worldSystem.getCurrentTime())
-		);
-		
+				client,
+				target,
+				allTargets,
+				entity -> entityDescriptionSystem.getSimpleDescription(entity, worldSystem.getCurrentTime()));
+
 		if (matchedTarget == null) {
 			// No matching target found
 			client.sendOutput(CommandOutput.make(M_LOOK).text(
-				Markup.concat(
-					Markup.raw("You don't see anything called "),
-					Markup.em(target),
-					Markup.raw(" from here.")
-				)));
+					Markup.concat(
+							Markup.raw("You don't see anything called "),
+							Markup.em(target),
+							Markup.raw(" from here."))));
 			return;
 		}
-		
+
 		// Check if it's an adjacent exit or a distant landmark
 		boolean isDistantLandmark = distantLandmarks.contains(matchedTarget);
-		
+
 		if (isDistantLandmark) {
 			// Looking at a distant landmark
-			String landmarkDescription = entityDescriptionSystem.getSimpleDescription(matchedTarget, worldSystem.getCurrentTime(), "something");
-			
-			// Find the nearest exit that moves toward this landmark using spatial pathfinding
+			String landmarkDescription = entityDescriptionSystem.getSimpleDescription(matchedTarget,
+					worldSystem.getCurrentTime(), "something");
+
+			// Find the nearest exit that moves toward this landmark using spatial
+			// pathfinding
 			Entity closestExit = spatialSystem.findClosestToTarget(
-				SpatialSystem.SCALE_CONTINENT, exitDestinations, matchedTarget);
-			
+					SpatialSystem.SCALE_CONTINENT, exitDestinations, matchedTarget);
+
 			// Build the message
 			java.util.List<Markup.Safe> parts = new java.util.ArrayList<>();
-			
+
 			parts.add(Markup.concat(
-				Markup.raw("In the distance, you see "),
-				Markup.em(landmarkDescription),
-				Markup.raw(".")
-			));
-			
+					Markup.raw("In the distance, you see "),
+					Markup.em(landmarkDescription),
+					Markup.raw(".")));
+
 			// Show which exit to take to get closer
 			if (closestExit != null) {
-				String exitDescription = entityDescriptionSystem.getSimpleDescription(closestExit, worldSystem.getCurrentTime());
-			parts.add(Markup.concat(
-				Markup.raw(" To get closer, head toward "),
-				Markup.em(exitDescription),
-				Markup.raw(".")
-			));
-		}			client.sendOutput(CommandOutput.make(M_LOOK)
-				.put(M_LOOK_TARGET, matchedTarget.getKeyId())
-				.text(Markup.concat(parts.toArray(new Markup.Safe[0]))));
+				String exitDescription = entityDescriptionSystem.getSimpleDescription(closestExit,
+						worldSystem.getCurrentTime());
+				parts.add(Markup.concat(
+						Markup.raw(" To get closer, head toward "),
+						Markup.em(exitDescription),
+						Markup.raw(".")));
+			}
+			client.sendOutput(CommandOutput.make(M_LOOK)
+					.put(M_LOOK_TARGET, matchedTarget.getKeyId())
+					.text(Markup.concat(parts.toArray(new Markup.Safe[0]))));
 		} else {
 			// Looking at an adjacent exit
-			String description = entityDescriptionSystem.getSimpleDescription(matchedTarget, worldSystem.getCurrentTime(), "nothing");
-			
+			String description = entityDescriptionSystem.getSimpleDescription(matchedTarget,
+					worldSystem.getCurrentTime(), "nothing");
+
 			// Get exits from the destination (look ahead)
-			List<ConnectionDescriptor> destExits = connectionSystem.getConnections(matchedTarget, worldSystem.getCurrentTime());
-			
+			List<ConnectionDescriptor> destExits = connectionSystem.getConnections(matchedTarget,
+					worldSystem.getCurrentTime());
+
 			// Build the message
 			java.util.List<Markup.Safe> parts = new java.util.ArrayList<>();
-			
+
 			// Main description - just show what we see there
 			parts.add(Markup.concat(
-				Markup.raw("You see "),
-				Markup.escape(description),
-				Markup.raw(".")
-			));
-			
+					Markup.raw("You see "),
+					Markup.escape(description),
+					Markup.raw(".")));
+
 			// Show what's visible from there (exits to other places)
 			if (!destExits.isEmpty()) {
 				java.util.List<Markup.Safe> landmarkNames = new java.util.ArrayList<>();
 				for (ConnectionDescriptor destExit : destExits) {
-					String destExitDesc = entityDescriptionSystem.getSimpleDescription(destExit.getTo(), worldSystem.getCurrentTime());
+					String destExitDesc = entityDescriptionSystem.getSimpleDescription(destExit.getTo(),
+							worldSystem.getCurrentTime());
 					landmarkNames.add(Markup.raw(destExitDesc));
 				}
-				
+
 				// Join landmark names with commas and "and"
 				java.util.List<Markup.Safe> joinedLandmarks = new java.util.ArrayList<>();
 				for (int i = 0; i < landmarkNames.size(); i++) {
@@ -228,69 +231,69 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 					}
 					joinedLandmarks.add(landmarkNames.get(i));
 				}
-				
+
 				parts.add(Markup.raw(" From there you can see "));
 				parts.add(Markup.concat(joinedLandmarks.toArray(new Markup.Safe[0])));
 				parts.add(Markup.raw("."));
 			}
-			
+
 			client.sendOutput(CommandOutput.make(M_LOOK)
-				.put(M_LOOK_TARGET, matchedTarget.getKeyId())
-				.text(Markup.concat(parts.toArray(new Markup.Safe[0]))));
+					.put(M_LOOK_TARGET, matchedTarget.getKeyId())
+					.text(Markup.concat(parts.toArray(new Markup.Safe[0]))));
 		}
 	}
-	
+
 	/**
 	 * Perform a normal look at the current location.
-	 * Uses LookSystem.getLookEnvironment() for consistent observation logic with NPCs.
+	 * Uses LookSystem.getLookEnvironment() for consistent observation logic with
+	 * NPCs.
 	 */
 	private void performNormalLook(Client client, Entity entity, Entity currentLocation) {
-		
+
 		// Use LookSystem's shared environment observation (same as NPCs)
 		LookSystem.LookEnvironment env = lookSystem.getLookEnvironment(entity);
 		if (env == null) {
 			client.sendOutput(CommandOutput.make(M_LOOK)
-				.text(Markup.escape("You are nowhere. This should not happen.")));
+					.text(Markup.escape("You are nowhere. This should not happen.")));
 			return;
 		}
-		
-		// Get exits as ConnectionDescriptors (for compatibility with existing output builder)
-		List<ConnectionDescriptor> exits = connectionSystem.getConnections(currentLocation, worldSystem.getCurrentTime());
-		
+
+		// Get exits as ConnectionDescriptors (for compatibility with existing output
+		// builder)
+		List<ConnectionDescriptor> exits = connectionSystem.getConnections(currentLocation,
+				worldSystem.getCurrentTime());
+
 		// Convert environment data to the format expected by buildEnhancedLookOutput
 		// nearbyLooks: non-item entities (actors, etc.)
 		Map<Entity, List<LookDescriptor>> nearbyLooks = env.actorsHere.stream()
-			.collect(Collectors.toMap(
-				e -> e,
-				e -> lookSystem.getLooksFromEntity(e, worldSystem.getCurrentTime())
-			));
-		
+				.collect(Collectors.toMap(
+						e -> e,
+						e -> lookSystem.getLooksFromEntity(e, worldSystem.getCurrentTime())));
+
 		// itemLooks: items at location (already excludes containers in some contexts)
 		Map<Entity, List<LookDescriptor>> itemLooks = env.itemsHere.stream()
-			.collect(Collectors.toMap(
-				e -> e,
-				e -> lookSystem.getLooksFromEntity(e, worldSystem.getCurrentTime())
-			));
-		
+				.collect(Collectors.toMap(
+						e -> e,
+						e -> lookSystem.getLooksFromEntity(e, worldSystem.getCurrentTime())));
+
 		// distantLooks: landmarks visible from distance
 		Map<Entity, List<LookDescriptor>> distantLooks = env.distantLandmarks.stream()
-			.collect(Collectors.toMap(
-				e -> e,
-				e -> lookSystem.getLooksFromEntity(e, worldSystem.getCurrentTime())
-			));
-		
-		client.sendOutput(buildEnhancedLookOutput(client, env.locationLooks, exits, nearbyLooks, itemLooks, distantLooks));
+				.collect(Collectors.toMap(
+						e -> e,
+						e -> lookSystem.getLooksFromEntity(e, worldSystem.getCurrentTime())));
+
+		client.sendOutput(
+				buildEnhancedLookOutput(client, env.locationLooks, exits, nearbyLooks, itemLooks, distantLooks));
 	}
 
 	private CommandOutput buildEnhancedLookOutput(
-		Client client,
-		List<LookDescriptor> locationLooks,
-		List<ConnectionDescriptor> exits,
-		Map<Entity, List<LookDescriptor>> nearbyLooks,
-		Map<Entity, List<LookDescriptor>> itemLooks,
-		Map<Entity, List<LookDescriptor>> distantLooks
-	) {
-		
+			Client client,
+			List<LookDescriptor> locationLooks,
+			List<ConnectionDescriptor> exits,
+			Map<Entity, List<LookDescriptor>> nearbyLooks,
+			Map<Entity, List<LookDescriptor>> itemLooks,
+			Map<Entity, List<LookDescriptor>> distantLooks) {
+
 		CommandOutput output = CommandOutput.make(M_LOOK);
 		java.util.List<Markup.Safe> parts = new java.util.ArrayList<>();
 
@@ -301,22 +304,22 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 				locationParts.add(Markup.escape(look.getDescription()));
 			}
 			parts.add(Markup.concat(
-				Markup.raw("You are in "),
-				Markup.concat(locationParts.toArray(new Markup.Safe[0])),
-				Markup.raw(".")
-			));
+					Markup.raw("You are in "),
+					Markup.concat(locationParts.toArray(new Markup.Safe[0])),
+					Markup.raw(".")));
 		}
 
 		// Build visible places from exits (no numeric IDs)
 		if (!exits.isEmpty()) {
 			RawMessage exitMessage = Message.make();
-			
+
 			// Build machine-readable exit data
 			for (ConnectionDescriptor exit : exits) {
-				String description = entityDescriptionSystem.getSimpleDescription(exit.getTo(), worldSystem.getCurrentTime(), "unknown");
+				String description = entityDescriptionSystem.getSimpleDescription(exit.getTo(),
+						worldSystem.getCurrentTime(), "unknown");
 				exitMessage.put(description, exit.getTo().getKeyId());
 			}
-			
+
 			// Format the list for display (no numeric IDs)
 			java.util.List<Markup.Safe> joined = new java.util.ArrayList<>();
 			for (int i = 0; i < exits.size(); i++) {
@@ -327,45 +330,45 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 						joined.add(Markup.raw(", "));
 					}
 				}
-				
-				List<LookDescriptor> looks = lookSystem.getLooksFromEntity(exits.get(i).getTo(), worldSystem.getCurrentTime());
+
+				List<LookDescriptor> looks = lookSystem.getLooksFromEntity(exits.get(i).getTo(),
+						worldSystem.getCurrentTime());
 				String description = !looks.isEmpty() ? looks.get(0).getDescription() : "unknown";
 				joined.add(Markup.em(description));
 			}
-			
+
 			parts.add(Markup.concat(
-				Markup.raw(" You can see "),
-				Markup.concat(joined.toArray(new Markup.Safe[0])),
-				Markup.raw(".")
-			));
-			
+					Markup.raw(" You can see "),
+					Markup.concat(joined.toArray(new Markup.Safe[0])),
+					Markup.raw(".")));
+
 			output.put(M_LOOK_EXITS, exitMessage);
 		}
-		
+
 		// Build distant landmarks section (no numeric IDs)
 		if (!distantLooks.isEmpty()) {
 			RawMessage distantEntities = Message.make();
-			
+
 			// Extract landmarks and their descriptions
 			List<Entity> landmarks = new java.util.ArrayList<>(distantLooks.keySet());
-			
+
 			// Build machine-readable landmark data
 			for (Entity landmark : landmarks) {
 				List<LookDescriptor> looks = distantLooks.get(landmark);
 				RawMessage entityMessage = Message.make();
 				RawMessage entityLooks = Message.make();
-				
+
 				for (LookDescriptor lookDescriptor : looks) {
 					RawMessage lookMessage = Message.make()
-						.put(M_LOOK_TYPE, lookDescriptor.getType())
-						.put(M_LOOK_DESCRIPTION, lookDescriptor.getDescription());
+							.put(M_LOOK_TYPE, lookDescriptor.getType())
+							.put(M_LOOK_DESCRIPTION, lookDescriptor.getDescription());
 					entityLooks.put(lookDescriptor.getLook().getKeyId(), lookMessage);
 				}
-				
+
 				entityMessage.put(M_LOOK_ENTITY_LOOKS, entityLooks);
 				distantEntities.put(landmark.getKeyId(), entityMessage);
 			}
-			
+
 			// Format the list for display (no numeric IDs)
 			java.util.List<Markup.Safe> joined = new java.util.ArrayList<>();
 			for (int i = 0; i < landmarks.size(); i++) {
@@ -376,72 +379,74 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 						joined.add(Markup.raw(", "));
 					}
 				}
-				
+
 				List<LookDescriptor> looks = distantLooks.get(landmarks.get(i));
 				if (looks != null && !looks.isEmpty()) {
 					joined.add(Markup.em(looks.get(0).getDescription()));
 				}
 			}
-			
+
 			if (!joined.isEmpty()) {
 				parts.add(Markup.concat(
-					Markup.raw(" In the distance you can see "),
-					Markup.concat(joined.toArray(new Markup.Safe[0])),
-					Markup.raw(".")
-				));
+						Markup.raw(" In the distance you can see "),
+						Markup.concat(joined.toArray(new Markup.Safe[0])),
+						Markup.raw(".")));
 			}
 			output.put(M_LOOK_DISTANT, distantEntities);
 		}
-		
+
 		// Build items section (no numeric IDs)
 		if (!itemLooks.isEmpty()) {
 			RawMessage itemEntities = Message.make();
-			
+
 			// Extract items and their descriptions
 			List<Entity> items = new java.util.ArrayList<>(itemLooks.keySet());
-			
+
 			// Build entity message for machine-readable API
 			for (Entity item : items) {
 				List<LookDescriptor> looks = itemLooks.get(item);
 				RawMessage entityMessage = Message.make();
 				RawMessage entityLooks = Message.make();
-				
+
 				for (LookDescriptor lookDescriptor : looks) {
 					RawMessage lookMessage = Message.make()
-						.put(M_LOOK_TYPE, lookDescriptor.getType())
-						.put(M_LOOK_DESCRIPTION, lookDescriptor.getDescription());
+							.put(M_LOOK_TYPE, lookDescriptor.getType())
+							.put(M_LOOK_DESCRIPTION, lookDescriptor.getDescription());
 					entityLooks.put(lookDescriptor.getLook().getKeyId(), lookMessage);
 				}
-				
+
 				entityMessage.put(M_LOOK_ENTITY_LOOKS, entityLooks);
-				
+
 				// Add container contents if this item is a container
 				if (item instanceof Item) {
-					List<com.benleskey.textengine.model.RelationshipDescriptor> itemContents = 
-						relationshipSystem.getReceivingRelationships(item, relationshipSystem.rvContains, worldSystem.getCurrentTime());
-					
+					List<com.benleskey.textengine.model.RelationshipDescriptor> itemContents = relationshipSystem
+							.getReceivingRelationships(item, relationshipSystem.rvContains,
+									worldSystem.getCurrentTime());
+
 					if (!itemContents.isEmpty()) {
 						List<Map<String, Object>> contentsList = new java.util.ArrayList<>();
-						
-					for (com.benleskey.textengine.model.RelationshipDescriptor rd : itemContents) {
-						Entity contentItem = rd.getReceiver();
-						if (contentItem instanceof Item) {
-							String contentDesc = entityDescriptionSystem.getSimpleDescription(contentItem, worldSystem.getCurrentTime(), "something");
-							
-							Map<String, Object> contentData = new java.util.HashMap<>();
-							contentData.put("entity_id", contentItem.getKeyId());
-							contentData.put("item_name", contentDesc);
-							contentsList.add(contentData);
+
+						for (com.benleskey.textengine.model.RelationshipDescriptor rd : itemContents) {
+							Entity contentItem = rd.getReceiver();
+							if (contentItem instanceof Item) {
+								String contentDesc = entityDescriptionSystem.getSimpleDescription(contentItem,
+										worldSystem.getCurrentTime(), "something");
+
+								Map<String, Object> contentData = new java.util.HashMap<>();
+								contentData.put("entity_id", contentItem.getKeyId());
+								contentData.put("item_name", contentDesc);
+								contentsList.add(contentData);
+							}
 						}
-					}						if (!contentsList.isEmpty()) {
+						if (!contentsList.isEmpty()) {
 							entityMessage.put("container_contents", contentsList);
 						}
 					}
 				}
-				
+
 				itemEntities.put(item.getKeyId(), entityMessage);
 			}
-			
+
 			// Format the list for display (no numeric IDs)
 			java.util.List<Markup.Safe> joined = new java.util.ArrayList<>();
 			for (int i = 0; i < items.size(); i++) {
@@ -452,18 +457,18 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 						joined.add(Markup.raw(", "));
 					}
 				}
-				
+
 				List<LookDescriptor> looks = itemLooks.get(items.get(i));
 				if (looks != null && !looks.isEmpty()) {
 					joined.add(Markup.em(looks.get(0).getDescription()));
 				}
 			}
-			
+
 			if (!joined.isEmpty()) {
 				parts.add(Markup.raw("\nItems: "));
 				parts.add(Markup.concat(joined.toArray(new Markup.Safe[0])));
 			}
-			
+
 			output.put("look_items", itemEntities);
 		}
 
@@ -471,68 +476,69 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 		if (!nearbyLooks.isEmpty()) {
 			java.util.List<Markup.Safe> nearbyParts = new java.util.ArrayList<>();
 			RawMessage nearbyEntities = Message.make();
-			
+
 			for (Map.Entry<Entity, List<LookDescriptor>> entry : nearbyLooks.entrySet()) {
 				Entity entity = entry.getKey();
 				List<LookDescriptor> looks = entry.getValue();
-				
+
 				RawMessage entityMessage = Message.make();
 				RawMessage entityLooks = Message.make();
 				java.util.List<Markup.Safe> entityParts = new java.util.ArrayList<>();
 
 				for (LookDescriptor lookDescriptor : looks) {
 					RawMessage lookMessage = Message.make()
-						.put(M_LOOK_TYPE, lookDescriptor.getType())
-						.put(M_LOOK_DESCRIPTION, lookDescriptor.getDescription());
+							.put(M_LOOK_TYPE, lookDescriptor.getType())
+							.put(M_LOOK_DESCRIPTION, lookDescriptor.getDescription());
 					entityLooks.put(lookDescriptor.getLook().getKeyId(), lookMessage);
 					entityParts.add(Markup.escape(lookDescriptor.getDescription()));
 				}
 
 				entityMessage.put(M_LOOK_ENTITY_LOOKS, entityLooks);
-				
+
 				// Check if this actor has a pending action
 				String pendingAction = null;
 				if (entity instanceof com.benleskey.textengine.entities.Actor) {
-					pendingAction = actorActionSystem.getPendingActionDescription((com.benleskey.textengine.entities.Actor) entity);
+					pendingAction = actorActionSystem
+							.getPendingActionDescription((com.benleskey.textengine.entities.Actor) entity);
 					if (pendingAction != null) {
 						entityMessage.put("pending_action", pendingAction);
 					}
 				}
-				
+
 				// Join entity looks with commas
 				java.util.List<Markup.Safe> joinedEntity = new java.util.ArrayList<>();
 				for (int i = 0; i < entityParts.size(); i++) {
-					if (i > 0) joinedEntity.add(Markup.raw(", "));
+					if (i > 0)
+						joinedEntity.add(Markup.raw(", "));
 					joinedEntity.add(entityParts.get(i));
 				}
-				
+
 				// Add pending action to display
 				if (pendingAction != null) {
 					nearbyParts.add(Markup.concat(
-						Markup.concat(joinedEntity.toArray(new Markup.Safe[0])),
-						Markup.raw(" ("),
-						Markup.escape(pendingAction),
-						Markup.raw(")")
-					));
+							Markup.concat(joinedEntity.toArray(new Markup.Safe[0])),
+							Markup.raw(" ("),
+							Markup.escape(pendingAction),
+							Markup.raw(")")));
 				} else {
 					nearbyParts.add(Markup.concat(joinedEntity.toArray(new Markup.Safe[0])));
 				}
-				
+
 				nearbyEntities.put(entity.getKeyId(), entityMessage);
 			}
-			
+
 			if (!nearbyParts.isEmpty()) {
 				java.util.List<Markup.Safe> joined = new java.util.ArrayList<>();
 				for (int i = 0; i < nearbyParts.size(); i++) {
-					if (i > 0) joined.add(Markup.raw(", "));
+					if (i > 0)
+						joined.add(Markup.raw(", "));
 					joined.add(nearbyParts.get(i));
 				}
-				
+
 				parts.add(Markup.concat(
-					Markup.raw("\nNearby: "),
-					Markup.concat(joined.toArray(new Markup.Safe[0])),
-					Markup.raw(".")
-				));
+						Markup.raw("\nNearby: "),
+						Markup.concat(joined.toArray(new Markup.Safe[0])),
+						Markup.raw(".")));
 			}
 			output.put(M_LOOK_NEARBY, nearbyEntities);
 		}

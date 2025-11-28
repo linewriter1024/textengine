@@ -9,7 +9,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * VisibilitySystem manages what entities can perceive based on spatial relationships
+ * VisibilitySystem manages what entities can perceive based on spatial
+ * relationships
  * and entity properties (prominence, visibility distance, etc.)
  */
 public class VisibilitySystem extends SingletonGameSystem implements OnSystemInitialize {
@@ -17,11 +18,11 @@ public class VisibilitySystem extends SingletonGameSystem implements OnSystemIni
 	private RelationshipSystem relationshipSystem;
 	private EntityTagSystem entityTagSystem;
 	private WorldSystem worldSystem;
-	
+
 	// Tags for visibility control
-	public UniqueType tagProminent;  // Visible from far away (castles, towers)
-	public UniqueType tagHidden;     // Not visible unless very close (hidden items)
-	public UniqueType tagObscured;   // Partially hidden (in dense forest)
+	public UniqueType tagProminent; // Visible from far away (castles, towers)
+	public UniqueType tagHidden; // Not visible unless very close (hidden items)
+	public UniqueType tagObscured; // Partially hidden (in dense forest)
 
 	public VisibilitySystem(Game game) {
 		super(game);
@@ -48,22 +49,24 @@ public class VisibilitySystem extends SingletonGameSystem implements OnSystemIni
 
 	/**
 	 * Mark one entity as visible from another.
-	 * This creates an explicit visibility relationship (useful for distant landmarks).
-	 * @param from The location from which the entity is visible
+	 * This creates an explicit visibility relationship (useful for distant
+	 * landmarks).
+	 * 
+	 * @param from    The location from which the entity is visible
 	 * @param visible The entity that can be seen
 	 */
 	public synchronized FullEvent<Relationship> makeVisibleFrom(Entity from, Entity visible) {
 		// Check if visibility relationship already exists
 		DTime now = worldSystem.getCurrentTime();
 		List<RelationshipDescriptor> existing = relationshipSystem.getReceivingRelationships(from, rvVisibleFrom, now);
-		
+
 		for (RelationshipDescriptor rd : existing) {
 			if (rd.getReceiver().getId() == visible.getId()) {
 				// Relationship already exists, return null to indicate no change
 				return null;
 			}
 		}
-		
+
 		// Create new visibility relationship
 		return relationshipSystem.add(from, visible, rvVisibleFrom);
 	}
@@ -85,54 +88,51 @@ public class VisibilitySystem extends SingletonGameSystem implements OnSystemIni
 
 		// 1. Get containers that contain the observer (current location + parents)
 		Set<Entity> containers = relationshipSystem.getProvidingEntitiesRecursive(
-			observer, 
-			relationshipSystem.rvContains, 
-			when
-		);
+				observer,
+				relationshipSystem.rvContains,
+				when);
 
 		// 2. Get immediate siblings (things in same immediate container)
 		Set<Entity> immediateSiblings = new HashSet<>();
 		for (Entity container : containers) {
 			List<RelationshipDescriptor> siblings = relationshipSystem.getReceivingRelationships(
-				container, 
-				relationshipSystem.rvContains, 
-				when
-			);
+					container,
+					relationshipSystem.rvContains,
+					when);
 			immediateSiblings.addAll(siblings.stream()
-				.map(RelationshipDescriptor::getReceiver)
-				.filter(e -> !e.equals(observer))  // Don't see yourself
-				.collect(Collectors.toSet()));
+					.map(RelationshipDescriptor::getReceiver)
+					.filter(e -> !e.equals(observer)) // Don't see yourself
+					.collect(Collectors.toSet()));
 		}
 
 		// Add immediate siblings as "nearby"
 		for (Entity entity : immediateSiblings) {
 			if (!isHidden(entity, when)) {
 				visible.add(VisibilityDescriptor.builder()
-					.entity(entity)
-					.observer(observer)
-					.distanceLevel(VisibilityLevel.NEARBY)
-					.build());
+						.entity(entity)
+						.observer(observer)
+						.distanceLevel(VisibilityLevel.NEARBY)
+						.build());
 			}
 		}
 
 		// 3. Get explicitly visible entities (distant landmarks)
 		for (Entity container : containers) {
 			List<RelationshipDescriptor> distantVisible = relationshipSystem.getReceivingRelationships(
-				container,
-				rvVisibleFrom,
-				when
-			);
-			
+					container,
+					rvVisibleFrom,
+					when);
+
 			for (RelationshipDescriptor rd : distantVisible) {
 				Entity entity = rd.getReceiver();
 				if (!immediateSiblings.contains(entity) && !entity.equals(observer)) {
 					// Only show if prominent or not obscured
 					if (isProminent(entity, when) && !isObscured(entity, when)) {
 						visible.add(VisibilityDescriptor.builder()
-							.entity(entity)
-							.observer(observer)
-							.distanceLevel(VisibilityLevel.DISTANT)
-							.build());
+								.entity(entity)
+								.observer(observer)
+								.distanceLevel(VisibilityLevel.DISTANT)
+								.build());
 					}
 				}
 			}
@@ -177,7 +177,7 @@ public class VisibilitySystem extends SingletonGameSystem implements OnSystemIni
 	 * Visibility levels for entities.
 	 */
 	public enum VisibilityLevel {
-		NEARBY,    // In the same immediate container
-		DISTANT    // Visible from far away due to prominence
+		NEARBY, // In the same immediate container
+		DISTANT // Visible from far away due to prominence
 	}
 }

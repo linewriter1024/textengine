@@ -6,7 +6,7 @@ import com.benleskey.textengine.util.Logger;
 
 public abstract class Entity extends Reference {
 	protected final Logger log;
-	
+
 	public Entity(long id, Game game) {
 		super(id, game);
 		// Create entity-specific logger with class name and ID prefix
@@ -16,7 +16,7 @@ public abstract class Entity extends Reference {
 	public UniqueType getEntityType() {
 		return game.getUniqueTypeSystem().getType(this.getClass().getCanonicalName());
 	}
-	
+
 	/**
 	 * Receive a broadcast event from another entity.
 	 * Default implementation does nothing.

@@ -13,10 +13,11 @@ import java.util.List;
 
 /**
  * System for broadcasting messages from one entity to nearby entities.
- * Handles finding entities in the same location and delivering broadcasts to them.
+ * Handles finding entities in the same location and delivering broadcasts to
+ * them.
  */
 public class BroadcastSystem extends SingletonGameSystem implements OnSystemInitialize {
-	
+
 	private RelationshipSystem relationshipSystem;
 	private WorldSystem worldSystem;
 
@@ -28,7 +29,7 @@ public class BroadcastSystem extends SingletonGameSystem implements OnSystemInit
 	public void onSystemInitialize() throws DatabaseException {
 		relationshipSystem = game.getSystem(RelationshipSystem.class);
 		worldSystem = game.getSystem(WorldSystem.class);
-		
+
 		int v = getSchema().getVersionNumber();
 		if (v == 0) {
 			// No database tables needed - broadcasts are ephemeral
@@ -37,29 +38,33 @@ public class BroadcastSystem extends SingletonGameSystem implements OnSystemInit
 	}
 
 	/**
-	 * Broadcast a message from an entity to all entities in the same location, including the source.
-	 * This ensures players and NPCs receive the same messages for their own actions.
+	 * Broadcast a message from an entity to all entities in the same location,
+	 * including the source.
+	 * This ensures players and NPCs receive the same messages for their own
+	 * actions.
 	 * 
 	 * @param source The entity broadcasting the message
 	 * @param output The output to broadcast
 	 */
 	public void broadcast(Entity source, CommandOutput output) {
 		DTime currentTime = worldSystem.getCurrentTime();
-		
+
 		// Find source's location
-		var sourceContainers = relationshipSystem.getProvidingRelationships(source, relationshipSystem.rvContains, currentTime);
+		var sourceContainers = relationshipSystem.getProvidingRelationships(source, relationshipSystem.rvContains,
+				currentTime);
 		if (sourceContainers.isEmpty()) {
 			return; // Source is nowhere
 		}
-		
+
 		Entity sourceLocation = sourceContainers.get(0).getProvider();
-		
+
 		// Get all entities in the same location
-		List<Entity> entitiesInLocation = relationshipSystem.getReceivingRelationships(sourceLocation, relationshipSystem.rvContains, currentTime)
-			.stream()
-			.map(RelationshipDescriptor::getReceiver)
-			.toList();
-		
+		List<Entity> entitiesInLocation = relationshipSystem
+				.getReceivingRelationships(sourceLocation, relationshipSystem.rvContains, currentTime)
+				.stream()
+				.map(RelationshipDescriptor::getReceiver)
+				.toList();
+
 		// Broadcast to all entities including source (so players see their own actions)
 		for (Entity entity : entitiesInLocation) {
 			entity.receiveBroadcast(output);

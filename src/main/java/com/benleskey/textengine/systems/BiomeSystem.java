@@ -12,17 +12,17 @@ import java.util.*;
  * Generic and extensible - any plugin can register new biome types.
  */
 public class BiomeSystem extends SingletonGameSystem implements OnSystemInitialize {
-	
+
 	// Map from biome name to biome data
 	private final Map<String, Biome> biomes = new HashMap<>();
-	
+
 	// List of all biome names for weighted random selection
 	private final List<String> biomeNames = new ArrayList<>();
-	
+
 	public BiomeSystem(Game game) {
 		super(game);
 	}
-	
+
 	@Override
 	public void onSystemInitialize() {
 		int v = getSchema().getVersionNumber();
@@ -31,12 +31,12 @@ public class BiomeSystem extends SingletonGameSystem implements OnSystemInitiali
 			getSchema().setVersionNumber(1);
 		}
 	}
-	
+
 	/**
 	 * Register a new biome type.
 	 * 
-	 * @param name Unique biome name (e.g., "forest", "desert", "ocean")
-	 * @param weight Generation weight (higher = more common)
+	 * @param name       Unique biome name (e.g., "forest", "desert", "ocean")
+	 * @param weight     Generation weight (higher = more common)
 	 * @param properties Optional properties map for plugin-specific data
 	 * @return The registered Biome
 	 */
@@ -47,22 +47,22 @@ public class BiomeSystem extends SingletonGameSystem implements OnSystemInitiali
 		if (weight < 1) {
 			throw new IllegalArgumentException("Biome weight must be at least 1");
 		}
-		
+
 		Biome biome = new Biome(name, weight, properties != null ? properties : new HashMap<>());
 		biomes.put(name, biome);
 		biomeNames.add(name);
-		
+
 		log.log("Registered biome: " + name + " (weight: " + weight + ")");
 		return biome;
 	}
-	
+
 	/**
 	 * Register a biome with no additional properties.
 	 */
 	public Biome registerBiome(String name, int weight) {
 		return registerBiome(name, weight, null);
 	}
-	
+
 	/**
 	 * Get a biome by name.
 	 * 
@@ -72,21 +72,21 @@ public class BiomeSystem extends SingletonGameSystem implements OnSystemInitiali
 	public Biome getBiome(String name) {
 		return biomes.get(name);
 	}
-	
+
 	/**
 	 * Check if a biome is registered.
 	 */
 	public boolean hasBiome(String name) {
 		return biomes.containsKey(name);
 	}
-	
+
 	/**
 	 * Get all registered biome names.
 	 */
 	public Set<String> getAllBiomeNames() {
 		return new HashSet<>(biomeNames);
 	}
-	
+
 	/**
 	 * Select a random biome based on weights.
 	 * 
@@ -97,36 +97,36 @@ public class BiomeSystem extends SingletonGameSystem implements OnSystemInitiali
 		if (biomes.isEmpty()) {
 			throw new IllegalStateException("No biomes registered");
 		}
-		
+
 		// Calculate total weight
 		int totalWeight = biomes.values().stream()
-			.mapToInt(Biome::weight)
-			.sum();
-		
+				.mapToInt(Biome::weight)
+				.sum();
+
 		// Random selection based on weights
 		int randomValue = random.nextInt(totalWeight);
 		int currentWeight = 0;
-		
+
 		for (Biome biome : biomes.values()) {
 			currentWeight += biome.weight();
 			if (randomValue < currentWeight) {
 				return biome.name();
 			}
 		}
-		
+
 		// Fallback (shouldn't happen)
 		return biomeNames.get(0);
 	}
-	
+
 	/**
 	 * Biome data record.
 	 * 
-	 * @param name Unique biome identifier
-	 * @param weight Generation weight (higher = more common)
+	 * @param name       Unique biome identifier
+	 * @param weight     Generation weight (higher = more common)
 	 * @param properties Plugin-specific properties
 	 */
 	public record Biome(String name, int weight, Map<String, Object> properties) {
-		
+
 		/**
 		 * Get a property value.
 		 * 
@@ -136,7 +136,7 @@ public class BiomeSystem extends SingletonGameSystem implements OnSystemInitiali
 		public Object getProperty(String key) {
 			return properties.get(key);
 		}
-		
+
 		/**
 		 * Get a property value with type safety.
 		 */
@@ -148,11 +148,11 @@ public class BiomeSystem extends SingletonGameSystem implements OnSystemInitiali
 			}
 			if (!type.isInstance(value)) {
 				throw new ClassCastException(
-					"Property '" + key + "' is not of type " + type.getName());
+						"Property '" + key + "' is not of type " + type.getName());
 			}
 			return Optional.of((T) value);
 		}
-		
+
 		/**
 		 * Check if a property exists.
 		 */

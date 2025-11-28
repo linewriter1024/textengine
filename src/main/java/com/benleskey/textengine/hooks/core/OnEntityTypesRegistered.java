@@ -4,7 +4,8 @@ import com.benleskey.textengine.util.HookEvent;
 
 /**
  * Called after entity types have been registered.
- * Use this hook when you need to generate entities that depend on custom entity types
+ * Use this hook when you need to generate entities that depend on custom entity
+ * types
  * being registered (e.g., Tree, Axe, Rattle).
  * 
  * Execution order:

@@ -4,7 +4,7 @@ package com.benleskey.textengine.util;
  * Utility functions for string manipulation.
  */
 public class StringUtils {
-	
+
 	/**
 	 * Capitalize the first character of a string.
 	 * Returns empty string if input is null or empty.

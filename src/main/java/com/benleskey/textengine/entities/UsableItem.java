@@ -12,8 +12,9 @@ public interface UsableItem {
 	 * Handle using this item without a target.
 	 * 
 	 * @param client The client using the item
-	 * @param actor The actor using the item
-	 * @return CommandOutput describing the result, or null if this item has no solo use
+	 * @param actor  The actor using the item
+	 * @return CommandOutput describing the result, or null if this item has no solo
+	 *         use
 	 */
 	CommandOutput useSolo(Client client, Entity actor);
 }

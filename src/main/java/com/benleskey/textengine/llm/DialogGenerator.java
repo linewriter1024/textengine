@@ -14,7 +14,9 @@ public class DialogGenerator {
 
 	public static void main(String[] args) {
 		DialogGenerator dialogGenerator = new DialogGenerator(new LlmProvider());
-		System.out.println(dialogGenerator.getDialogFromDescription("A happy old gnome who speaks in riddles", "In an inn. Talking to Bob and Tim. Curious about Bob. Angry at Tim. Tim is rude.", "Tells Bob and Tim location of treasure in hidden cave called 'Cave de Prima' north by the old mill."));
+		System.out.println(dialogGenerator.getDialogFromDescription("A happy old gnome who speaks in riddles",
+				"In an inn. Talking to Bob and Tim. Curious about Bob. Angry at Tim. Tim is rude.",
+				"Tells Bob and Tim location of treasure in hidden cave called 'Cave de Prima' north by the old mill."));
 	}
 
 	public String getDialogFromDescription(String character, String context, String intent) {

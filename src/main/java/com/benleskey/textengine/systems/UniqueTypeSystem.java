@@ -17,7 +17,8 @@ public class UniqueTypeSystem extends SingletonGameSystem implements OnSystemIni
 	public UniqueTypeSystem(Game game) {
 		super(game);
 
-		types = game.registerSystem(new GrouplessPropertiesSubSystem<>(game, "unique_type", PropertiesSubSystem.stringHandler(), PropertiesSubSystem.longHandler()));
+		types = game.registerSystem(new GrouplessPropertiesSubSystem<>(game, "unique_type",
+				PropertiesSubSystem.stringHandler(), PropertiesSubSystem.longHandler()));
 	}
 
 	@Override
@@ -35,7 +36,8 @@ public class UniqueTypeSystem extends SingletonGameSystem implements OnSystemIni
 	}
 
 	public synchronized Optional<String> getTypeLabel(UniqueType type) {
-		return this.cachedTypes.entrySet().stream().filter(entry -> entry.getValue() == type.type()).findFirst().map(Map.Entry::getKey);
+		return this.cachedTypes.entrySet().stream().filter(entry -> entry.getValue() == type.type()).findFirst()
+				.map(Map.Entry::getKey);
 	}
 
 	public UniqueType getTypeFromRaw(long raw) {

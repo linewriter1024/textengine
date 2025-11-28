@@ -23,7 +23,7 @@ public class RelationshipSystem extends SingletonGameSystem implements OnSystemI
 	private PreparedStatement addStatement;
 	private PreparedStatement getProviderStatement;
 	private PreparedStatement getReceiverStatement;
-	
+
 	// Common message field constants for relationship-related data
 	public static final String M_CONTAINER = "container";
 	public static final String M_CONTAINER_ID = "container_id";
@@ -43,7 +43,8 @@ public class RelationshipSystem extends SingletonGameSystem implements OnSystemI
 		if (v == 0) {
 			try {
 				try (Statement s = game.db().createStatement()) {
-					s.executeUpdate("CREATE TABLE entity_relationship(relationship_id INTEGER PRIMARY KEY, provider_id INTEGER, receiver_id INTEGER, relationship_verb INTEGER)");
+					s.executeUpdate(
+							"CREATE TABLE entity_relationship(relationship_id INTEGER PRIMARY KEY, provider_id INTEGER, receiver_id INTEGER, relationship_verb INTEGER)");
 				}
 			} catch (SQLException e) {
 				throw new DatabaseException("Unable to create entity relationship table", e);
@@ -55,9 +56,16 @@ public class RelationshipSystem extends SingletonGameSystem implements OnSystemI
 		entitySystem = game.getSystem(EntitySystem.class);
 
 		try {
-			addStatement = game.db().prepareStatement("INSERT INTO entity_relationship (relationship_id, provider_id, receiver_id, relationship_verb) VALUES (?, ?, ?, ?)");
-			getProviderStatement = game.db().prepareStatement("SELECT relationship_id, provider_id FROM entity_relationship WHERE receiver_id = ? AND relationship_verb = ? AND relationship_id IN " + eventSystem.getValidEventsSubquery("entity_relationship.relationship_id") + " ORDER BY relationship_id");
-			getReceiverStatement = game.db().prepareStatement("SELECT relationship_id, receiver_id FROM entity_relationship WHERE provider_id = ? AND relationship_verb = ? AND relationship_id IN " + eventSystem.getValidEventsSubquery("entity_relationship.relationship_id") + " ORDER BY relationship_id");
+			addStatement = game.db().prepareStatement(
+					"INSERT INTO entity_relationship (relationship_id, provider_id, receiver_id, relationship_verb) VALUES (?, ?, ?, ?)");
+			getProviderStatement = game.db().prepareStatement(
+					"SELECT relationship_id, provider_id FROM entity_relationship WHERE receiver_id = ? AND relationship_verb = ? AND relationship_id IN "
+							+ eventSystem.getValidEventsSubquery("entity_relationship.relationship_id")
+							+ " ORDER BY relationship_id");
+			getReceiverStatement = game.db().prepareStatement(
+					"SELECT relationship_id, receiver_id FROM entity_relationship WHERE provider_id = ? AND relationship_verb = ? AND relationship_id IN "
+							+ eventSystem.getValidEventsSubquery("entity_relationship.relationship_id")
+							+ " ORDER BY relationship_id");
 		} catch (SQLException e) {
 			throw new DatabaseException("Unable to prepare relationship statements", e);
 		}
@@ -67,7 +75,8 @@ public class RelationshipSystem extends SingletonGameSystem implements OnSystemI
 		rvContains = uniqueTypeSystem.getType("relationship_contains");
 	}
 
-	public synchronized FullEvent<Relationship> add(Entity provider, Entity receiver, UniqueType verb) throws DatabaseException {
+	public synchronized FullEvent<Relationship> add(Entity provider, Entity receiver, UniqueType verb)
+			throws DatabaseException {
 		try {
 			long newId = game.getNewGlobalId();
 			addStatement.setLong(1, newId);
@@ -77,11 +86,13 @@ public class RelationshipSystem extends SingletonGameSystem implements OnSystemI
 			addStatement.executeUpdate();
 			return eventSystem.addEventNow(etEntityRelationship, new Relationship(newId, game));
 		} catch (SQLException e) {
-			throw new DatabaseException(String.format("Unable to create relationship (%s) %s (%s)", provider, verb, receiver), e);
+			throw new DatabaseException(
+					String.format("Unable to create relationship (%s) %s (%s)", provider, verb, receiver), e);
 		}
 	}
 
-	private synchronized Set<Entity> getProvidingEntitiesRecursive(Entity receiver, UniqueType verb, DTime when, Set<Entity> seenEntities) {
+	private synchronized Set<Entity> getProvidingEntitiesRecursive(Entity receiver, UniqueType verb, DTime when,
+			Set<Entity> seenEntities) {
 		Set<Entity> entities = new HashSet<>(Set.of(receiver));
 
 		List<RelationshipDescriptor> containingRelationships = getProvidingRelationships(receiver, verb, when);
@@ -99,7 +110,8 @@ public class RelationshipSystem extends SingletonGameSystem implements OnSystemI
 		return getProvidingEntitiesRecursive(receiver, verb, when, new HashSet<>());
 	}
 
-	public synchronized List<RelationshipDescriptor> getProvidingRelationships(Entity receiver, UniqueType verb, DTime when) throws DatabaseException {
+	public synchronized List<RelationshipDescriptor> getProvidingRelationships(Entity receiver, UniqueType verb,
+			DTime when) throws DatabaseException {
 		try {
 			List<RelationshipDescriptor> rds = new ArrayList<>();
 			getProviderStatement.setLong(1, receiver.getId());
@@ -108,20 +120,22 @@ public class RelationshipSystem extends SingletonGameSystem implements OnSystemI
 			try (ResultSet rs = getProviderStatement.executeQuery()) {
 				while (rs.next()) {
 					rds.add(RelationshipDescriptor.builder()
-						.relationship(new Relationship(rs.getLong(1), game))
-						.receiver(receiver)
-						.provider(entitySystem.get(rs.getLong(2)))
-						.verb(verb)
-						.build());
+							.relationship(new Relationship(rs.getLong(1), game))
+							.receiver(receiver)
+							.provider(entitySystem.get(rs.getLong(2)))
+							.verb(verb)
+							.build());
 				}
 			}
 			return rds;
 		} catch (SQLException e) {
-			throw new DatabaseException("Could not get providing entities for " + receiver + " " + verb + " at game time " + when, e);
+			throw new DatabaseException(
+					"Could not get providing entities for " + receiver + " " + verb + " at game time " + when, e);
 		}
 	}
 
-	public synchronized List<RelationshipDescriptor> getReceivingRelationships(Entity provider, UniqueType verb, DTime when) throws DatabaseException {
+	public synchronized List<RelationshipDescriptor> getReceivingRelationships(Entity provider, UniqueType verb,
+			DTime when) throws DatabaseException {
 		try {
 			List<RelationshipDescriptor> rds = new ArrayList<>();
 			getReceiverStatement.setLong(1, provider.getId());
@@ -130,16 +144,17 @@ public class RelationshipSystem extends SingletonGameSystem implements OnSystemI
 			try (ResultSet rs = getReceiverStatement.executeQuery()) {
 				while (rs.next()) {
 					rds.add(RelationshipDescriptor.builder()
-						.relationship(new Relationship(rs.getLong(1), game))
-						.provider(provider)
-						.receiver(entitySystem.get(rs.getLong(2)))
-						.verb(verb)
-						.build());
+							.relationship(new Relationship(rs.getLong(1), game))
+							.provider(provider)
+							.receiver(entitySystem.get(rs.getLong(2)))
+							.verb(verb)
+							.build());
 				}
 			}
 			return rds;
 		} catch (SQLException e) {
-			throw new DatabaseException("Could not get receiving entities for " + provider + " " + verb + " up to game time " + when, e);
+			throw new DatabaseException(
+					"Could not get receiving entities for " + provider + " " + verb + " up to game time " + when, e);
 		}
 	}
 }

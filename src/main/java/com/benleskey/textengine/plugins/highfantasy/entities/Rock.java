@@ -13,23 +13,23 @@ import java.util.Random;
  * Covers: granite chunks, river stones, smooth pebbles, rubble, etc.
  */
 public class Rock extends Item {
-	
+
 	private static final String[] DESCRIPTIONS = {
-		"a chunk of granite",
-		"a river stone",
-		"a smooth pebble",
-		"a piece of rubble",
-		"a jagged shard"
+			"a chunk of granite",
+			"a river stone",
+			"a smooth pebble",
+			"a piece of rubble",
+			"a jagged shard"
 	};
-	
+
 	public Rock(long id, Game game) {
 		super(id, game);
 	}
-	
+
 	/**
 	 * Create a rock with a randomly selected description variant.
 	 * 
-	 * @param game The game instance
+	 * @param game   The game instance
 	 * @param random Random instance for selecting description variant
 	 * @return The created and configured rock entity
 	 */
@@ -37,14 +37,14 @@ public class Rock extends Item {
 		EntitySystem es = game.getSystem(EntitySystem.class);
 		LookSystem ls = game.getSystem(LookSystem.class);
 		ItemSystem is = game.getSystem(ItemSystem.class);
-		
+
 		String description = DESCRIPTIONS[random.nextInt(DESCRIPTIONS.length)];
-		
+
 		Rock rock = es.add(Rock.class);
 		ls.addLook(rock, "basic", description);
 		is.addTag(rock, is.TAG_TAKEABLE);
 		is.addTag(rock, is.TAG_WEIGHT, 500); // 500g = 0.5kg
-		
+
 		return rock;
 	}
 }

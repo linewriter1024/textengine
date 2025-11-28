@@ -15,12 +15,12 @@ import java.util.*;
 
 /**
  * Generic system for handling entity ticks.
- * Entities implementing Tickable and tagged with TAG_TICKABLE will have their 
+ * Entities implementing Tickable and tagged with TAG_TICKABLE will have their
  * onTick method called at their specified interval when world time advances.
  * Ticks are processed globally for all tickable entities, not per-client.
  */
 public class TickSystem extends SingletonGameSystem implements OnSystemInitialize {
-	
+
 	private EntityTagSystem tagSystem;
 	private WorldSystem worldSystem;
 	private EntitySystem entitySystem;
@@ -34,7 +34,7 @@ public class TickSystem extends SingletonGameSystem implements OnSystemInitializ
 		tagSystem = game.getSystem(EntityTagSystem.class);
 		worldSystem = game.getSystem(WorldSystem.class);
 		entitySystem = game.getSystem(EntitySystem.class);
-		
+
 		int v = getSchema().getVersionNumber();
 		if (v == 0) {
 			// No database tables needed - tick state is kept in memory
@@ -50,10 +50,10 @@ public class TickSystem extends SingletonGameSystem implements OnSystemInitializ
 	public void processWorldTicks() {
 		DTime currentTime = worldSystem.getCurrentTime();
 		ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
-		
+
 		// Collect all entities that can tick (Tickable or Acting)
 		List<TickableEntity> allEntities = new ArrayList<>();
-		
+
 		// Add Tickable entities
 		UniqueType tagTickable = entitySystem.TAG_TICKABLE;
 		if (tagTickable != null) {
@@ -64,7 +64,7 @@ public class TickSystem extends SingletonGameSystem implements OnSystemInitializ
 				}
 			}
 		}
-		
+
 		// Add Acting entities
 		UniqueType tagActing = aas.TAG_ACTING;
 		if (tagActing != null) {
@@ -75,11 +75,11 @@ public class TickSystem extends SingletonGameSystem implements OnSystemInitializ
 				}
 			}
 		}
-		
+
 		// Process all entities in time-fair order
 		processEntitiesInTimeOrder(allEntities, currentTime, aas);
 	}
-	
+
 	/**
 	 * Process entities one tick at a time in chronological order.
 	 * This ensures fair interleaving - no single entity monopolizes time.
@@ -88,11 +88,11 @@ public class TickSystem extends SingletonGameSystem implements OnSystemInitializ
 	private void processEntitiesInTimeOrder(List<TickableEntity> entities, DTime targetTime, ActorActionSystem aas) {
 		// Calculate next tick time for each entity
 		PriorityQueue<EntityTick> tickQueue = new PriorityQueue<>(Comparator.comparingLong(t -> t.tickTime));
-		
+
 		for (TickableEntity te : entities) {
 			Long lastTickMs = entitySystem.getTagValue(te.entity, te.lastTickTag, targetTime);
 			DTime lastTick;
-			
+
 			if (lastTickMs == null) {
 				// Never ticked before - use entity creation time
 				Long creationMs = entitySystem.getTagValue(te.entity, entitySystem.TAG_ENTITY_CREATED, targetTime);
@@ -100,86 +100,89 @@ public class TickSystem extends SingletonGameSystem implements OnSystemInitializ
 			} else {
 				lastTick = DTime.fromMilliseconds(lastTickMs);
 			}
-			
+
 			DTime interval = te.tickable != null ? te.tickable.getTickInterval() : te.acting.getActionInterval();
 			long nextTickTime = lastTick.toMilliseconds() + interval.toMilliseconds();
-			
+
 			// Only queue if next tick is due
 			if (nextTickTime <= targetTime.toMilliseconds()) {
 				tickQueue.offer(new EntityTick(te, nextTickTime));
 			}
 		}
-		
+
 		// Process ticks in chronological order, setting world time as we go
 		while (!tickQueue.isEmpty()) {
 			EntityTick tick = tickQueue.poll();
 			TickableEntity te = tick.entity;
 			DTime tickTime = DTime.fromMilliseconds(tick.tickTime);
-			
+
 			// Don't process ticks beyond target time
 			if (tickTime.toMilliseconds() > targetTime.toMilliseconds()) {
 				break;
 			}
-			
+
 			// Set world time to this tick time - this is key!
 			worldSystem.setCurrentTime(tickTime);
-			
-			log.log("Processing tick for entity %d at time %d (target=%d)", 
-				te.entity.getId(), tickTime.toMilliseconds(), targetTime.toMilliseconds());
-			
-		// Execute the tick
-		if (te.tickable != null) {
-			DTime interval = te.tickable.getTickInterval();
-			te.tickable.onTick(tickTime, interval);
-			entitySystem.updateTagValue(te.entity, te.lastTickTag, tickTime.toMilliseconds(), targetTime);
-			
-			// Schedule next regular tick
-			long nextTickTime = tickTime.toMilliseconds() + interval.toMilliseconds();
-			if (nextTickTime <= targetTime.toMilliseconds()) {
-				tickQueue.offer(new EntityTick(te, nextTickTime));
-			}
-		} else if (te.acting != null) {
-			DTime interval = te.acting.getActionInterval();
-			aas.processActingEntitySingleTick(te.acting, (Actor) te.entity, interval);
-			entitySystem.updateTagValue(te.entity, te.lastTickTag, tickTime.toMilliseconds(), targetTime);
-			
-			// Check if entity has a pending action and schedule tick for completion
-			boolean scheduledActionTick = false;
-			try {
-				com.benleskey.textengine.model.Reference pendingAction = aas.getPendingAction((Actor) te.entity);
-				log.log("Entity %d: checked for pending action, result=%s", 
-					te.entity.getId(), pendingAction != null ? "found #" + pendingAction.getId() : "none");
-				if (pendingAction != null) {
-					long actionReadyTime = aas.getActionReadyTime(pendingAction);
-					log.log("Entity %d: pending action #%d ready at %d, tickTime=%d, targetTime=%d", 
-						te.entity.getId(), pendingAction.getId(), actionReadyTime, tickTime.toMilliseconds(), targetTime.toMilliseconds());
-					if (actionReadyTime > tickTime.toMilliseconds() && actionReadyTime <= targetTime.toMilliseconds()) {
-						log.log("Entity %d: scheduling action completion tick at %d", 
-							te.entity.getId(), actionReadyTime);
-						tickQueue.offer(new EntityTick(te, actionReadyTime));
-						scheduledActionTick = true;
-					} else {
-						log.log("Entity %d: action not in range for scheduling", te.entity.getId());
-					}
-				}
-			} catch (DatabaseException e) {
-				log.log("Error checking pending action: %s", e.getMessage());
-			}
-			
-			// Only schedule regular interval tick if we didn't schedule an action completion
-			if (!scheduledActionTick) {
+
+			log.log("Processing tick for entity %d at time %d (target=%d)",
+					te.entity.getId(), tickTime.toMilliseconds(), targetTime.toMilliseconds());
+
+			// Execute the tick
+			if (te.tickable != null) {
+				DTime interval = te.tickable.getTickInterval();
+				te.tickable.onTick(tickTime, interval);
+				entitySystem.updateTagValue(te.entity, te.lastTickTag, tickTime.toMilliseconds(), targetTime);
+
+				// Schedule next regular tick
 				long nextTickTime = tickTime.toMilliseconds() + interval.toMilliseconds();
 				if (nextTickTime <= targetTime.toMilliseconds()) {
-					log.log("Entity %d: scheduling next regular tick at %d", 
-						te.entity.getId(), nextTickTime);
 					tickQueue.offer(new EntityTick(te, nextTickTime));
 				}
+			} else if (te.acting != null) {
+				DTime interval = te.acting.getActionInterval();
+				aas.processActingEntitySingleTick(te.acting, (Actor) te.entity, interval);
+				entitySystem.updateTagValue(te.entity, te.lastTickTag, tickTime.toMilliseconds(), targetTime);
+
+				// Check if entity has a pending action and schedule tick for completion
+				boolean scheduledActionTick = false;
+				try {
+					com.benleskey.textengine.model.Reference pendingAction = aas.getPendingAction((Actor) te.entity);
+					log.log("Entity %d: checked for pending action, result=%s",
+							te.entity.getId(), pendingAction != null ? "found #" + pendingAction.getId() : "none");
+					if (pendingAction != null) {
+						long actionReadyTime = aas.getActionReadyTime(pendingAction);
+						log.log("Entity %d: pending action #%d ready at %d, tickTime=%d, targetTime=%d",
+								te.entity.getId(), pendingAction.getId(), actionReadyTime, tickTime.toMilliseconds(),
+								targetTime.toMilliseconds());
+						if (actionReadyTime > tickTime.toMilliseconds()
+								&& actionReadyTime <= targetTime.toMilliseconds()) {
+							log.log("Entity %d: scheduling action completion tick at %d",
+									te.entity.getId(), actionReadyTime);
+							tickQueue.offer(new EntityTick(te, actionReadyTime));
+							scheduledActionTick = true;
+						} else {
+							log.log("Entity %d: action not in range for scheduling", te.entity.getId());
+						}
+					}
+				} catch (DatabaseException e) {
+					log.log("Error checking pending action: %s", e.getMessage());
+				}
+
+				// Only schedule regular interval tick if we didn't schedule an action
+				// completion
+				if (!scheduledActionTick) {
+					long nextTickTime = tickTime.toMilliseconds() + interval.toMilliseconds();
+					if (nextTickTime <= targetTime.toMilliseconds()) {
+						log.log("Entity %d: scheduling next regular tick at %d",
+								te.entity.getId(), nextTickTime);
+						tickQueue.offer(new EntityTick(te, nextTickTime));
+					}
+				}
 			}
-		}
-	}		// Restore world time to target time
+		} // Restore world time to target time
 		worldSystem.setCurrentTime(targetTime);
 	}
-	
+
 	/**
 	 * Helper class to track entity tick scheduling.
 	 */
@@ -188,7 +191,7 @@ public class TickSystem extends SingletonGameSystem implements OnSystemInitializ
 		Tickable tickable;
 		Acting acting;
 		UniqueType lastTickTag;
-		
+
 		TickableEntity(Entity entity, Tickable tickable, Acting acting, UniqueType lastTickTag) {
 			this.entity = entity;
 			this.tickable = tickable;
@@ -196,18 +199,18 @@ public class TickSystem extends SingletonGameSystem implements OnSystemInitializ
 			this.lastTickTag = lastTickTag;
 		}
 	}
-	
+
 	/**
 	 * Helper class for priority queue ordering.
 	 */
 	private static class EntityTick {
 		TickableEntity entity;
 		long tickTime;
-		
+
 		EntityTick(TickableEntity entity, long tickTime) {
 			this.entity = entity;
 			this.tickTime = tickTime;
 		}
 	}
-	
+
 }

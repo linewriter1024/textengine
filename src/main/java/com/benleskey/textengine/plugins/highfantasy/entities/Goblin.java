@@ -24,39 +24,39 @@ import java.util.Random;
  * AI logic only - all execution handled by ActorActionSystem.
  */
 public class Goblin extends Actor implements Acting {
-	
+
 	private final Random random;
-	
+
 	public Goblin(long id, Game game) {
 		super(id, game);
 		this.random = new Random(id);
 	}
-	
+
 	public static Goblin create(Game game, Entity startLocation, Entity roomA, Entity roomB) {
 		EntitySystem es = game.getSystem(EntitySystem.class);
 		LookSystem ls = game.getSystem(LookSystem.class);
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		UniqueTypeSystem uts = game.getSystem(UniqueTypeSystem.class);
 		ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
-		
+
 		Goblin goblin = es.add(Goblin.class);
-		
+
 		UniqueType patrolTarget = uts.getType("patrol_target");
 		rs.add(goblin, roomA, patrolTarget);
 		rs.add(goblin, roomB, patrolTarget);
-		
+
 		ls.addLook(goblin, "basic", "a goblin");
 		es.addTag(goblin, aas.TAG_ACTING);
 		rs.add(startLocation, goblin, rs.rvContains);
-		
+
 		return goblin;
 	}
-	
+
 	@Override
 	public DTime getActionInterval() {
 		return DTime.fromSeconds(600); // 10 minutes
 	}
-	
+
 	@Override
 	public void onActionReady() {
 		// AI: Decide what to do (no pending action, ready for new action)
@@ -64,36 +64,36 @@ public class Goblin extends Actor implements Acting {
 		ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
 		BroadcastSystem bs = game.getSystem(BroadcastSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
-		
+
 		DTime currentTime = ws.getCurrentTime();
 		log.log("Goblin %d onActionReady called at time %d", getId(), currentTime.toMilliseconds());
-		
+
 		LookSystem.LookEnvironment env = ls.getLookEnvironment(this);
-		
+
 		if (env == null) {
 			log.log("Goblin %d has no location", getId());
 			return;
 		}
-		
+
 		// Announce the time (instant action)
 		long hours = (currentTime.toMilliseconds() / (1000 * 60 * 60)) % 24;
 		long minutes = (currentTime.toMilliseconds() / (1000 * 60)) % 60;
 		String timeStr = String.format("%02d:%02d", hours, minutes);
-		
+
 		CommandOutput announcement = new CommandOutput();
 		announcement.text(Markup.raw(String.format("The goblin mutters '%s'.", timeStr)));
 		bs.broadcast(this, announcement);
-		
+
 		log.log("Goblin %d announced time: %s", getId(), timeStr);
-		
+
 		// Randomly choose between moving and item actions
 		if (random.nextBoolean()) {
 			decideMove(env, aas);
-		} else{
+		} else {
 			decideItemAction(env, aas);
 		}
 	}
-	
+
 	/**
 	 * AI: Decide where to move.
 	 * Prefers patrol targets, falls back to random exits.
@@ -102,14 +102,14 @@ public class Goblin extends Actor implements Acting {
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		UniqueTypeSystem uts = game.getSystem(UniqueTypeSystem.class);
-		
+
 		UniqueType patrolTarget = uts.getType("patrol_target");
 		List<Entity> patrolTargets = rs.getReceivingRelationships(this, patrolTarget, ws.getCurrentTime())
-			.stream()
-			.map(rd -> rd.getReceiver())
-			.filter(t -> t.getId() != env.currentLocation.getId()) // Don't go to current location
-			.toList();
-		
+				.stream()
+				.map(rd -> rd.getReceiver())
+				.filter(t -> t.getId() != env.currentLocation.getId()) // Don't go to current location
+				.toList();
+
 		Entity destination;
 		if (!patrolTargets.isEmpty()) {
 			destination = patrolTargets.get(random.nextInt(patrolTargets.size()));
@@ -121,11 +121,11 @@ public class Goblin extends Actor implements Acting {
 			log.log("Goblin %d: no exits available", getId());
 			return;
 		}
-		
+
 		// Queue move via ActorActionSystem
 		aas.queueAction(this, aas.ACTION_MOVE, destination, DTime.fromSeconds(60));
 	}
-	
+
 	/**
 	 * AI: Decide what to do with items.
 	 * Randomly takes or drops items.
@@ -133,26 +133,30 @@ public class Goblin extends Actor implements Acting {
 	private void decideItemAction(LookSystem.LookEnvironment env, ActorActionSystem aas) {
 		ItemSystem is = game.getSystem(ItemSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
-		
+
 		// Filter out containers from items we can pick up
 		List<Entity> pickupableItems = env.itemsHere.stream()
-			.filter(e -> !is.hasTag(e, is.TAG_CONTAINER, ws.getCurrentTime()))
-			.toList();
-		
+				.filter(e -> !is.hasTag(e, is.TAG_CONTAINER, ws.getCurrentTime()))
+				.toList();
+
 		// Decide: drop if carrying items, otherwise take
 		if (!env.itemsCarried.isEmpty() && (pickupableItems.isEmpty() || random.nextBoolean())) {
 			Entity itemToDrop = env.itemsCarried.get(random.nextInt(env.itemsCarried.size()));
 			log.log("Goblin %d: attempting drop of item %d", getId(), itemToDrop.getId());
-			ActionValidation dropResult = aas.queueAction(this, aas.ACTION_ITEM_DROP, itemToDrop, DTime.fromSeconds(30));
+			ActionValidation dropResult = aas.queueAction(this, aas.ACTION_ITEM_DROP, itemToDrop,
+					DTime.fromSeconds(30));
 			if (!dropResult.isValid()) {
-				log.log("Goblin %d: failed to drop item %d - %s", getId(), itemToDrop.getId(), dropResult.getErrorCode());
+				log.log("Goblin %d: failed to drop item %d - %s", getId(), itemToDrop.getId(),
+						dropResult.getErrorCode());
 			}
 		} else if (!pickupableItems.isEmpty()) {
 			Entity itemToTake = pickupableItems.get(random.nextInt(pickupableItems.size()));
 			log.log("Goblin %d: attempting take of item %d", getId(), itemToTake.getId());
-			ActionValidation takeResult = aas.queueAction(this, aas.ACTION_ITEM_TAKE, itemToTake, DTime.fromSeconds(30));
+			ActionValidation takeResult = aas.queueAction(this, aas.ACTION_ITEM_TAKE, itemToTake,
+					DTime.fromSeconds(30));
 			if (!takeResult.isValid()) {
-				log.log("Goblin %d: failed to take item %d - %s", getId(), itemToTake.getId(), takeResult.getErrorCode());
+				log.log("Goblin %d: failed to take item %d - %s", getId(), itemToTake.getId(),
+						takeResult.getErrorCode());
 			}
 		} else {
 			log.log("Goblin %d: nothing to do with items", getId());

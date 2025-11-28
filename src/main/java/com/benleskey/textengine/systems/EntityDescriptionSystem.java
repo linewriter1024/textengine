@@ -17,30 +17,31 @@ import java.util.*;
  * - Player actors: "Player <id>"
  * - NPC actors: look description with article (e.g., "a goblin")
  * - Other entities: look description or fallback
- * - Tag-based supplementary descriptions (e.g., "This resource is abundant here.")
+ * - Tag-based supplementary descriptions (e.g., "This resource is abundant
+ * here.")
  */
 public class EntityDescriptionSystem extends SingletonGameSystem implements OnSystemInitialize {
-	
+
 	// Map from UniqueType tag to list of supplementary descriptions
 	private final Map<UniqueType, List<String>> tagDescriptions = new HashMap<>();
-	
+
 	private EntitySystem entitySystem;
 	private EntityTagSystem entityTagSystem;
 	private LookSystem lookSystem;
-	
+
 	public EntityDescriptionSystem(Game game) {
 		super(game);
 	}
-	
+
 	@Override
 	public void onSystemInitialize() {
 		entitySystem = game.getSystem(EntitySystem.class);
 		entityTagSystem = game.getSystem(EntityTagSystem.class);
 		lookSystem = game.getSystem(LookSystem.class);
 	}
-	
+
 	// ===== Tag-based Supplementary Descriptions =====
-	
+
 	/**
 	 * Register a supplementary description for a tag.
 	 * Multiple descriptions can be registered for the same tag.
@@ -50,17 +51,17 @@ public class EntityDescriptionSystem extends SingletonGameSystem implements OnSy
 		tagDescriptions.computeIfAbsent(tag, k -> new ArrayList<>()).add(description);
 		log.log("Registered tag description for: " + tag);
 	}
-	
+
 	/**
 	 * Get all tag-based supplementary descriptions for an entity.
 	 * Returns descriptions based on the entity's tags at the given time.
 	 */
 	public List<String> getTagDescriptions(Entity entity, DTime when) {
 		List<String> descriptions = new ArrayList<>();
-		
+
 		// Get all tags for the entity
 		Set<UniqueType> entityTags = entityTagSystem.getTags(entity, when);
-		
+
 		// Collect descriptions for each tag
 		for (UniqueType tag : entityTags) {
 			List<String> tagDescs = tagDescriptions.get(tag);
@@ -68,17 +69,17 @@ public class EntityDescriptionSystem extends SingletonGameSystem implements OnSy
 				descriptions.addAll(tagDescs);
 			}
 		}
-		
+
 		return descriptions;
 	}
-	
+
 	/**
 	 * Get tag-based descriptions for specific tags only.
 	 * Useful when you want descriptions for specific tags rather than all tags.
 	 */
 	public List<String> getTagDescriptionsFor(Entity entity, DTime when, UniqueType... tags) {
 		List<String> descriptions = new ArrayList<>();
-		
+
 		for (UniqueType tag : tags) {
 			if (entityTagSystem.hasTag(entity, tag, when)) {
 				List<String> tagDescs = tagDescriptions.get(tag);
@@ -87,19 +88,19 @@ public class EntityDescriptionSystem extends SingletonGameSystem implements OnSy
 				}
 			}
 		}
-		
+
 		return descriptions;
 	}
-	
+
 	/**
 	 * Check if a tag has any descriptions registered.
 	 */
 	public boolean hasDescriptionsFor(UniqueType tag) {
 		return tagDescriptions.containsKey(tag) && !tagDescriptions.get(tag).isEmpty();
 	}
-	
+
 	// ===== Primary Entity Descriptions =====
-	
+
 	/**
 	 * Get a description of any entity.
 	 * - For player actors: "Player <id>"
@@ -111,11 +112,11 @@ public class EntityDescriptionSystem extends SingletonGameSystem implements OnSy
 		if (entity instanceof Actor) {
 			return getActorDescription((Actor) entity, currentTime);
 		}
-		
+
 		// For non-actors, use look description
 		return getSimpleDescription(entity, currentTime);
 	}
-	
+
 	/**
 	 * Get a description of an actor suitable for broadcast messages.
 	 * Players: "Player <id>"
@@ -124,7 +125,7 @@ public class EntityDescriptionSystem extends SingletonGameSystem implements OnSy
 	public String getActorDescription(Actor actor, DTime currentTime) {
 		// Check if this is a player (has TAG_AVATAR)
 		boolean isPlayer = entityTagSystem.hasTag(actor, entitySystem.TAG_AVATAR, currentTime);
-		
+
 		if (isPlayer) {
 			return "Player " + actor.getId();
 		} else {
@@ -132,7 +133,7 @@ public class EntityDescriptionSystem extends SingletonGameSystem implements OnSy
 			return getDescriptionWithArticle(actor, currentTime, "someone");
 		}
 	}
-	
+
 	/**
 	 * Get a simple description from look system.
 	 * Returns the look description or fallback if none exists.
@@ -140,7 +141,7 @@ public class EntityDescriptionSystem extends SingletonGameSystem implements OnSy
 	public String getSimpleDescription(Entity entity, DTime currentTime) {
 		return getSimpleDescription(entity, currentTime, "something");
 	}
-	
+
 	/**
 	 * Get a simple description from look system with custom fallback.
 	 */
@@ -148,7 +149,7 @@ public class EntityDescriptionSystem extends SingletonGameSystem implements OnSy
 		List<LookDescriptor> looks = lookSystem.getLooksFromEntity(entity, currentTime);
 		return !looks.isEmpty() ? looks.get(0).getDescription() : fallback;
 	}
-	
+
 	/**
 	 * Get a description with article prepended if not already present.
 	 * Useful for NPCs and items in narrative text.

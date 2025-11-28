@@ -20,10 +20,10 @@ import com.benleskey.textengine.model.UniqueType;
  * - "toy" - Item is a toy (makes sound, etc.)
  */
 public class ItemSystem extends SingletonGameSystem implements OnSystemInitialize {
-	
+
 	private EntityTagSystem tagSystem;
 	private UniqueTypeSystem typeSystem;
-	
+
 	// Common message field constants for item-related data
 	public static final String M_ITEM = "item";
 	public static final String M_ITEM_ID = "item_id";
@@ -31,18 +31,18 @@ public class ItemSystem extends SingletonGameSystem implements OnSystemInitializ
 	public static final String M_ITEMS = "items";
 	public static final String M_WEIGHT = "weight";
 	public static final String M_CARRY_WEIGHT = "carry_weight";
-	
+
 	// Common item tags (initialized in onSystemInitialize)
 	public UniqueType TAG_TOOL;
 	public UniqueType TAG_CONTAINER;
 	public UniqueType TAG_CUTTABLE;
 	public UniqueType TAG_TOY;
-	public UniqueType TAG_CUT;  // For tools that can cut things
-	public UniqueType TAG_WEIGHT;  // Numeric tag for item weight
-	public UniqueType TAG_INFINITE_RESOURCE;  // For infinite resources (grass, water, etc.)
-	public UniqueType TAG_TAKEABLE;  // Item can be taken (picked up)
-	public UniqueType TAG_CARRY_WEIGHT;  // Maximum weight entity can carry (in grams)
-	public UniqueType TAG_OPEN;  // Container is open (value: 1=open, 0 or absent=closed)
+	public UniqueType TAG_CUT; // For tools that can cut things
+	public UniqueType TAG_WEIGHT; // Numeric tag for item weight
+	public UniqueType TAG_INFINITE_RESOURCE; // For infinite resources (grass, water, etc.)
+	public UniqueType TAG_TAKEABLE; // Item can be taken (picked up)
+	public UniqueType TAG_CARRY_WEIGHT; // Maximum weight entity can carry (in grams)
+	public UniqueType TAG_OPEN; // Container is open (value: 1=open, 0 or absent=closed)
 
 	public ItemSystem(Game game) {
 		super(game);
@@ -52,7 +52,7 @@ public class ItemSystem extends SingletonGameSystem implements OnSystemInitializ
 	public void onSystemInitialize() throws DatabaseException {
 		tagSystem = game.getSystem(EntityTagSystem.class);
 		typeSystem = game.getSystem(UniqueTypeSystem.class);
-		
+
 		// Initialize common item tags
 		TAG_TOOL = typeSystem.getType("item_tag_tool");
 		TAG_CONTAINER = typeSystem.getType("item_tag_container");
@@ -100,7 +100,7 @@ public class ItemSystem extends SingletonGameSystem implements OnSystemInitializ
 	public boolean hasTag(Entity item, UniqueType tag, DTime when) {
 		return tagSystem.hasTag(item, tag, when);
 	}
-	
+
 	/**
 	 * Update a tag value (cancels old value and adds new one).
 	 */

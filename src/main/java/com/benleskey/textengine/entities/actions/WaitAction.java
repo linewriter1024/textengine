@@ -19,62 +19,61 @@ import com.benleskey.textengine.util.Markup;
  * For NPCs, this is a no-op action (idle).
  */
 public class WaitAction extends Action {
-	
+
 	// Command and message constants
 	public static final String CMD_WAIT = "wait";
 	public static final String BROADCAST_WAITS = "actor_waits";
-	// Note: EntitySystem.M_ACTOR_ID, EntitySystem.M_ACTOR_NAME defined in EntitySystem
-
+	// Note: EntitySystem.M_ACTOR_ID, EntitySystem.M_ACTOR_NAME defined in
+	// EntitySystem
 
 	// Note: WorldSystem.M_DURATION defined in WorldSystem
 
 	public WaitAction(Game game, Actor actor, Entity unused, DTime timeRequired) {
 		super(game, actor, unused, timeRequired);
 	}
-	
+
 	@Override
 	public UniqueType getActionType() {
 		return game.getSystem(ActorActionSystem.class).ACTION_WAIT;
 	}
-	
+
 	@Override
 	public ActionValidation canExecute() {
 		// Waiting always succeeds
 		return ActionValidation.success();
 	}
-	
+
 	@Override
 	public CommandOutput execute() {
 		BroadcastSystem bs = game.getSystem(BroadcastSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
-		
+
 		String actorDesc = eds.getActorDescription(actor, ws.getCurrentTime());
 		String durationDesc = getDurationDescription();
-		
+
 		// Broadcast to all entities including the actor
 		CommandOutput broadcast = CommandOutput.make(BROADCAST_WAITS)
-			.put(EntitySystem.M_ACTOR_ID, actor.getKeyId())
-			.put(EntitySystem.M_ACTOR_NAME, actorDesc)
-			.put(WorldSystem.M_DURATION, timeRequired.toMilliseconds())
-			.text(Markup.concat(
-				Markup.capital(Markup.entity(actor.getKeyId(), actorDesc)),
-				Markup.raw(" "),
-				Markup.verb("wait"),
-				Markup.raw(" for "),
-				Markup.escape(durationDesc),
-				Markup.raw(".")
-			));
-		
+				.put(EntitySystem.M_ACTOR_ID, actor.getKeyId())
+				.put(EntitySystem.M_ACTOR_NAME, actorDesc)
+				.put(WorldSystem.M_DURATION, timeRequired.toMilliseconds())
+				.text(Markup.concat(
+						Markup.capital(Markup.entity(actor.getKeyId(), actorDesc)),
+						Markup.raw(" "),
+						Markup.verb("wait"),
+						Markup.raw(" for "),
+						Markup.escape(durationDesc),
+						Markup.raw(".")));
+
 		bs.broadcast(actor, broadcast);
 		return broadcast;
 	}
-	
+
 	@Override
 	public String getDescription() {
 		return "waiting for " + getDurationDescription();
 	}
-	
+
 	private String getDurationDescription() {
 		long seconds = timeRequired.toMilliseconds() / 1000;
 		if (seconds == 1) {
