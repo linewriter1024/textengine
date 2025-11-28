@@ -108,9 +108,6 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 	/**
 	 * Register tag-based interactions for high fantasy items.
 	 * This defines what happens when TAG_CUT is used on TAG_CUTTABLE.
-	 * Note: Interactions that use BroadcastSystem handle their own messaging,
-	 * so the return value is used only for error cases or client-specific
-	 * responses.
 	 */
 	private void registerTagInteractions() {
 
