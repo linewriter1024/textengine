@@ -11,6 +11,12 @@ import com.benleskey.textengine.plugins.procgen1.systems.ItemTemplateSystem;
 import com.benleskey.textengine.plugins.procgen1.systems.LandmarkTemplateSystem;
 import com.benleskey.textengine.plugins.procgen1.systems.PlaceDescriptionSystem;
 import com.benleskey.textengine.systems.*;
+import com.benleskey.textengine.systems.NameGenerationSystem;
+import com.benleskey.textengine.systems.NameGenerationSystem.NameStyle;
+import com.benleskey.textengine.systems.NameGenerationSystem.NameStyleType;
+import static com.benleskey.textengine.systems.NameGenerationSystem.TOK_SYLLABLES;
+import static com.benleskey.textengine.systems.NameGenerationSystem.TOK_ROOTS;
+import static com.benleskey.textengine.systems.NameGenerationSystem.TOK_SUFFIXES;
 
 import java.util.*;
 
@@ -94,9 +100,9 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 
 	private void registerNameStyles() {
 		nameGenerationSystem.registerStyle(NAME_STYLE_DEFAULT,
-				com.benleskey.textengine.systems.NameGenerationSystem.NameStyle.builder()
-						.type(com.benleskey.textengine.systems.NameGenerationSystem.NameStyleType.SYLLABLE)
-						.tokens(Map.of(com.benleskey.textengine.systems.NameGenerationSystem.TOK_SYLLABLES,
+				NameStyle.builder()
+						.type(NameStyleType.SYLLABLE)
+						.tokens(Map.of(TOK_SYLLABLES,
 								List.of("al", "an", "ar", "bel", "dor", "el", "en", "er", "gal", "gorn", "hel", "is",
 										"or", "ul", "ur", "ri", "ta", "ven", "my", "sha", "ka", "lo", "mi", "za", "ri",
 										"sa", "te", "ae", "io", "ua", "ela", "nor", "sel", "mar", "riel")))
@@ -104,19 +110,19 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 
 		// Town-style names: root + suffix (Riverton, Oakfield)
 		nameGenerationSystem.registerStyle(NAME_STYLE_TOWN,
-				com.benleskey.textengine.systems.NameGenerationSystem.NameStyle.builder()
-						.type(com.benleskey.textengine.systems.NameGenerationSystem.NameStyleType.ROOT_SUFFIX)
+				NameStyle.builder()
+						.type(NameStyleType.ROOT_SUFFIX)
 						.tokens(Map.of(
-								com.benleskey.textengine.systems.NameGenerationSystem.TOK_ROOTS,
+								TOK_ROOTS,
 								List.of("oak", "riv", "river", "stone", "green", "hill", "brook", "pine", "leaf", "fox",
 										"gran", "iron", "gold", "silver", "wood", "marsh", "low", "mere", "bar",
 										"mor", "bright", "shadow", "cliff", "thorn", "fen", "brook", "wyn", "glen",
 										"har",
 										"thorn"),
-								com.benleskey.textengine.systems.NameGenerationSystem.TOK_SUFFIXES,
+								TOK_SUFFIXES,
 								List.of("ton", "ford", "bury", "gate", "port", "field", "haven", "crest", "wick",
 										"dale", "bridge", "hold", "fall", "stead", "mouth", "well", "wick"),
-								com.benleskey.textengine.systems.NameGenerationSystem.TOK_SYLLABLES,
+								TOK_SYLLABLES,
 								List.of("al", "an", "ar", "bel", "dor", "el", "en", "er", "gal", "gorn", "hel", "is",
 										"or", "ul", "ur", "ri", "ta", "ven", "my", "sha", "ka", "lo", "mi", "za", "ri",
 										"sa", "te", "ae", "io", "ua", "ela", "nor", "sel", "mar", "riel")))
