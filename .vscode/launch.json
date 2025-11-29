@@ -16,7 +16,7 @@
             "request": "launch",
             "mainClass": "com.benleskey.textengine.cli.Main",
             "projectName": "textengine",
-            "args": []
+            "args": ["--showlog"]
         }
     ]
 }
