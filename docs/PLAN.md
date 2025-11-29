@@ -16,3 +16,7 @@ We need:
   - Conversation
   - Rumors/quests
   - Autonomy (rival adventurers, bandits, etc.)
+
+# Longterm
+
+- readline-style line processing in CLI client

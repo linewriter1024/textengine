@@ -19,4 +19,9 @@ public class GrouplessPropertiesSubSystem<TProperty, TValue> extends PropertiesS
 	void set(TProperty property, TValue value) {
 		set(GROUP, property, value);
 	}
+
+	boolean insertIfAbsent(TProperty property, TValue value)
+			throws com.benleskey.textengine.exceptions.DatabaseException {
+		return insertIfAbsent(GROUP, property, value);
+	}
 }

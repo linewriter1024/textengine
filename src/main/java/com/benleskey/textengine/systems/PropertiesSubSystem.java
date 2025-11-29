@@ -21,6 +21,7 @@ public class PropertiesSubSystem<TGroup, TProperty, TValue> extends GameSystem i
 	private PreparedStatement getPreparedStatement;
 	private PreparedStatement setPreparedStatement;
 	private PreparedStatement deletePreparedStatement;
+	private PreparedStatement insertIfAbsentPreparedStatement;
 
 	public PropertiesSubSystem(Game game, String tableName, Handler<TGroup> group, Handler<TProperty> property,
 			Handler<TValue> value) {
@@ -70,6 +71,8 @@ public class PropertiesSubSystem<TGroup, TProperty, TValue> extends GameSystem i
 					"INSERT OR REPLACE INTO " + tableName + " (pgroup, property, value) VALUES (?, ?, ?)");
 			deletePreparedStatement = game.db()
 					.prepareStatement("DELETE FROM " + tableName + " WHERE pgroup = ? AND property = ?");
+			insertIfAbsentPreparedStatement = game.db().prepareStatement(
+					"INSERT OR IGNORE INTO " + tableName + " (pgroup, property, value) VALUES (?, ?, ?)");
 		} catch (SQLException e) {
 			throw new DatabaseException("Unable to prepare properties statements " + this, e);
 		}
@@ -105,6 +108,20 @@ public class PropertiesSubSystem<TGroup, TProperty, TValue> extends GameSystem i
 			}
 		} catch (SQLException e) {
 			throw new DatabaseException("Unable to set " + this + " '" + group + "' '" + property + "' = " + value, e);
+		}
+	}
+
+	public synchronized boolean insertIfAbsent(TGroup group, TProperty property, TValue value)
+			throws DatabaseException {
+		try {
+			groupHandler.parameterSetter().set(insertIfAbsentPreparedStatement, group, 1);
+			propertyHandler.parameterSetter().set(insertIfAbsentPreparedStatement, property, 2);
+			valueHandler.parameterSetter().set(insertIfAbsentPreparedStatement, value, 3);
+			int changed = insertIfAbsentPreparedStatement.executeUpdate();
+			return changed > 0;
+		} catch (SQLException e) {
+			throw new DatabaseException(
+					"Unable to insert-if-absent in " + this + " '" + group + "' '" + property + "' = " + value, e);
 		}
 	}
 
