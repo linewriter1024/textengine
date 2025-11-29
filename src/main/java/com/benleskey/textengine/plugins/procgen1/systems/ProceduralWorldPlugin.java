@@ -173,7 +173,6 @@ public class ProceduralWorldPlugin extends Plugin
 				.create(game, random);
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		rs.add(actor, rattle, rs.rvContains);
-		log.log("Added rattle %d to player %d's starting inventory", rattle.getId(), actor.getId());
 
 		// Send initial look command so player sees where they are
 		CommandInput lookCommand = game.inputLineToCommandInput("look");
@@ -223,8 +222,6 @@ public class ProceduralWorldPlugin extends Plugin
 					.toList();
 			if (!neighbors.isEmpty()) {
 				Entity neighbor = neighbors.get(0); // Pick first neighbor
-				log.log("Spawning goblin to patrol between starting %d and neighbor %d",
-						starting.getId(), neighbor.getId());
 				spawnGoblinNPC(starting, starting, neighbor);
 			}
 		}
@@ -267,7 +264,7 @@ public class ProceduralWorldPlugin extends Plugin
 		if (!actorsInStartingPlace.isEmpty()) {
 			// Reuse existing actor
 			Actor existingActor = (Actor) actorsInStartingPlace.get(0).getReceiver();
-			log.log("Reconnecting to existing actor %d", existingActor.getId());
+			log.log("Reconnecting to existing actor %s", existingActor);
 			return existingActor;
 		}
 
@@ -278,25 +275,23 @@ public class ProceduralWorldPlugin extends Plugin
 		entitySystem.addTag(actor, entitySystem.TAG_AVATAR); // Mark as player-controlled
 		itemSystem.addTag(actor, itemSystem.TAG_CARRY_WEIGHT, 10000); // Can carry up to 10kg
 		relationshipSystem.add(startingPlace, actor, relationshipSystem.rvContains);
-		log.log("Created new actor %d", actor.getId()); // Give starting inventory (timepiece + grandfather clock)
+		log.log("Created new actor %s", actor);
+
+		// Give starting inventory (timepiece + grandfather clock)
 		// Use deterministic random from world seed for consistent testing
 		var timepiece = com.benleskey.textengine.plugins.highfantasy.entities.Timepiece.create(game, random);
 		relationshipSystem.add(actor, timepiece, relationshipSystem.rvContains);
-		log.log("Gave player starting timepiece");
 
 		// Add axe for testing tree cutting
 		var axe = com.benleskey.textengine.plugins.highfantasy.entities.Axe.create(game, random);
 		relationshipSystem.add(actor, axe, relationshipSystem.rvContains);
-		log.log("Gave player starting axe");
 
 		var clock = com.benleskey.textengine.plugins.highfantasy.entities.GrandfatherClock.create(game, random);
 		relationshipSystem.add(startingPlace, clock, relationshipSystem.rvContains);
-		log.log("Added grandfather clock to starting location");
 
 		// Add a wooden chest with items for testing container system
 		var chest = com.benleskey.textengine.plugins.highfantasy.entities.WoodenChest.create(game, random);
 		relationshipSystem.add(startingPlace, chest, relationshipSystem.rvContains);
-		log.log("Added wooden chest to starting location");
 
 		// Put some items in the chest for testing
 		var coin = com.benleskey.textengine.plugins.highfantasy.entities.AncientCoin.create(game, random);
@@ -359,12 +354,12 @@ public class ProceduralWorldPlugin extends Plugin
 		// If place has 2 or more exits, it's already been explored
 		if (existingExits.size() >= 2) {
 			log.log("Place %s already has %d exits, skipping neighbor generation",
-					place.getId(), existingExits.size());
+					place, existingExits.size());
 			return;
 		}
 
 		log.log("Place %s only has %d exit(s), generating neighbors...",
-				place.getId(), existingExits.size());
+				place, existingExits.size());
 
 		// This place was created as a neighbor but never visited - generate its
 		// neighbors now
@@ -384,8 +379,9 @@ public class ProceduralWorldPlugin extends Plugin
 		// Get current position from SpatialSystem at continent scale
 		int[] currentPos = spatialSystem.getPosition(place, SpatialSystem.SCALE_CONTINENT);
 		if (currentPos == null) {
-			log.log("Warning: place %s has no position, cannot generate neighbors", place.getId());
-			return;
+			throw new InternalException(
+					String.format("Place %s has no position, cannot generate neighbors", place.getId()));
+
 		}
 
 		// Get existing exits to avoid duplicates
@@ -480,15 +476,11 @@ public class ProceduralWorldPlugin extends Plugin
 	 * @param placeRandom Random instance for this place's coordinate
 	 */
 	private void generateItemsForPlace(Entity place, String biomeName, Random placeRandom) {
-		try {
-			// Generate 2-5 items for this place
-			int itemCount = 2 + placeRandom.nextInt(4);
+		// Generate 2-5 items for this place
+		int itemCount = 2 + placeRandom.nextInt(4);
 
-			for (int i = 0; i < itemCount; i++) {
-				generateItemForBiome(place, biomeName, placeRandom);
-			}
-		} catch (Exception e) {
-			log.log("Error generating items for place %d: %s", place.getId(), e.getMessage());
+		for (int i = 0; i < itemCount; i++) {
+			generateItemForBiome(place, biomeName, placeRandom);
 		}
 	}
 

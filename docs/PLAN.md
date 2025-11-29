@@ -6,17 +6,20 @@ There will be a hub city, populated with people living their lives, politics, ma
 
 We need:
 
-- Name generation system - to ensure everybody is uniquely, thematically, and concisely named
-- Dice system - to support randomness, circumstances, combat, social encounters, etc.
-- High level entities - the city, wilderness areas, monster clans, bandit groups, etc.
-- Low level entities - monsters, people, shops, buildings
-- Combat
+- [x] Name generation system - to ensure everybody is uniquely, thematically, and concisely named
+- [ ] Player actions in same queue - instead of executing immediately, player actions are enqueued and execute in time with NPC actions
+- [ ] Actions execute() do not return output, just success or failure of even that
+- [ ] Dice system - to support randomness, circumstances, combat, social encounters, etc.
+- [ ] High level entities - the city, wilderness areas, monster clans, bandit groups, etc.
+- [ ] Low level entities - monsters, people, shops, buildings
+- [ ] Combat
+
 - Social systems
-  - Trade
-  - Conversation
-  - Rumors/quests
-  - Autonomy (rival adventurers, bandits, etc.)
+  - [ ] Trade
+  - [ ] Conversation
+  - [ ] Rumors/quests
+  - [ ] Autonomy (rival adventurers, bandits, etc.)
 
 # Longterm
 
-- readline-style line processing in CLI client
+- [x] readline-style line processing in CLI client

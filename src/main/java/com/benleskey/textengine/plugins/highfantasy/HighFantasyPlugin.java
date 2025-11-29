@@ -59,12 +59,8 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 
 	@Override
 	public void onPluginInitialize() {
-		log.log("Registering high fantasy content...");
-
 		// Register the wait command (game-specific calendar implementation)
 		game.registerPlugin(new WaitCommandPlugin(game));
-
-		log.log("High fantasy content registered");
 	}
 
 	@Override
@@ -80,8 +76,6 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 		entityDescriptionSystem = game.getSystem(EntityDescriptionSystem.class);
 		nameGenerationSystem = game.getSystem(NameGenerationSystem.class);
 
-		log.log("Registering high fantasy entity types and content...");
-
 		// Register content (needs systems initialized)
 		registerBiomes();
 		registerPlaceDescriptions();
@@ -95,7 +89,6 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 		registerTagInteractions();
 		// Register item descriptions (needs ItemSystem tags initialized)
 		registerItemDescriptions();
-		log.log("High fantasy setup complete");
 	}
 
 	private void registerNameStyles() {
@@ -148,8 +141,6 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 		entitySystem.registerEntityType(Timepiece.class);
 		entitySystem.registerEntityType(GrandfatherClock.class);
 		entitySystem.registerEntityType(Goblin.class);
-
-		log.log("Registered 14 high fantasy entity types");
 	}
 
 	/**
@@ -179,7 +170,6 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 		biomeSystem.registerBiome("hills", 20);
 		biomeSystem.registerBiome("ruins", 10);
 
-		log.log("Registered 5 fantasy biomes");
 	}
 
 	private void registerPlaceDescriptions() {
@@ -214,7 +204,6 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 		placeDescriptionSystem.registerDescriptionGenerator("ruins", 2, r -> "weathered ruins");
 		placeDescriptionSystem.registerDescriptionGenerator("ruins", 1, r -> "a forgotten monument");
 
-		log.log("Registered place descriptions for all biomes");
 	}
 
 	private void registerItems() {
@@ -266,7 +255,6 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 			}
 		}
 
-		log.log("Registered item generators for all biomes");
 	}
 
 	private void registerLandmarks() {
@@ -295,7 +283,6 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 			return variants[r.nextInt(variants.length)];
 		});
 
-		log.log("Registered 2 landmark types");
 	}
 
 	private void registerItemDescriptions() {
@@ -309,6 +296,5 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 		entityDescriptionSystem.registerTagDescription(itemSystem.TAG_CUTTABLE, "It could be cut down.");
 		entityDescriptionSystem.registerTagDescription(itemSystem.TAG_TOY, "It looks like a toy.");
 
-		log.log("Registered item tag descriptions");
 	}
 }

@@ -7,6 +7,7 @@ import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.entities.Acting;
 import com.benleskey.textengine.entities.Actor;
 import com.benleskey.textengine.exceptions.DatabaseException;
+import com.benleskey.textengine.exceptions.InternalException;
 import com.benleskey.textengine.hooks.core.OnSystemInitialize;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
@@ -197,8 +198,7 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 	private Action createAction(UniqueType actionType, Actor actor, Entity target, DTime timeRequired) {
 		Class<? extends Action> actionClass = actionTypes.get(actionType);
 		if (actionClass == null) {
-			log.log("Unknown action type: %s", actionType);
-			return null;
+			throw new InternalException(String.format("Cannot create action %s: not registered", actionType));
 		}
 
 		try {
@@ -206,8 +206,7 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 					Game.class, Actor.class, Entity.class, DTime.class);
 			return constructor.newInstance(game, actor, target, timeRequired);
 		} catch (Exception e) {
-			log.log("Failed to create action of type %s: %s", actionType, e.getMessage());
-			return null;
+			throw new InternalException(String.format("Failed to create action of type %s", actionType), e);
 		}
 	}
 
@@ -234,8 +233,6 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 
 		ActionValidation validation = action.canExecute();
 		if (!validation.isValid()) {
-			log.log("Actor %d cannot queue %s action: %s",
-					actor.getId(), actionType, validation.getErrorCode());
 			return validation;
 		}
 
@@ -246,8 +243,6 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 			// Players execute immediately with time auto-advance
 			worldSystem.incrementCurrentTime(timeRequired);
 			CommandOutput result = action.execute();
-			log.log("%s action %s %s (advanced time by %d ms)",
-					actor, actionType, result != null ? "succeeded" : "failed", timeRequired.toMilliseconds());
 			if (result == null) {
 				return ActionValidation.failure(
 						CommandOutput.make("action")
@@ -274,9 +269,6 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 
 			// Create generic ACTION event with reference to action table entry
 			eventSystem.addEvent(ACTION, currentTime, new Reference(actionId, game));
-			log.log("%s queued action %s#%d (id=%d, requires %d ms) at time %d, will be ready at %d",
-					actor, actionType.toString(), actionType.type(), actionId, timeRequired.toMilliseconds(),
-					currentTime.toMilliseconds(), currentTime.toMilliseconds() + timeRequired.toMilliseconds());
 		}
 
 		return ActionValidation.success();
@@ -295,12 +287,10 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 		// Check if action can be executed
 		ActionValidation validation = action.canExecute();
 		if (!validation.isValid()) {
-			log.log("%s cannot execute %s action: %s", actor, actionType, validation.getErrorCode());
 			return false;
 		}
 
 		CommandOutput result = action.execute();
-		log.log("%s executed %s action: %s", actor, actionType, result != null ? "success" : "failed");
 		return result != null;
 	}
 
@@ -371,10 +361,6 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 		CommandOutput result = action.execute();
 		eventSystem.cancelEvent(actionRef);
 
-		UniqueType actionType = action.getActionType();
-		log.log("%s executed pending action %s#%d (id=%d): %s", actor,
-				actionType.toString(), actionType.type(), actionRef.getId(), result != null ? "success" : "failed");
-
 		return result != null;
 	}
 
@@ -389,36 +375,6 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 
 		Action action = createActionFromReference(actionRef, worldSystem.getCurrentTime());
 		return action != null ? action.getDescription() : null;
-	}
-
-	/**
-	 * Process a single tick for an Acting entity (called by TickSystem for fair
-	 * time-ordered processing).
-	 * This processes one decision/action cycle:
-	 * 1. If has pending action and it's ready, execute it
-	 * 2. If no pending action (or just executed one), make a new decision
-	 */
-	public void processActingEntitySingleTick(Actor actor, Acting acting, DTime tickTime, DTime currentTime)
-			throws DatabaseException {
-		// Check if entity has pending action
-		Reference pendingAction = getPendingAction(actor);
-
-		if (pendingAction != null) {
-			// Has pending action - check if ready to execute
-			if (isActionReady(pendingAction, tickTime)) {
-				log.log("Acting entity %d: action ready at %d, executing", actor.getId(), tickTime.toMilliseconds());
-				executePendingAction(actor, pendingAction, currentTime);
-				// After execution, fall through to make new decision
-			} else {
-				// Action not ready yet - skip this tick
-				log.log("Acting entity %d: waiting for action to be ready", actor.getId());
-				return;
-			}
-		}
-
-		// No pending action (or just finished one) - make decision
-		log.log("Acting entity %d: ready for new action", actor.getId());
-		acting.onActionReady();
 	}
 
 	/**
@@ -467,7 +423,6 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 		if (pendingAction != null) {
 			// Has pending action - check if ready to execute
 			if (isActionReady(pendingAction, currentTime)) {
-				log.log("Acting entity %d: action ready, executing", actor.getId());
 				executePendingAction(actor, pendingAction, currentTime);
 			}
 		} else {
@@ -499,14 +454,12 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 
 				// Trigger action decision(s) with correct time for each check
 				for (int i = 0; i < decisionCount; i++) {
-					log.log("Acting entity %d: ready for new action (decision %d/%d)",
-							actor.getId(), i + 1, decisionCount); // Call entity to decide what action to take
+					// Call entity to decide what action to take
 					acting.onActionReady();
 
 					// If entity queued an action, stop - don't make multiple decisions
 					Reference newAction = getPendingAction(actor);
 					if (newAction != null) {
-						log.log("Acting entity %d: action queued, stopping decision loop", actor.getId());
 						break;
 					}
 				}
@@ -527,33 +480,22 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 	 */
 	public boolean processActingEntitySingleTick(Acting acting, Actor actor, DTime interval) throws DatabaseException {
 		DTime currentTime = worldSystem.getCurrentTime();
-		log.log("processActingEntitySingleTick: actor=%s, currentTime=%d, interval=%d",
-				actor, currentTime.toMilliseconds(), interval.toMilliseconds());
 
 		// Check if entity has pending action
 		Reference pendingAction = getPendingAction(actor);
 
 		if (pendingAction != null) {
-			Action action = createActionFromReference(pendingAction, currentTime);
-			UniqueType actionType = action != null ? action.getActionType() : null;
-			String actionTypeStr = actionType != null ? actionType.toString() + "#" + actionType.type() : "unknown";
-			log.log("%s has pending action %s (id=%d)", actor, actionTypeStr, pendingAction.getId());
 			// Has pending action - check if ready to execute
 			if (isActionReady(pendingAction, currentTime)) {
-				log.log("%s pending action %s (id=%d) is ready, executing", actor, actionTypeStr,
-						pendingAction.getId());
 				executePendingAction(actor, pendingAction, currentTime);
 				// Action completed - continue to potentially queue new action
 			} else {
-				log.log("%s pending action %s (id=%d) not ready yet, waiting", actor, actionTypeStr,
-						pendingAction.getId());
 				// Action not ready yet, wait
 				return true;
 			}
 		}
 
 		// No pending action (or action just completed) - call entity to decide
-		log.log("%s calling onActionReady", actor);
 		acting.onActionReady();
 
 		return true;

@@ -3,6 +3,7 @@ package com.benleskey.textengine.systems;
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.SingletonGameSystem;
 import com.benleskey.textengine.commands.CommandOutput;
+import com.benleskey.textengine.exceptions.InternalException;
 import com.benleskey.textengine.hooks.core.OnSystemInitialize;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.UniqueType;
@@ -75,7 +76,8 @@ public class TagInteractionSystem extends SingletonGameSystem implements OnSyste
 	public void registerInteraction(UniqueType toolTag, UniqueType targetTag, TagInteractionHandler handler) {
 		InteractionKey key = new InteractionKey(toolTag, targetTag);
 		if (interactions.containsKey(key)) {
-			log.log("WARNING: Overwriting existing interaction for %s + %s", toolTag, targetTag);
+			throw new InternalException(
+					String.format("Interaction between %s and %s already registered", toolTag, targetTag));
 		}
 		interactions.put(key, handler);
 		log.log("Registered tag interaction: %s + %s", toolTag, targetTag);

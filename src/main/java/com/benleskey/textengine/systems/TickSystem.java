@@ -1,5 +1,11 @@
 package com.benleskey.textengine.systems;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.PriorityQueue;
+import java.util.Set;
+
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.SingletonGameSystem;
 import com.benleskey.textengine.entities.Acting;
@@ -9,9 +15,8 @@ import com.benleskey.textengine.exceptions.DatabaseException;
 import com.benleskey.textengine.hooks.core.OnSystemInitialize;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
+import com.benleskey.textengine.model.Reference;
 import com.benleskey.textengine.model.UniqueType;
-
-import java.util.*;
 
 /**
  * Generic system for handling entity ticks.
@@ -124,9 +129,6 @@ public class TickSystem extends SingletonGameSystem implements OnSystemInitializ
 			// Set world time to this tick time - this is key!
 			worldSystem.setCurrentTime(tickTime);
 
-			log.log("Processing tick for entity %d at time %d (target=%d)",
-					te.entity.getId(), tickTime.toMilliseconds(), targetTime.toMilliseconds());
-
 			// Execute the tick
 			if (te.tickable != null) {
 				DTime interval = te.tickable.getTickInterval();
@@ -145,27 +147,15 @@ public class TickSystem extends SingletonGameSystem implements OnSystemInitializ
 
 				// Check if entity has a pending action and schedule tick for completion
 				boolean scheduledActionTick = false;
-				try {
-					com.benleskey.textengine.model.Reference pendingAction = aas.getPendingAction((Actor) te.entity);
-					log.log("Entity %d: checked for pending action, result=%s",
-							te.entity.getId(), pendingAction != null ? "found #" + pendingAction.getId() : "none");
-					if (pendingAction != null) {
-						long actionReadyTime = aas.getActionReadyTime(pendingAction);
-						log.log("Entity %d: pending action #%d ready at %d, tickTime=%d, targetTime=%d",
-								te.entity.getId(), pendingAction.getId(), actionReadyTime, tickTime.toMilliseconds(),
-								targetTime.toMilliseconds());
-						if (actionReadyTime > tickTime.toMilliseconds()
-								&& actionReadyTime <= targetTime.toMilliseconds()) {
-							log.log("Entity %d: scheduling action completion tick at %d",
-									te.entity.getId(), actionReadyTime);
-							tickQueue.offer(new EntityTick(te, actionReadyTime));
-							scheduledActionTick = true;
-						} else {
-							log.log("Entity %d: action not in range for scheduling", te.entity.getId());
-						}
+
+				Reference pendingAction = aas.getPendingAction((Actor) te.entity);
+				if (pendingAction != null) {
+					long actionReadyTime = aas.getActionReadyTime(pendingAction);
+					if (actionReadyTime > tickTime.toMilliseconds()
+							&& actionReadyTime <= targetTime.toMilliseconds()) {
+						tickQueue.offer(new EntityTick(te, actionReadyTime));
+						scheduledActionTick = true;
 					}
-				} catch (DatabaseException e) {
-					log.log("Error checking pending action: %s", e.getMessage());
 				}
 
 				// Only schedule regular interval tick if we didn't schedule an action
@@ -173,8 +163,6 @@ public class TickSystem extends SingletonGameSystem implements OnSystemInitializ
 				if (!scheduledActionTick) {
 					long nextTickTime = tickTime.toMilliseconds() + interval.toMilliseconds();
 					if (nextTickTime <= targetTime.toMilliseconds()) {
-						log.log("Entity %d: scheduling next regular tick at %d",
-								te.entity.getId(), nextTickTime);
 						tickQueue.offer(new EntityTick(te, nextTickTime));
 					}
 				}

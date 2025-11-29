@@ -66,12 +66,12 @@ public class Goblin extends Actor implements Acting {
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 
 		DTime currentTime = ws.getCurrentTime();
-		log.log("Goblin %d onActionReady called at time %d", getId(), currentTime.toMilliseconds());
+		log.log("onActionReady called at time %d", currentTime.toMilliseconds());
 
 		LookSystem.LookEnvironment env = ls.getLookEnvironment(this);
 
 		if (env == null) {
-			log.log("Goblin %d has no location", getId());
+			log.log("has no location");
 			return;
 		}
 
@@ -84,7 +84,7 @@ public class Goblin extends Actor implements Acting {
 		announcement.text(Markup.raw(String.format("The goblin mutters '%s'.", timeStr)));
 		bs.broadcast(this, announcement);
 
-		log.log("Goblin %d announced time: %s", getId(), timeStr);
+		log.log("announced time: %s", timeStr);
 
 		// Randomly choose between moving and item actions
 		if (random.nextBoolean()) {
@@ -113,12 +113,12 @@ public class Goblin extends Actor implements Acting {
 		Entity destination;
 		if (!patrolTargets.isEmpty()) {
 			destination = patrolTargets.get(random.nextInt(patrolTargets.size()));
-			log.log("Goblin %d: queueing patrol move to %d", getId(), destination.getId());
+			log.log("queueing patrol move to %d", destination.getId());
 		} else if (!env.exits.isEmpty()) {
 			destination = env.exits.get(random.nextInt(env.exits.size()));
-			log.log("Goblin %d: queueing random move to %d", getId(), destination.getId());
+			log.log("queueing random move to %d", destination.getId());
 		} else {
-			log.log("Goblin %d: no exits available", getId());
+			log.log("no exits available");
 			return;
 		}
 
@@ -142,24 +142,24 @@ public class Goblin extends Actor implements Acting {
 		// Decide: drop if carrying items, otherwise take
 		if (!env.itemsCarried.isEmpty() && (pickupableItems.isEmpty() || random.nextBoolean())) {
 			Entity itemToDrop = env.itemsCarried.get(random.nextInt(env.itemsCarried.size()));
-			log.log("Goblin %d: attempting drop of item %d", getId(), itemToDrop.getId());
+			log.log("attempting drop of item %d", itemToDrop.getId());
 			ActionValidation dropResult = aas.queueAction(this, aas.ACTION_ITEM_DROP, itemToDrop,
 					DTime.fromSeconds(30));
 			if (!dropResult.isValid()) {
-				log.log("Goblin %d: failed to drop item %d - %s", getId(), itemToDrop.getId(),
+				log.log("failed to drop item %d - %s", itemToDrop.getId(),
 						dropResult.getErrorCode());
 			}
 		} else if (!pickupableItems.isEmpty()) {
 			Entity itemToTake = pickupableItems.get(random.nextInt(pickupableItems.size()));
-			log.log("Goblin %d: attempting take of item %d", getId(), itemToTake.getId());
+			log.log("attempting take of item %d", itemToTake.getId());
 			ActionValidation takeResult = aas.queueAction(this, aas.ACTION_ITEM_TAKE, itemToTake,
 					DTime.fromSeconds(30));
 			if (!takeResult.isValid()) {
-				log.log("Goblin %d: failed to take item %d - %s", getId(), itemToTake.getId(),
+				log.log("failed to take item %d - %s", itemToTake.getId(),
 						takeResult.getErrorCode());
 			}
 		} else {
-			log.log("Goblin %d: nothing to do with items", getId());
+			log.log("nothing to do with items");
 		}
 	}
 }

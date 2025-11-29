@@ -46,7 +46,6 @@ public class NameGenerationSystem extends SingletonGameSystem implements OnSyste
 
     @Override
     public void onSystemInitialize() {
-        log.log("NameGenerationSystem initialized");
     }
 
     /**
@@ -130,7 +129,6 @@ public class NameGenerationSystem extends SingletonGameSystem implements OnSyste
 
             long id = game.getNewGlobalId();
             if (names.insertIfAbsent(candidate, id)) {
-                log.log("Generated unique name '%s' (id=%d)", candidate, id);
                 return candidate;
             } else {
                 if (attempts > maxAttemptsBeforeGrowing) {
@@ -168,7 +166,6 @@ public class NameGenerationSystem extends SingletonGameSystem implements OnSyste
                         alt = sb.toString();
                     }
                     if (names.insertIfAbsent(alt, id2)) {
-                        log.log("Generated larger name '%s' (id=%d)", alt, id2);
                         return alt;
                     } else {
                         // Continue and try again with further growth
