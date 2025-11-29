@@ -20,7 +20,7 @@ public class Avatar extends Actor implements Acting {
         var actorActionSystem = game.getSystem(com.benleskey.textengine.systems.ActorActionSystem.class);
 
         Avatar actor = entitySystem.add(Avatar.class);
-        lookSystem.addLook(actor, "basic", "yourself");
+        lookSystem.addLook(actor, "basic", actor.toString());
         entitySystem.addTag(actor, entitySystem.TAG_ACTOR);
         entitySystem.addTag(actor, entitySystem.TAG_AVATAR);
         entitySystem.addTag(actor, actorActionSystem.TAG_ACTING);
