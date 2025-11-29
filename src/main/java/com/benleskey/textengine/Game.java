@@ -188,6 +188,16 @@ public class Game {
 		commands.put(command.getName(), command);
 	}
 
+	/**
+	 * Public read-only view of the registered commands. Used by the CLI for
+	 * tab-completion and other tooling.
+	 *
+	 * @return unmodifiable map of registered commands
+	 */
+	public Map<String, Command> getCommands() {
+		return java.util.Collections.unmodifiableMap(commands);
+	}
+
 	public void registerClient(Client client) throws InternalException {
 		client.setAlive(true);
 		client.setId(String.valueOf(getNewSessionId()));

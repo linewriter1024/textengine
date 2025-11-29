@@ -7,6 +7,7 @@ import com.benleskey.textengine.systems.SpatialSystem;
 import com.benleskey.textengine.systems.TagInteractionSystem;
 import com.benleskey.textengine.systems.TickSystem;
 import com.benleskey.textengine.systems.UniqueTypeSystem;
+import com.benleskey.textengine.systems.CommandCompletionSystem;
 import com.benleskey.textengine.systems.WorldSystem;
 
 public class CorePlugin extends Plugin implements OnPluginInitialize {
@@ -18,6 +19,7 @@ public class CorePlugin extends Plugin implements OnPluginInitialize {
 	@Override
 	public void onPluginInitialize() {
 		game.registerSystem(new UniqueTypeSystem(game));
+		game.registerSystem(new CommandCompletionSystem(game));
 		game.registerSystem(new WorldSystem(game));
 		game.registerSystem(new TickSystem(game));
 		game.registerSystem(new SpatialSystem(game));

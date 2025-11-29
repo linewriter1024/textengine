@@ -7,6 +7,10 @@ import java.util.concurrent.Flow;
 import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
+import org.jline.reader.Completer;
+import org.jline.reader.ParsedLine;
+import org.jline.reader.Candidate;
+import com.benleskey.textengine.systems.CommandCompletionSystem;
 import org.jline.reader.UserInterruptException;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
@@ -35,7 +39,40 @@ public class Client extends com.benleskey.textengine.Client {
 		} catch (IOException e) {
 			throw new InternalException("Failed to initialize terminal", e);
 		}
-		reader = LineReaderBuilder.builder().terminal(terminal).build();
+		// Tab-completion provider using the CommandCompletionSystem.
+		Completer commandVariantCompleter = new Completer() {
+			@Override
+			public void complete(LineReader reader, ParsedLine line, java.util.List<Candidate> candidates) {
+				CommandCompletionSystem cc = game.getSystem(CommandCompletionSystem.class);
+				int wi = line.wordIndex();
+				String typed = line.word().toLowerCase();
+
+				// Top-level completions for first word
+				if (wi == 0) {
+					for (String token : cc.getTopLevelTokens()) {
+						if (typed.isEmpty() || token.toLowerCase().startsWith(typed)) {
+							candidates.add(new Candidate(token));
+						}
+					}
+					return;
+				}
+
+				// For argument-level completions: look up completions for the entire parsed
+				// line
+				java.util.List<String> words = line.words();
+				if (words.size() > 0) {
+					java.util.List<String> suggestions = cc.getCompletionsForLine(line.line(), wi);
+					for (String s : suggestions) {
+						if (typed.isEmpty() || s.toLowerCase().startsWith(typed)) {
+							candidates.add(new Candidate(s));
+						}
+					}
+					return;
+				}
+			}
+		};
+
+		reader = LineReaderBuilder.builder().terminal(terminal).completer(commandVariantCompleter).build();
 	}
 
 	@Override

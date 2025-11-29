@@ -10,6 +10,7 @@ import com.benleskey.textengine.commands.CommandVariant;
 import com.benleskey.textengine.hooks.core.OnCoreSystemsReady;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.systems.NameGenerationSystem;
+import com.benleskey.textengine.systems.CommandCompletionSystem;
 import com.benleskey.textengine.util.Markup;
 
 /**
@@ -37,7 +38,7 @@ public class NameGenerationPlugin extends Plugin implements OnPluginInitialize, 
 
         game.registerCommand(new Command(DEBUG_GENERATE_NAME, this::handleDebugGenerateName,
                 new CommandVariant(DEBUG_GENERATE_NAME,
-                        "^(?:debug:generatename)\\s+([^\\s]+)\\s+([0-9]+)\\s*$",
+                        "^(?:debug:generatename)(?:\\s+([^\\s]+))?(?:\\s+([0-9]+))?\\s*$",
                         this::parseDebugGenerateName)));
 
     }
@@ -45,36 +46,33 @@ public class NameGenerationPlugin extends Plugin implements OnPluginInitialize, 
     @Override
     public void onCoreSystemsReady() {
         this.nameGenerationSystem = game.getSystem(NameGenerationSystem.class);
+
+        CommandCompletionSystem cc = game.getSystem(CommandCompletionSystem.class);
+        cc.registerCompletionsForCommandToken(DEBUG_GENERATE_NAME, null,
+                java.util.Map.of(1, nameGenerationSystem::getRegisteredStyles));
     }
 
     private CommandInput parseDebugGenerateName(java.util.regex.Matcher matcher) {
-        String style = matcher.group(1).trim().toLowerCase();
-        int qty = Integer.parseInt(matcher.group(2));
-        return CommandInput.make(DEBUG_GENERATE_NAME).put(M_DEBUG_GENERATE_STYLE, style).put(M_DEBUG_GENERATE_QTY, qty);
+        String style = null;
+        if (matcher.group(1) != null) {
+            style = matcher.group(1).trim().toLowerCase();
+        }
+        Integer qty = null;
+        if (matcher.group(2) != null) {
+            qty = Integer.valueOf(matcher.group(2));
+        }
+        CommandInput in = CommandInput.make(DEBUG_GENERATE_NAME);
+        if (style != null)
+            in.put(M_DEBUG_GENERATE_STYLE, style);
+        if (qty != null)
+            in.put(M_DEBUG_GENERATE_QTY, qty);
+        return in;
     }
 
     private void handleDebugGenerateName(Client client, CommandInput input) {
-        if (nameGenerationSystem == null) {
-            client.sendOutput(
-                    CommandOutput.make(DEBUG_GENERATE_NAME).text(Markup.escape("Name generation system not ready")));
-            return;
-        }
-
-        String style = input.<String>getO(M_DEBUG_GENERATE_STYLE).orElse("default");
+        var styleOpt = input.<String>getO(M_DEBUG_GENERATE_STYLE);
+        String style = styleOpt.orElse(null);
         int qty = input.<Integer>getO(M_DEBUG_GENERATE_QTY).orElse(1);
-
-        if (qty <= 0) {
-            client.sendOutput(CommandOutput.make(DEBUG_GENERATE_NAME).error("invalid_quantity")
-                    .text(Markup.escape("Quantity must be > 0")));
-            return;
-        }
-
-        if (nameGenerationSystem.getStyle(style).isEmpty()) {
-            java.util.Set<String> regs = nameGenerationSystem.getRegisteredStyles();
-            client.sendOutput(CommandOutput.make(DEBUG_GENERATE_NAME).error("unknown_style")
-                    .text(Markup.escape("Unknown style: " + style + ". Registered styles: " + regs)));
-            return;
-        }
 
         java.util.Random r = new java.util.Random();
         StringBuilder sb = new StringBuilder();
