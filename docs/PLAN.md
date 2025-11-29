@@ -23,3 +23,5 @@ We need:
 # Longterm
 
 - [x] readline-style line processing in CLI client
+- [ ] Remove Tickable entities such as the grandfather clock, and turn them into Acting entities.
+- [ ] Only process Avatar entities when they have pending actions.
