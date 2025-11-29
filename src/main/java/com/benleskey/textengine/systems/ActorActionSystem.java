@@ -1,8 +1,23 @@
 package com.benleskey.textengine.systems;
 
+import java.lang.reflect.Constructor;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.SingletonGameSystem;
-import com.benleskey.textengine.actions.*;
+import com.benleskey.textengine.actions.Action;
+import com.benleskey.textengine.actions.ActionValidation;
+import com.benleskey.textengine.actions.DropItemAction;
+import com.benleskey.textengine.actions.MoveAction;
+import com.benleskey.textengine.actions.TakeItemAction;
+import com.benleskey.textengine.actions.WaitAction;
 import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.entities.Acting;
 import com.benleskey.textengine.entities.Actor;
@@ -14,16 +29,6 @@ import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.Reference;
 import com.benleskey.textengine.model.UniqueType;
 import com.benleskey.textengine.util.Markup;
-
-import java.lang.reflect.Constructor;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 /**
  * ActorActionSystem manages actions for all actors (players and NPCs).
