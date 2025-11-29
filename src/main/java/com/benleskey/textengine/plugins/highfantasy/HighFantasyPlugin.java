@@ -26,6 +26,7 @@ import java.util.*;
 public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnCoreSystemsReady {
 
 	public static final String NAME_STYLE_DEFAULT = "highfantasy_default";
+	public static final String NAME_STYLE_TOWN = "highfantasy_town";
 
 	public HighFantasyPlugin(Game game) {
 		super(game);
@@ -93,9 +94,33 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 
 	private void registerNameStyles() {
 		nameGenerationSystem.registerStyle(NAME_STYLE_DEFAULT,
-				List.of("al", "an", "ar", "bel", "dor", "el", "en", "er", "gal", "gorn", "hel",
-						"is", "or", "ul", "ur", "ri", "ta", "ven", "my", "sha", "ka", "lo", "mi", "za", "ri", "sa",
-						"te"));
+				com.benleskey.textengine.systems.NameGenerationSystem.NameStyle.builder()
+						.type(com.benleskey.textengine.systems.NameGenerationSystem.NameStyleType.SYLLABLE)
+						.tokens(Map.of(com.benleskey.textengine.systems.NameGenerationSystem.TOK_SYLLABLES,
+								List.of("al", "an", "ar", "bel", "dor", "el", "en", "er", "gal", "gorn", "hel", "is",
+										"or", "ul", "ur", "ri", "ta", "ven", "my", "sha", "ka", "lo", "mi", "za", "ri",
+										"sa", "te", "ae", "io", "ua", "ela", "nor", "sel", "mar", "riel")))
+						.build());
+
+		// Town-style names: root + suffix (Riverton, Oakfield)
+		nameGenerationSystem.registerStyle(NAME_STYLE_TOWN,
+				com.benleskey.textengine.systems.NameGenerationSystem.NameStyle.builder()
+						.type(com.benleskey.textengine.systems.NameGenerationSystem.NameStyleType.ROOT_SUFFIX)
+						.tokens(Map.of(
+								com.benleskey.textengine.systems.NameGenerationSystem.TOK_ROOTS,
+								List.of("oak", "riv", "river", "stone", "green", "hill", "brook", "pine", "leaf", "fox",
+										"gran", "iron", "gold", "silver", "wood", "marsh", "low", "mere", "bar",
+										"mor", "bright", "shadow", "cliff", "thorn", "fen", "brook", "wyn", "glen",
+										"har",
+										"thorn"),
+								com.benleskey.textengine.systems.NameGenerationSystem.TOK_SUFFIXES,
+								List.of("ton", "ford", "bury", "gate", "port", "field", "haven", "crest", "wick",
+										"dale", "bridge", "hold", "fall", "stead", "mouth", "well", "wick"),
+								com.benleskey.textengine.systems.NameGenerationSystem.TOK_SYLLABLES,
+								List.of("al", "an", "ar", "bel", "dor", "el", "en", "er", "gal", "gorn", "hel", "is",
+										"or", "ul", "ur", "ri", "ta", "ven", "my", "sha", "ka", "lo", "mi", "za", "ri",
+										"sa", "te", "ae", "io", "ua", "ela", "nor", "sel", "mar", "riel")))
+						.build());
 	}
 
 	private void registerEntityTypes() {
