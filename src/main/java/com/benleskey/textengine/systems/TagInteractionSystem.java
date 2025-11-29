@@ -87,9 +87,7 @@ public class TagInteractionSystem extends SingletonGameSystem implements OnSyste
 	 * 
 	 * @param actor       The actor using the tool (could be player or NPC)
 	 * @param tool        The tool entity
-	 * @param toolName    Human-readable name of the tool
 	 * @param target      The target entity
-	 * @param targetName  Human-readable name of the target
 	 * @param currentTime The current game time
 	 * @return Boolean indicating if an interaction was handled
 	 */
