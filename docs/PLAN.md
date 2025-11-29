@@ -14,7 +14,7 @@ We need:
 - [ ] Low level entities - monsters, people, shops, buildings
 - [ ] Combat
 
-- Social systems
+- [ ] Social systems
   - [ ] Trade
   - [ ] Conversation
   - [ ] Rumors/quests
