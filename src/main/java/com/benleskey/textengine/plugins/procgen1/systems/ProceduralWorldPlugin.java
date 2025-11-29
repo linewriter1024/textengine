@@ -5,6 +5,7 @@ import com.benleskey.textengine.Game;
 import com.benleskey.textengine.Plugin;
 import com.benleskey.textengine.commands.CommandInput;
 import com.benleskey.textengine.entities.Actor;
+import com.benleskey.textengine.entities.Avatar;
 import com.benleskey.textengine.entities.Item;
 import com.benleskey.textengine.entities.Place;
 import com.benleskey.textengine.exceptions.InternalException;
@@ -144,6 +145,7 @@ public class ProceduralWorldPlugin extends Plugin
 
 		// Register base entity types (custom types registered by content plugins in
 		// OnCoreSystemsReady)
+		entitySystem.registerEntityType(Avatar.class);
 		entitySystem.registerEntityType(Place.class);
 		entitySystem.registerEntityType(Actor.class);
 		entitySystem.registerEntityType(Item.class);
@@ -269,11 +271,8 @@ public class ProceduralWorldPlugin extends Plugin
 		}
 
 		// Create new actor
-		Actor actor = entitySystem.add(Actor.class);
-		lookSystem.addLook(actor, "basic", "yourself");
-		entitySystem.addTag(actor, entitySystem.TAG_ACTOR); // Mark as an actor (can perform actions)
-		entitySystem.addTag(actor, entitySystem.TAG_AVATAR); // Mark as player-controlled
-		itemSystem.addTag(actor, itemSystem.TAG_CARRY_WEIGHT, 10000); // Can carry up to 10kg
+		Avatar actor = Avatar.create(game);
+		itemSystem.addTag(actor, itemSystem.TAG_CARRY_WEIGHT, 10000);
 		relationshipSystem.add(startingPlace, actor, relationshipSystem.rvContains);
 		log.log("Created new actor %s", actor);
 

@@ -239,37 +239,29 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 		DTime currentTime = worldSystem.getCurrentTime();
 		boolean isPlayer = entityTagSystem.hasTag(actor, entitySystem.TAG_AVATAR, currentTime);
 
+		// Player actions advance time so that they will execute immediately.
 		if (isPlayer) {
-			// Players execute immediately with time auto-advance
 			worldSystem.incrementCurrentTime(timeRequired);
-			CommandOutput result = action.execute();
-			if (result == null) {
-				return ActionValidation.failure(
-						CommandOutput.make("action")
-								.error("execution_failed")
-								.text(Markup.escape("Something went wrong.")));
-			}
-			// Result was already broadcast by the action, player will receive via broadcast
-		} else {
-			// NPCs queue action in database for later execution
-			long actionId = game.getNewGlobalId();
-
-			synchronized (this) {
-				try {
-					insertActionStatement.setLong(1, actionId);
-					insertActionStatement.setLong(2, actor.getId());
-					insertActionStatement.setLong(3, actionType.type());
-					insertActionStatement.setLong(4, target.getId());
-					insertActionStatement.setLong(5, timeRequired.toMilliseconds());
-					insertActionStatement.executeUpdate();
-				} catch (SQLException e) {
-					throw new DatabaseException("Unable to create action", e);
-				}
-			}
-
-			// Create generic ACTION event with reference to action table entry
-			eventSystem.addEvent(ACTION, currentTime, new Reference(actionId, game));
 		}
+
+		// NPCs queue action in database for later execution
+		long actionId = game.getNewGlobalId();
+
+		synchronized (this) {
+			try {
+				insertActionStatement.setLong(1, actionId);
+				insertActionStatement.setLong(2, actor.getId());
+				insertActionStatement.setLong(3, actionType.type());
+				insertActionStatement.setLong(4, target.getId());
+				insertActionStatement.setLong(5, timeRequired.toMilliseconds());
+				insertActionStatement.executeUpdate();
+			} catch (SQLException e) {
+				throw new DatabaseException("Unable to create action", e);
+			}
+		}
+
+		// Create generic ACTION event with reference to action table entry
+		eventSystem.addEvent(ACTION, currentTime, new Reference(actionId, game));
 
 		return ActionValidation.success();
 	}
