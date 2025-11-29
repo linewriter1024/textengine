@@ -23,6 +23,6 @@ We need:
 # Longterm
 
 - [x] readline-style line processing in CLI client
-- [ ] Remove Tickable entities such as the grandfather clock, and turn them into Acting entities.
+- [ ] Remove Tickable from entities such as the grandfather clock, and turn them into Acting entities. Tickable will be removed entirely, allowing us to greatly simplify the Tick system.
 - [ ] Only process Avatar entities when they have pending actions.
 - [ ] Replace look types with UniqueType constants
