@@ -78,9 +78,6 @@ public class ProceduralWorldPlugin extends Plugin
 	@Override
 	public void onPluginInitialize() {
 		// Register all required systems
-		game.registerSystem(new WorldSystem(game));
-		game.registerSystem(new TickSystem(game));
-		game.registerSystem(new SpatialSystem(game));
 		game.registerSystem(new BiomeSystem(game));
 		game.registerSystem(new PlaceDescriptionSystem(game));
 		game.registerSystem(new ItemTemplateSystem(game));

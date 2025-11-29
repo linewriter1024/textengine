@@ -97,6 +97,8 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 
 	@Override
 	public void onPluginInitialize() {
+		game.registerSystem(new TagInteractionSystem(game));
+
 		// Initialize systems
 		relationshipSystem = game.getSystem(RelationshipSystem.class);
 		worldSystem = game.getSystem(WorldSystem.class);
