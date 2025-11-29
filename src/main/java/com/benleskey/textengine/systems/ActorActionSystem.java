@@ -5,9 +5,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import com.benleskey.textengine.Game;
@@ -72,7 +70,6 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 	private PreparedStatement loadActionStatement;
 	private PreparedStatement getPendingActionStatement;
 	private PreparedStatement getActionReadyTimeStatement;
-	private PreparedStatement getActingEntitiesStatement;
 
 	public ActorActionSystem(Game game) {
 		super(game);
@@ -143,11 +140,6 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 							"JOIN event ON event.reference = action.action_id " +
 							"WHERE action.action_id = ? " +
 							"AND action.action_id IN " + eventSystem.getValidEventsSubquery("action.action_id"));
-			getActingEntitiesStatement = game.db().prepareStatement(
-					"SELECT DISTINCT entity_id FROM entity_tag " +
-							"JOIN event ON event.reference = entity_tag.entity_tag_id " +
-							"WHERE entity_tag.entity_tag_type = ? " +
-							"AND event.reference IN " + eventSystem.getValidEventsSubquery("entity_tag.entity_tag_id"));
 		} catch (SQLException e) {
 			throw new DatabaseException("Unable to prepare action statements", e);
 		}

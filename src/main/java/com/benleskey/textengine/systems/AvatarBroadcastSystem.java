@@ -1,19 +1,16 @@
 package com.benleskey.textengine.systems;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import com.benleskey.textengine.Client;
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.SingletonGameSystem;
 import com.benleskey.textengine.actions.MoveAction;
 import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.entities.Actor;
-import com.benleskey.textengine.systems.EntityDescriptionSystem;
-import com.benleskey.textengine.systems.EntitySystem;
-import com.benleskey.textengine.systems.RelationshipSystem;
-import com.benleskey.textengine.systems.WorldSystem;
+import com.benleskey.textengine.entities.Avatar;
 import com.benleskey.textengine.util.Markup;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * System for delivering broadcast messages to player avatars.
@@ -65,26 +62,23 @@ public class AvatarBroadcastSystem extends SingletonGameSystem {
 	 * Deliver a broadcast to a player avatar.
 	 * Filters certain broadcasts to improve player experience.
 	 */
-	public void deliverBroadcast(Actor avatar, CommandOutput broadcast) {
+	public void deliverBroadcast(Avatar avatar, CommandOutput broadcast) {
 		// Get command ID safely
 		String commandId = broadcast.<String>getO(CommandOutput.M_OUTPUT_ID).orElse(null);
 
 		// Apply registered filters
+		final CommandOutput outputToSend;
 		if (commandId != null && filters.containsKey(commandId)) {
 			CommandOutput filtered = filters.get(commandId).filter(avatar, broadcast);
 			if (filtered == null) {
 				return;
 			}
-			broadcast = filtered;
+			outputToSend = filtered;
+		} else {
+			outputToSend = broadcast;
 		}
 
-		// Find the client controlling this actor
-		for (Client client : game.getClients()) {
-			if (client.getEntity().isPresent() && client.getEntity().get().getId() == avatar.getId()) {
-				client.sendOutput(broadcast);
-				break;
-			}
-		}
+		avatar.getClient().ifPresent(client -> client.sendOutput(outputToSend));
 	}
 
 	/**

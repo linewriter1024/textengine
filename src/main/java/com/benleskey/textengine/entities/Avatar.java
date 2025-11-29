@@ -1,7 +1,12 @@
 package com.benleskey.textengine.entities;
 
+import java.util.Optional;
+
+import com.benleskey.textengine.Client;
 import com.benleskey.textengine.Game;
+import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.model.DTime;
+import com.benleskey.textengine.systems.AvatarBroadcastSystem;
 
 public class Avatar extends Actor implements Acting {
 
@@ -22,6 +27,15 @@ public class Avatar extends Actor implements Acting {
         return actor;
     }
 
+    public Optional<Client> getClient() {
+        for (Client client : game.getClients()) {
+            if (client.getEntity().isPresent() && client.getEntity().get().getId() == this.getId()) {
+                return Optional.of(client);
+            }
+        }
+        return Optional.empty();
+    }
+
     @Override
     public void onActionReady() {
         // Do nothing.
@@ -32,4 +46,17 @@ public class Avatar extends Actor implements Acting {
         return new DTime(1);
     }
 
+    /**
+     * Receive a broadcast event from another entity.
+     * Relays the broadcast to this actor's client, if one exists.
+     * With the new markup system, broadcasts use <entity> and <you>/<notyou> tags
+     * that are processed client-side, so no filtering is needed.
+     * 
+     * @param output The broadcast output to relay
+     */
+    @Override
+    public void receiveBroadcast(CommandOutput output) {
+        game.getSystem(AvatarBroadcastSystem.class)
+                .deliverBroadcast(this, output);
+    }
 }
