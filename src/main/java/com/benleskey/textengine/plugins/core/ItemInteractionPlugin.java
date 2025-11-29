@@ -15,6 +15,7 @@ import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.LookDescriptor;
 import com.benleskey.textengine.model.RelationshipDescriptor;
+import com.benleskey.textengine.plugins.procgen1.systems.ProceduralWorldPlugin;
 import com.benleskey.textengine.systems.ActorActionSystem;
 import com.benleskey.textengine.systems.DisambiguationSystem;
 import com.benleskey.textengine.systems.EntitySystem;

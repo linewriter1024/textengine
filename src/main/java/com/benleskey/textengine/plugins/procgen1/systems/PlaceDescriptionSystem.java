@@ -1,4 +1,4 @@
-package com.benleskey.textengine.systems;
+package com.benleskey.textengine.plugins.procgen1.systems;
 
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.SingletonGameSystem;

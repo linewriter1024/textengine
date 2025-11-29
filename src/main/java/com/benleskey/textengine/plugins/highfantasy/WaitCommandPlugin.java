@@ -12,7 +12,7 @@ import com.benleskey.textengine.hooks.core.OnCoreSystemsReady;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.plugins.core.EntityPlugin;
-import com.benleskey.textengine.plugins.core.ProceduralWorldPlugin;
+import com.benleskey.textengine.plugins.procgen1.systems.ProceduralWorldPlugin;
 import com.benleskey.textengine.systems.ActorActionSystem;
 import com.benleskey.textengine.util.Markup;
 

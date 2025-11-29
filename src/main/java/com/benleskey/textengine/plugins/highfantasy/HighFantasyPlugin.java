@@ -6,6 +6,10 @@ import com.benleskey.textengine.exceptions.InternalException;
 import com.benleskey.textengine.hooks.core.OnCoreSystemsReady;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.plugins.highfantasy.entities.*;
+import com.benleskey.textengine.plugins.procgen1.BiomeSystem;
+import com.benleskey.textengine.plugins.procgen1.systems.ItemTemplateSystem;
+import com.benleskey.textengine.plugins.procgen1.systems.LandmarkTemplateSystem;
+import com.benleskey.textengine.plugins.procgen1.systems.PlaceDescriptionSystem;
 import com.benleskey.textengine.systems.*;
 
 import java.util.*;
@@ -40,7 +44,7 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 		// Ensure ProceduralWorldPlugin is loaded first so systems are registered
 		return Set.of(
 				game.getPlugin(com.benleskey.textengine.plugins.core.EntityPlugin.class),
-				game.getPlugin(com.benleskey.textengine.plugins.core.ProceduralWorldPlugin.class));
+				game.getPlugin(com.benleskey.textengine.plugins.procgen1.systems.ProceduralWorldPlugin.class));
 	}
 
 	@Override
