@@ -51,6 +51,13 @@
 			<version>1.0.0-beta3</version>
 		</dependency>
 
+		<!-- JLine 3 for improved CLI line editing and in-memory history -->
+		<dependency>
+			<groupId>org.jline</groupId>
+			<artifactId>jline</artifactId>
+			<version>3.30.6</version>
+		</dependency>
+
 	</dependencies>
 
 	<dependencyManagement>
