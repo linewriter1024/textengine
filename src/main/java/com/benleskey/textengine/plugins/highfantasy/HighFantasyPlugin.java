@@ -25,6 +25,8 @@ import java.util.*;
  */
 public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnCoreSystemsReady {
 
+	public static final String NAME_STYLE_DEFAULT = "highfantasy_default";
+
 	public HighFantasyPlugin(Game game) {
 		super(game);
 	}
@@ -38,6 +40,7 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 	private ItemTemplateSystem itemTemplateSystem;
 	private LandmarkTemplateSystem landmarkTemplateSystem;
 	private EntityDescriptionSystem entityDescriptionSystem;
+	private NameGenerationSystem nameGenerationSystem;
 
 	@Override
 	public Set<Plugin> getDependencies() {
@@ -68,6 +71,7 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 		itemTemplateSystem = game.getSystem(ItemTemplateSystem.class);
 		landmarkTemplateSystem = game.getSystem(LandmarkTemplateSystem.class);
 		entityDescriptionSystem = game.getSystem(EntityDescriptionSystem.class);
+		nameGenerationSystem = game.getSystem(NameGenerationSystem.class);
 
 		log.log("Registering high fantasy entity types and content...");
 
@@ -76,6 +80,7 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 		registerPlaceDescriptions();
 		registerItems();
 		registerLandmarks();
+		registerNameStyles();
 
 		// Register entity types (used by items generated after this point)
 		registerEntityTypes();
@@ -84,6 +89,13 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 		// Register item descriptions (needs ItemSystem tags initialized)
 		registerItemDescriptions();
 		log.log("High fantasy setup complete");
+	}
+
+	private void registerNameStyles() {
+		nameGenerationSystem.registerStyle(NAME_STYLE_DEFAULT,
+				List.of("al", "an", "ar", "bel", "dor", "el", "en", "er", "gal", "gorn", "hel",
+						"is", "or", "ul", "ur", "ri", "ta", "ven", "my", "sha", "ka", "lo", "mi", "za", "ri", "sa",
+						"te"));
 	}
 
 	private void registerEntityTypes() {
