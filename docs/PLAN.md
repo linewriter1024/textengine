@@ -7,7 +7,7 @@ There will be a hub city, populated with people living their lives, politics, ma
 We need:
 
 - [x] Name generation system - to ensure everybody is uniquely, thematically, and concisely named
-- [ ] Player actions in same queue - instead of executing immediately, player actions are enqueued and execute in time with NPC actions
+- [x] Player actions in same queue - instead of executing immediately, player actions are enqueued and execute in time with NPC actions
 - [ ] Actions execute() do not return output, just success or failure of even that
 - [ ] Dice system - to support randomness, circumstances, combat, social encounters, etc.
 - [ ] High level entities - the city, wilderness areas, monster clans, bandit groups, etc.
