@@ -5,13 +5,14 @@ applyTo: "**"
 # Text Engine Mission
 
 **Reference**: https://benleskey.com/blog/textengine_intro  
-**Philosophy Document**: [PHILOSOPHY.md](/home/user/projects/textengine/PHILOSOPHY.md)
+**Philosophy Document**: [INITIAL_PHILOSOPHY.md](/home/user/projects/textengine/docs/INITIAL_PHILOSOPHY.md)
 
 ## Core Philosophy
 
 **Everything is dynamic. Nothing is pre-built.**
 
 This engine simulates worlds through **emergent entity relationships**, not scripted content:
+
 - **Entity-Relationship Architecture**: Everything is an entity in relationships
 - **LLM-Enhanced Consistency**: AI describes what the engine determines
 - **Genre Agnostic**: Medieval castles, space stations, pirate ships—same engine
@@ -19,36 +20,43 @@ This engine simulates worlds through **emergent entity relationships**, not scri
 ## Non-Negotiable Principles
 
 ### 1. Dynamic Entity Generation
+
 - Entities created on-demand, not pre-defined
 - Example: "hide under wagon" → generates underneath_wagon entity
 - No hardcoded content beyond bootstrap/examples
 
 ### 2. Relationship-Driven Simulation
+
 - All interactions through relationships, not properties
 - "Container" = entity with "contains" relationship
 - Location is relationship ("within"), not coordinates
 
 ### 3. Temporal Event System
+
 - All state changes are timestamped events, not mutations
 - Current state = latest non-cancelled event
 - Enables time-travel queries and consistent history
 
 ### 4. Scale-Adaptive Simulation
+
 - Granularity adjusts to player proximity
 - Far city = macro simulation; player enters = spawn NPCs
 - Never simulate what players can't observe
 
 ### 5. Generic Systems Over Specific Features
+
 - Build systems for **classes of interactions**
 - Not "chest opening"—"state change with prerequisites"
 - Not "quest tracking"—"goal representation with progress queries"
 
 ### 6. LLM as Flavor, Not Logic
+
 - LLM generates descriptions/dialogue, not game state
 - System decides "NPC hostile" → LLM describes how
 - Never let LLM hallucinate entities that don't exist in DB
 
 ### 7. Machine-Readable API, Human-Readable Text
+
 - All game state in structured Message key-value pairs
 - `text` field is display-only—clients read structured fields
 - Example: `output.put(M_SUCCESS, true).put(M_ITEM, item).text("You take...")`
@@ -67,7 +75,7 @@ This engine simulates worlds through **emergent entity relationships**, not scri
 ❌ Player-centric simulation → ✅ World evolves independently  
 ❌ Fixed descriptions → ✅ Generated from properties/state  
 ❌ Quest scripts → ✅ Emergent goals  
-❌ Text-only output → ✅ Structured + text  
+❌ Text-only output → ✅ Structured + text
 
 ## Implementation Tests
 

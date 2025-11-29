@@ -1,3 +1,5 @@
 # Text Engine
 
-https://benleskey.com/aka/textengine
+- Website: https://benleskey.com/aka/textengine
+- [Initial philosophy](docs/INITIAL_PHILOSOPHY.md)
+- In progress plan: [PLAN.md](docs/PLAN.md)
