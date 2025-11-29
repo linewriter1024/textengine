@@ -1,4 +1,4 @@
-package com.benleskey.textengine.actions;
+package com.benleskey.textengine.model;
 
 import com.benleskey.textengine.commands.CommandOutput;
 

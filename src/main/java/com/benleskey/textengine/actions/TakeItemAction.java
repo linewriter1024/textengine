@@ -4,6 +4,8 @@ import com.benleskey.textengine.Game;
 import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.entities.Actor;
 import com.benleskey.textengine.entities.Item;
+import com.benleskey.textengine.model.Action;
+import com.benleskey.textengine.model.ActionValidation;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.UniqueType;

@@ -1,11 +1,8 @@
-package com.benleskey.textengine.actions;
+package com.benleskey.textengine.model;
 
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.entities.Actor;
-import com.benleskey.textengine.model.DTime;
-import com.benleskey.textengine.model.Entity;
-import com.benleskey.textengine.model.UniqueType;
 
 /**
  * Base class for actions that actors (players and NPCs) can perform.

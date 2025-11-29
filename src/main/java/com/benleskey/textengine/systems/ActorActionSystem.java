@@ -10,8 +10,6 @@ import java.util.Map;
 
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.SingletonGameSystem;
-import com.benleskey.textengine.actions.Action;
-import com.benleskey.textengine.actions.ActionValidation;
 import com.benleskey.textengine.actions.DropItemAction;
 import com.benleskey.textengine.actions.MoveAction;
 import com.benleskey.textengine.actions.TakeItemAction;
@@ -22,6 +20,8 @@ import com.benleskey.textengine.entities.Actor;
 import com.benleskey.textengine.exceptions.DatabaseException;
 import com.benleskey.textengine.exceptions.InternalException;
 import com.benleskey.textengine.hooks.core.OnSystemInitialize;
+import com.benleskey.textengine.model.Action;
+import com.benleskey.textengine.model.ActionValidation;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.Reference;
