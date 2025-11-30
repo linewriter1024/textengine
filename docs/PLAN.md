@@ -26,3 +26,4 @@ We need:
 - [ ] Remove Tickable from entities such as the grandfather clock, and turn them into Acting entities. Tickable will be removed entirely, allowing us to greatly simplify the Tick system.
 - [ ] Only process Avatar entities when they have pending actions.
 - [ ] Replace look types such as "basic" with UniqueType constants
+- [ ] Unify examine/take/look/etc. to operate on all entities instead of just items
