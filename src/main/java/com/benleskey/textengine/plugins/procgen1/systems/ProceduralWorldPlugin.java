@@ -224,7 +224,7 @@ public class ProceduralWorldPlugin extends Plugin
 					.toList();
 			if (!neighbors.isEmpty()) {
 				Entity neighbor = neighbors.get(0); // Pick first neighbor
-				spawnGoblinNPC(starting, starting, neighbor);
+				// spawnGoblinNPC(starting, starting, neighbor);
 			}
 		}
 

@@ -122,12 +122,14 @@ public class GrandfatherClock extends Item implements Acting, DynamicDescription
 		log.log("Wait complete at %s, queueing %d chimes for hour %d",
 				GameCalendar.formatTime(currentTime), chimeCount, upcomingHour);
 
-		// Queue N chime actions, each taking 1 second
+		// Queue N chime actions, each taking 1 second, staggered 1 second apart
 		for (int i = 1; i <= chimeCount; i++) {
 			ChimeAction action = aas.add(ChimeAction.class, this, this, DTime.fromSeconds(1));
 			action.setChimeNumber(i);
 			action.setTotalChimes(chimeCount);
-			evs.addEvent(aas.ACTION, currentTime, action);
+			// Stagger each chime: first at currentTime, second at currentTime+1s, etc.
+			DTime chimeEventTime = currentTime.add(DTime.fromSeconds(i - 1));
+			evs.addEvent(aas.ACTION, chimeEventTime, action);
 		}
 	}
 
