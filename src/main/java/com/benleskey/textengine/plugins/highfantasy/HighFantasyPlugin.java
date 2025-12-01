@@ -55,7 +55,7 @@ public class HighFantasyPlugin extends Plugin implements OnPluginRegister, OnCor
 		// Ensure ProceduralWorldPlugin is loaded first so systems are registered
 		return Set.of(
 				game.getPlugin(com.benleskey.textengine.plugins.core.EntityPlugin.class),
-				game.getPlugin(com.benleskey.textengine.plugins.procgen1.systems.ProceduralWorldPlugin.class));
+				game.getPlugin(com.benleskey.textengine.plugins.procgen1.ProceduralWorldPlugin.class));
 	}
 
 	@Override

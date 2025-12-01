@@ -1,4 +1,4 @@
-package com.benleskey.textengine.plugins.procgen1.systems;
+package com.benleskey.textengine.plugins.procgen1;
 
 import com.benleskey.textengine.Client;
 import com.benleskey.textengine.Game;
@@ -17,7 +17,9 @@ import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.plugins.core.EntityPlugin;
 import com.benleskey.textengine.plugins.core.EventPlugin;
-import com.benleskey.textengine.plugins.procgen1.BiomeSystem;
+import com.benleskey.textengine.plugins.procgen1.systems.ItemTemplateSystem;
+import com.benleskey.textengine.plugins.procgen1.systems.LandmarkTemplateSystem;
+import com.benleskey.textengine.plugins.procgen1.systems.PlaceDescriptionSystem;
 import com.benleskey.textengine.systems.*;
 
 import java.util.*;

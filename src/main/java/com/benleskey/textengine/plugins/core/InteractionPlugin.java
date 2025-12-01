@@ -11,7 +11,7 @@ import com.benleskey.textengine.entities.Item;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.LookDescriptor;
-import com.benleskey.textengine.plugins.procgen1.systems.ProceduralWorldPlugin;
+import com.benleskey.textengine.plugins.procgen1.ProceduralWorldPlugin;
 import com.benleskey.textengine.model.ConnectionDescriptor;
 import com.benleskey.textengine.systems.ActionSystem;
 import com.benleskey.textengine.systems.DisambiguationSystem;

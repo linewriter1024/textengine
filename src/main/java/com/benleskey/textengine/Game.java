@@ -8,7 +8,7 @@ import com.benleskey.textengine.exceptions.DatabaseException;
 import com.benleskey.textengine.exceptions.InternalException;
 import com.benleskey.textengine.hooks.core.*;
 import com.benleskey.textengine.plugins.core.*;
-import com.benleskey.textengine.plugins.procgen1.systems.ProceduralWorldPlugin;
+import com.benleskey.textengine.plugins.procgen1.ProceduralWorldPlugin;
 import com.benleskey.textengine.systems.UniqueTypeSystem;
 import com.benleskey.textengine.util.*;
 import lombok.Builder;
