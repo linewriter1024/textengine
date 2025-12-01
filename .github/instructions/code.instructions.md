@@ -79,7 +79,7 @@ entitySystem.add(Tree.class);  // Throws if error
 
 ## Plugin Lifecycle
 
-**Order**: OnRegister → OnPluginInitialize → OnCoreSystemsReady → OnEntityTypesRegistered → OnStart → OnStartClient
+**Order**: OnPluginRegister → OnPluginInitialize → OnCoreSystemsReady → OnEntityTypesRegistered → OnStart → OnStartClient
 
 - **OnPluginInitialize**: Register systems
 - **OnCoreSystemsReady**: Register entity types

@@ -88,8 +88,6 @@ public class Game {
 				log.log("Plugin %s event order %d", plugin.getId(), plugin.getEventOrder());
 			}
 
-			hooks.doEvent(OnRegister.class, OnRegister::onRegister);
-
 			log.log("Initializing schema...");
 
 			schemaManager.initialize();
@@ -180,6 +178,10 @@ public class Game {
 		plugins.put(plugin.getId(), plugin);
 
 		Set<Class<? extends HookEvent>> events = hooks.registerHookHandler(plugin);
+
+		if (plugin instanceof OnPluginRegister onPluginRegister) {
+			onPluginRegister.onPluginRegister();
+		}
 
 		log.log("Registered plugin %s with event handlers [%s]", plugin.getId(),
 				String.join(", ", events.stream().map(Class::getSimpleName).sorted().toList()));

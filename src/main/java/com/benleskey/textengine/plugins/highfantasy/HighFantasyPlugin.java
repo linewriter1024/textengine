@@ -5,6 +5,7 @@ import com.benleskey.textengine.Plugin;
 import com.benleskey.textengine.exceptions.InternalException;
 import com.benleskey.textengine.hooks.core.OnCoreSystemsReady;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
+import com.benleskey.textengine.hooks.core.OnPluginRegister;
 import com.benleskey.textengine.plugins.highfantasy.entities.*;
 import com.benleskey.textengine.plugins.highfantasy.entities.clock.GrandfatherClock;
 import com.benleskey.textengine.plugins.procgen1.BiomeSystem;
@@ -29,7 +30,7 @@ import java.util.*;
  * Separated from ProceduralWorldPlugin to demonstrate genre-specific content
  * registration.
  */
-public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnCoreSystemsReady {
+public class HighFantasyPlugin extends Plugin implements OnPluginRegister, OnCoreSystemsReady {
 
 	public static final String NAME_STYLE_DEFAULT = "highfantasy_default";
 	public static final String NAME_STYLE_TOWN = "highfantasy_town";
@@ -58,7 +59,7 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 	}
 
 	@Override
-	public void onPluginInitialize() {
+	public void onPluginRegister() {
 		// Register the wait command (game-specific calendar implementation)
 		game.registerPlugin(new WaitCommandPlugin(game));
 	}
