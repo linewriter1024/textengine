@@ -3,10 +3,9 @@ package com.benleskey.textengine.actions;
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.entities.Actor;
-import com.benleskey.textengine.model.ActionDescriptor;
+import com.benleskey.textengine.model.Action;
 import com.benleskey.textengine.model.ActionValidation;
 import com.benleskey.textengine.model.DTime;
-import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.UniqueType;
 import com.benleskey.textengine.systems.ActorActionSystem;
 import com.benleskey.textengine.systems.BroadcastSystem;
@@ -20,7 +19,7 @@ import com.benleskey.textengine.util.Markup;
  * For players, this advances world time.
  * For NPCs, this is a no-op action (idle).
  */
-public class WaitAction extends ActionDescriptor {
+public class WaitAction extends Action {
 
 	// Command and message constants
 	public static final String CMD_WAIT = "wait";
@@ -30,8 +29,8 @@ public class WaitAction extends ActionDescriptor {
 
 	// Note: WorldSystem.M_DURATION defined in WorldSystem
 
-	public WaitAction(Game game, Actor actor, Entity unused, DTime timeRequired) {
-		super(game, actor, unused, timeRequired);
+	public WaitAction(long id, Game game) {
+		super(id, game);
 	}
 
 	@Override
@@ -51,8 +50,11 @@ public class WaitAction extends ActionDescriptor {
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
 
+		Actor actor = getActor().orElseThrow();
+		DTime timeRequired = getTimeRequired();
+
 		String actorDesc = eds.getActorDescription(actor, ws.getCurrentTime());
-		String durationDesc = getDurationDescription();
+		String durationDesc = getDurationDescription(timeRequired);
 
 		// Broadcast to all entities including the actor
 		CommandOutput broadcast = CommandOutput.make(BROADCAST_WAITS)
@@ -73,10 +75,10 @@ public class WaitAction extends ActionDescriptor {
 
 	@Override
 	public String getDescription() {
-		return "waiting for " + getDurationDescription();
+		return "waiting for " + getDurationDescription(getTimeRequired());
 	}
 
-	private String getDurationDescription() {
+	private String getDurationDescription(DTime timeRequired) {
 		long seconds = timeRequired.toMilliseconds() / 1000;
 		if (seconds == 1) {
 			return "1 second";

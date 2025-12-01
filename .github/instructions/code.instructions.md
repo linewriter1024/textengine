@@ -11,6 +11,28 @@ Critical patterns and gotchas.
 - Seek out ways to reduce complexity and/or code size.
 - When making a change, reduce the complexity of any related code or code you touch.
 
+## Database Schema Changes
+
+**No backwards compatibility required.** This is a pre-release project. Feel free to:
+
+- Drop and recreate tables
+- Change schema without migrations
+- Reset version numbers to 0
+- Delete old database files
+
+```java
+// ✅ GOOD: Just recreate the schema
+if (v == 0) {
+    s.executeUpdate("CREATE TABLE action (...)");
+    getSchema().setVersionNumber(1);
+}
+
+// ❌ BAD: Complex migration logic for pre-release code
+if (v == 1) {
+    // migrate from old schema...
+}
+```
+
 ## System Access
 
 **Never pass systems as parameters.** Fetch locally or store as class fields.

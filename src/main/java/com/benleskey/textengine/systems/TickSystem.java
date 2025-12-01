@@ -13,9 +13,9 @@ import com.benleskey.textengine.entities.Actor;
 import com.benleskey.textengine.entities.Tickable;
 import com.benleskey.textengine.exceptions.DatabaseException;
 import com.benleskey.textengine.hooks.core.OnSystemInitialize;
+import com.benleskey.textengine.model.Action;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
-import com.benleskey.textengine.model.Reference;
 import com.benleskey.textengine.model.UniqueType;
 
 /**
@@ -148,7 +148,7 @@ public class TickSystem extends SingletonGameSystem implements OnSystemInitializ
 				// Check if entity has a pending action and schedule tick for completion
 				boolean scheduledActionTick = false;
 
-				Reference pendingAction = aas.getPendingAction((Actor) te.entity);
+				Action pendingAction = aas.getPendingAction((Actor) te.entity);
 				if (pendingAction != null) {
 					long actionReadyTime = aas.getActionReadyTime(pendingAction);
 					if (actionReadyTime > tickTime.toMilliseconds()

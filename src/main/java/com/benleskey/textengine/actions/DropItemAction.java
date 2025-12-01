@@ -3,9 +3,8 @@ package com.benleskey.textengine.actions;
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.entities.Actor;
-import com.benleskey.textengine.model.ActionDescriptor;
+import com.benleskey.textengine.model.Action;
 import com.benleskey.textengine.model.ActionValidation;
-import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.UniqueType;
 import com.benleskey.textengine.systems.ActorActionSystem;
@@ -22,7 +21,7 @@ import com.benleskey.textengine.util.Markup;
  * Action for dropping an item in the actor's current location.
  * Broadcasts the action to nearby entities.
  */
-public class DropItemAction extends ActionDescriptor {
+public class DropItemAction extends Action {
 
 	// Command and message constants
 	public static final String CMD_DROP = "drop";
@@ -35,8 +34,8 @@ public class DropItemAction extends ActionDescriptor {
 	// Note: ItemSystem.M_ITEM_ID, ItemSystem.M_ITEM_NAME, ItemSystem.M_WEIGHT,
 	// ItemSystem.M_CARRY_WEIGHT defined in ItemSystem
 
-	public DropItemAction(Game game, Actor actor, Entity item, DTime timeRequired) {
-		super(game, actor, item, timeRequired);
+	public DropItemAction(long id, Game game) {
+		super(id, game);
 	}
 
 	@Override
@@ -49,7 +48,10 @@ public class DropItemAction extends ActionDescriptor {
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 
-		String itemName = getItemDescription();
+		Actor actor = getActor().orElseThrow();
+		Entity target = getTarget().orElseThrow();
+
+		String itemName = getEntityDescription(target);
 
 		// Verify actor has the item
 		var itemContainers = rs.getProvidingRelationships(target, rs.rvContains, ws.getCurrentTime());
@@ -82,6 +84,9 @@ public class DropItemAction extends ActionDescriptor {
 		BroadcastSystem bs = game.getSystem(BroadcastSystem.class);
 		EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
 
+		Actor actor = getActor().orElseThrow();
+		Entity target = getTarget().orElseThrow();
+
 		// Verify actor has the item
 		var itemContainers = rs.getProvidingRelationships(target, rs.rvContains, ws.getCurrentTime());
 		if (itemContainers.isEmpty() || !itemContainers.get(0).getProvider().equals(actor)) {
@@ -98,7 +103,7 @@ public class DropItemAction extends ActionDescriptor {
 
 		// Get descriptions
 		String actorDesc = eds.getActorDescription(actor, ws.getCurrentTime());
-		String itemDesc = getItemDescription();
+		String itemDesc = getEntityDescription(target);
 
 		// Remove from actor by canceling its relationship event
 		var oldContainment = itemContainers.get(0).getRelationship();
@@ -128,7 +133,8 @@ public class DropItemAction extends ActionDescriptor {
 
 	@Override
 	public String getDescription() {
-		String itemDesc = getItemDescription();
+		Entity target = getTarget().orElseThrow();
+		String itemDesc = getEntityDescription(target);
 		return "dropping " + itemDesc;
 	}
 
@@ -137,9 +143,5 @@ public class DropItemAction extends ActionDescriptor {
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 
 		return eds.getSimpleDescription(entity, ws.getCurrentTime(), "something");
-	}
-
-	private String getItemDescription() {
-		return getEntityDescription(target);
 	}
 }

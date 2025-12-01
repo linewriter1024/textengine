@@ -1,12 +1,12 @@
 package com.benleskey.textengine.systems;
 
-import java.lang.reflect.Constructor;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.SingletonGameSystem;
@@ -20,18 +20,17 @@ import com.benleskey.textengine.entities.Actor;
 import com.benleskey.textengine.exceptions.DatabaseException;
 import com.benleskey.textengine.exceptions.InternalException;
 import com.benleskey.textengine.hooks.core.OnSystemInitialize;
-import com.benleskey.textengine.model.ActionDescriptor;
+import com.benleskey.textengine.model.Action;
 import com.benleskey.textengine.model.ActionValidation;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
-import com.benleskey.textengine.model.Reference;
 import com.benleskey.textengine.model.UniqueType;
 import com.benleskey.textengine.util.Markup;
 
 /**
  * ActorActionSystem manages actions for all actors (players and NPCs).
  * 
- * Actions are References (like entities) stored in the database.
+ * Actions extend Reference and are stored in the database with flexible properties.
  * Action types are registered like entity types.
  * 
  * For Acting-tagged entities:
@@ -45,7 +44,7 @@ import com.benleskey.textengine.util.Markup;
 public class ActorActionSystem extends SingletonGameSystem implements OnSystemInitialize {
 
 	// Action type registry
-	private final Map<UniqueType, Class<? extends ActionDescriptor>> actionTypes = new HashMap<>();
+	private final Map<UniqueType, Class<? extends Action>> actionTypes = new HashMap<>();
 
 	// Event type for all actions (reference points to action table)
 	public UniqueType ACTION;
@@ -55,6 +54,11 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 	public UniqueType ACTION_ITEM_TAKE;
 	public UniqueType ACTION_ITEM_DROP;
 	public UniqueType ACTION_WAIT;
+
+	// Standard action property keys
+	public UniqueType PROP_ACTOR;
+	public UniqueType PROP_TARGET;
+	public UniqueType PROP_TIME_REQUIRED;
 
 	// Tag for Acting entities
 	public UniqueType TAG_ACTING;
@@ -67,9 +71,11 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 
 	// Prepared statements
 	private PreparedStatement insertActionStatement;
-	private PreparedStatement loadActionStatement;
+	private PreparedStatement getActionTypeStatement;
+	private PreparedStatement insertPropertyStatement;
+	private PreparedStatement getPropertyStatement;
 	private PreparedStatement getPendingActionStatement;
-	private PreparedStatement getActionReadyTimeStatement;
+	private PreparedStatement getActionCreationTimeStatement;
 
 	public ActorActionSystem(Game game) {
 		super(game);
@@ -78,18 +84,26 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 	@Override
 	public void onSystemInitialize() throws DatabaseException {
 		int v = getSchema().getVersionNumber();
+		
+		// No backwards compatibility - just recreate schema
 		if (v == 0) {
 			try (Statement s = game.db().createStatement()) {
+				// Simple action table: just ID and type
 				s.executeUpdate(
 						"CREATE TABLE action (" +
 								"action_id INTEGER PRIMARY KEY, " +
-								"actor_id INTEGER NOT NULL, " +
-								"action_type INTEGER NOT NULL, " +
-								"target_entity_id INTEGER NOT NULL, " +
-								"time_required_ms INTEGER NOT NULL" +
+								"action_type INTEGER NOT NULL" +
+								")");
+				// Flexible property table for all action data
+				s.executeUpdate(
+						"CREATE TABLE action_property (" +
+								"action_id INTEGER NOT NULL, " +
+								"property_key INTEGER NOT NULL, " +
+								"property_value INTEGER NOT NULL, " +
+								"PRIMARY KEY (action_id, property_key)" +
 								")");
 			} catch (SQLException e) {
-				throw new DatabaseException("Unable to create action table", e);
+				throw new DatabaseException("Unable to create action tables", e);
 			}
 			getSchema().setVersionNumber(1);
 		}
@@ -110,6 +124,11 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 		ACTION_ITEM_DROP = uts.getType("action_item_drop");
 		ACTION_WAIT = uts.getType("action_wait");
 
+		// Define property keys
+		PROP_ACTOR = uts.getType("action_prop_actor");
+		PROP_TARGET = uts.getType("action_prop_target");
+		PROP_TIME_REQUIRED = uts.getType("action_prop_time_required");
+
 		// Define tags
 		TAG_ACTING = uts.getType("entity_tag_acting");
 		TAG_LAST_ACTION_CHECK = uts.getType("entity_tag_last_action_check");
@@ -117,29 +136,36 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 		// Prepare SQL statements
 		try {
 			insertActionStatement = game.db().prepareStatement(
-					"INSERT INTO action (action_id, actor_id, action_type, target_entity_id, time_required_ms) VALUES (?, ?, ?, ?, ?)");
+					"INSERT INTO action (action_id, action_type) VALUES (?, ?)");
 
-			loadActionStatement = game.db().prepareStatement(
-					"SELECT actor_id, action_type, target_entity_id, time_required_ms, event.time " +
-							"FROM action " +
-							"JOIN event ON event.reference = action.action_id " +
-							"WHERE action.action_id = ? " +
-							"AND event.reference IN " + eventSystem.getValidEventsSubquery("action.action_id"));
+			getActionTypeStatement = game.db().prepareStatement(
+					"SELECT action_type FROM action WHERE action_id = ?");
 
+			insertPropertyStatement = game.db().prepareStatement(
+					"INSERT OR REPLACE INTO action_property (action_id, property_key, property_value) VALUES (?, ?, ?)");
+
+			getPropertyStatement = game.db().prepareStatement(
+					"SELECT property_value FROM action_property WHERE action_id = ? AND property_key = ?");
+
+			// Get pending action for an actor (using PROP_ACTOR property)
 			getPendingActionStatement = game.db().prepareStatement(
-					"SELECT action.action_id, event.time, action.time_required_ms " +
+					"SELECT action.action_id " +
 							"FROM action " +
+							"JOIN action_property AS actor_prop ON action.action_id = actor_prop.action_id " +
+							"    AND actor_prop.property_key = ? " +
 							"JOIN event ON event.reference = action.action_id " +
-							"WHERE action.actor_id = ? " +
+							"WHERE actor_prop.property_value = ? " +
 							"AND event.time <= ? " +
 							"AND action.action_id IN " + eventSystem.getValidEventsSubquery("action.action_id") + " " +
 							"ORDER BY event.time ASC LIMIT 1");
-			getActionReadyTimeStatement = game.db().prepareStatement(
-					"SELECT event.time, time_required_ms " +
-							"FROM action " +
-							"JOIN event ON event.reference = action.action_id " +
-							"WHERE action.action_id = ? " +
-							"AND action.action_id IN " + eventSystem.getValidEventsSubquery("action.action_id"));
+
+			getActionCreationTimeStatement = game.db().prepareStatement(
+					"SELECT event.time " +
+							"FROM event " +
+							"WHERE event.reference = ? " +
+							"AND event.type = ? " +
+							"AND event.event_id NOT IN (SELECT event_cancel.reference FROM event AS event_cancel WHERE event_cancel.type = ? AND event_cancel.time <= ?) " +
+							"ORDER BY event.event_order DESC LIMIT 1");
 		} catch (SQLException e) {
 			throw new DatabaseException("Unable to prepare action statements", e);
 		}
@@ -154,80 +180,134 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 	/**
 	 * Register an action type with its implementation class.
 	 */
-	public void registerActionType(UniqueType actionType, Class<? extends ActionDescriptor> actionClass) {
+	public void registerActionType(UniqueType actionType, Class<? extends Action> actionClass) {
 		actionTypes.put(actionType, actionClass);
 		log.log("Registered action type %s to class %s", actionType, actionClass.getCanonicalName());
 	}
 
 	/**
-	 * Create an action instance from a Reference.
+	 * Get the action class for a type.
 	 */
-	private synchronized ActionDescriptor createActionFromReference(Reference actionRef, DTime currentTime)
-			throws DatabaseException {
-		try {
-			loadActionStatement.setLong(1, actionRef.getId());
-			eventSystem.setValidEventsSubqueryParameters(loadActionStatement, 2, ACTION, currentTime);
-
-			try (ResultSet rs = loadActionStatement.executeQuery()) {
-				if (rs.next()) {
-					long actorId = rs.getLong("actor_id");
-					long actionTypeId = rs.getLong("action_type");
-					long targetId = rs.getLong("target_entity_id");
-					long timeRequiredMs = rs.getLong("time_required_ms");
-
-					Actor actor = (Actor) entitySystem.get(actorId);
-					Entity target = entitySystem.get(targetId);
-					UniqueType actionType = new UniqueType(actionTypeId, game.getSystem(UniqueTypeSystem.class));
-					DTime timeRequired = DTime.fromMilliseconds(timeRequiredMs);
-
-					return createAction(actionType, actor, target, timeRequired);
-				}
-			}
-		} catch (SQLException e) {
-			throw new DatabaseException("Unable to load action from reference", e);
-		}
-		return null;
+	public Class<? extends Action> getActionClass(UniqueType type) {
+		return actionTypes.get(type);
 	}
 
 	/**
-	 * Create an action instance from parameters.
+	 * Get an action by its ID with a specific class.
 	 */
-	private ActionDescriptor createAction(UniqueType actionType, Actor actor, Entity target, DTime timeRequired) {
-		Class<? extends ActionDescriptor> actionClass = actionTypes.get(actionType);
-		if (actionClass == null) {
-			throw new InternalException(String.format("Cannot create action %s: not registered", actionType));
-		}
-
+	public synchronized <T extends Action> T get(long id, Class<T> clazz) {
 		try {
-			Constructor<? extends ActionDescriptor> constructor = actionClass.getDeclaredConstructor(
-					Game.class, Actor.class, Entity.class, DTime.class);
-			return constructor.newInstance(game, actor, target, timeRequired);
+			return clazz.getDeclaredConstructor(long.class, Game.class).newInstance(id, game);
 		} catch (Exception e) {
-			throw new InternalException(String.format("Failed to create action of type %s", actionType), e);
+			throw new InternalException("Unable to create action of class " + clazz.toGenericString(), e);
+		}
+	}
+
+	/**
+	 * Get an action by its ID, looking up the type.
+	 */
+	public synchronized Action get(long id) throws DatabaseException {
+		try {
+			getActionTypeStatement.setLong(1, id);
+			try (ResultSet rs = getActionTypeStatement.executeQuery()) {
+				if (rs.next()) {
+					UniqueType actionType = new UniqueType(rs.getLong("action_type"), game.getSystem(UniqueTypeSystem.class));
+					Class<? extends Action> actionClass = getActionClass(actionType);
+					if (actionClass == null) {
+						throw new InternalException("Unknown action type: " + actionType);
+					}
+					return get(id, actionClass);
+				}
+			}
+			throw new InternalException("Action not found: " + id);
+		} catch (SQLException e) {
+			throw new DatabaseException("Could not get action " + id, e);
+		}
+	}
+
+	/**
+	 * Create a new action in the database.
+	 */
+	public synchronized <T extends Action> T add(Class<T> clazz, Actor actor, Entity target, DTime timeRequired) throws DatabaseException {
+		try {
+			T dummy = get(0, clazz);
+			UniqueType actionType = dummy.getActionType();
+
+			long actionId = game.getNewGlobalId();
+
+			insertActionStatement.setLong(1, actionId);
+			insertActionStatement.setLong(2, actionType.type());
+			insertActionStatement.executeUpdate();
+
+			T action = get(actionId, clazz);
+
+			// Set standard properties
+			action.setActor(actor);
+			action.setTarget(target);
+			action.setTimeRequired(timeRequired);
+
+			return action;
+		} catch (SQLException e) {
+			throw new DatabaseException("Unable to create action", e);
+		}
+	}
+
+	/**
+	 * Get a property value for an action.
+	 * 
+	 * @return Optional containing the value, or empty if not set
+	 */
+	public synchronized Optional<Long> getActionProperty(Action action, UniqueType key) {
+		try {
+			getPropertyStatement.setLong(1, action.getId());
+			getPropertyStatement.setLong(2, key.type());
+			try (ResultSet rs = getPropertyStatement.executeQuery()) {
+				if (rs.next()) {
+					return Optional.of(rs.getLong("property_value"));
+				}
+			}
+		} catch (SQLException e) {
+			throw new DatabaseException("Unable to get action property", e);
+		}
+		return Optional.empty();
+	}
+
+	/**
+	 * Set a property value for an action.
+	 */
+	public synchronized void setActionProperty(Action action, UniqueType key, long value) {
+		try {
+			insertPropertyStatement.setLong(1, action.getId());
+			insertPropertyStatement.setLong(2, key.type());
+			insertPropertyStatement.setLong(3, value);
+			insertPropertyStatement.executeUpdate();
+		} catch (SQLException e) {
+			throw new DatabaseException("Unable to set action property", e);
 		}
 	}
 
 	/**
 	 * Queue an action for an actor.
-	 * Validates the action first. If invalid, returns the validation result with
-	 * error output.
+	 * Validates the action first. If invalid, returns the validation result with error output.
 	 * Players: auto-advance time and execute immediately.
 	 * NPCs: store in database for later execution.
 	 * 
-	 * @return ActionValidation indicating success or failure with error output for
-	 *         players
+	 * @return ActionValidation indicating success or failure with error output for players
 	 */
 	public ActionValidation queueAction(Actor actor, UniqueType actionType, Entity target, DTime timeRequired)
 			throws DatabaseException {
-		// Validate the action first
-		ActionDescriptor action = createAction(actionType, actor, target, timeRequired);
-		if (action == null) {
+		// Create the action in the database
+		Class<? extends Action> actionClass = getActionClass(actionType);
+		if (actionClass == null) {
 			return ActionValidation.failure(
 					CommandOutput.make("action")
 							.error("invalid_action_type")
 							.text(Markup.escape("That action doesn't exist.")));
 		}
 
+		Action action = add(actionClass, actor, target, timeRequired);
+
+		// Validate the action
 		ActionValidation validation = action.canExecute();
 		if (!validation.isValid()) {
 			return validation;
@@ -241,37 +321,23 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 			worldSystem.incrementCurrentTime(timeRequired);
 		}
 
-		// NPCs queue action in database for later execution
-		long actionId = game.getNewGlobalId();
-
-		synchronized (this) {
-			try {
-				insertActionStatement.setLong(1, actionId);
-				insertActionStatement.setLong(2, actor.getId());
-				insertActionStatement.setLong(3, actionType.type());
-				insertActionStatement.setLong(4, target.getId());
-				insertActionStatement.setLong(5, timeRequired.toMilliseconds());
-				insertActionStatement.executeUpdate();
-			} catch (SQLException e) {
-				throw new DatabaseException("Unable to create action", e);
-			}
-		}
-
-		// Create generic ACTION event with reference to action table entry
-		eventSystem.addEvent(ACTION, currentTime, new Reference(actionId, game));
+		// Create ACTION event with reference to action
+		eventSystem.addEvent(ACTION, currentTime, action);
 
 		return ActionValidation.success();
 	}
 
 	/**
-	 * Execute an action.
+	 * Execute an action directly (without queueing).
 	 * Used internally for NPC action execution.
 	 */
 	public boolean executeAction(Actor actor, UniqueType actionType, Entity target, DTime timeRequired) {
-		ActionDescriptor action = createAction(actionType, actor, target, timeRequired);
-		if (action == null) {
+		Class<? extends Action> actionClass = getActionClass(actionType);
+		if (actionClass == null) {
 			return false;
 		}
+
+		Action action = add(actionClass, actor, target, timeRequired);
 
 		// Check if action can be executed
 		ActionValidation validation = action.canExecute();
@@ -286,18 +352,19 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 	/**
 	 * Get pending action for an actor.
 	 */
-	public synchronized Reference getPendingAction(Actor actor) throws DatabaseException {
+	public synchronized Action getPendingAction(Actor actor) throws DatabaseException {
 		DTime currentTime = worldSystem.getCurrentTime();
 
 		try {
-			getPendingActionStatement.setLong(1, actor.getId());
-			getPendingActionStatement.setLong(2, currentTime.raw());
-			eventSystem.setValidEventsSubqueryParameters(getPendingActionStatement, 3, ACTION, currentTime);
+			getPendingActionStatement.setLong(1, PROP_ACTOR.type());
+			getPendingActionStatement.setLong(2, actor.getId());
+			getPendingActionStatement.setLong(3, currentTime.raw());
+			eventSystem.setValidEventsSubqueryParameters(getPendingActionStatement, 4, ACTION, currentTime);
 
 			try (ResultSet rs = getPendingActionStatement.executeQuery()) {
 				if (rs.next()) {
 					long actionId = rs.getLong("action_id");
-					return new Reference(actionId, game);
+					return get(actionId);
 				}
 			}
 		} catch (SQLException e) {
@@ -308,47 +375,53 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 	}
 
 	/**
-	 * Get the time when an action will be ready to execute.
+	 * Get the time when an action was created (from its event).
 	 */
-	public synchronized long getActionReadyTime(Reference actionRef) throws DatabaseException {
+	public synchronized DTime getActionCreationTime(Action action) throws DatabaseException {
 		DTime currentTime = worldSystem.getCurrentTime();
 		try {
-			getActionReadyTimeStatement.setLong(1, actionRef.getId());
-			eventSystem.setValidEventsSubqueryParameters(getActionReadyTimeStatement, 2, ACTION, currentTime);
+			getActionCreationTimeStatement.setLong(1, action.getId());
+			getActionCreationTimeStatement.setLong(2, ACTION.type());
+			getActionCreationTimeStatement.setLong(3, eventSystem.etCancel.type());
+			getActionCreationTimeStatement.setLong(4, currentTime.raw());
 
-			try (ResultSet rs = getActionReadyTimeStatement.executeQuery()) {
+			try (ResultSet rs = getActionCreationTimeStatement.executeQuery()) {
 				if (rs.next()) {
-					long createdAtMs = rs.getLong("time");
-					long timeRequiredMs = rs.getLong("time_required_ms");
-					return createdAtMs + timeRequiredMs;
+					return DTime.fromMilliseconds(rs.getLong("time"));
 				}
 			}
 		} catch (SQLException e) {
-			throw new DatabaseException("Unable to get action ready time", e);
+			throw new DatabaseException("Unable to get action creation time", e);
 		}
+		return null;
+	}
 
-		return Long.MAX_VALUE; // Action not found
+	/**
+	 * Get the time when an action will be ready to execute.
+	 */
+	public synchronized long getActionReadyTime(Action action) throws DatabaseException {
+		DTime creationTime = getActionCreationTime(action);
+		if (creationTime == null) {
+			return Long.MAX_VALUE;
+		}
+		DTime timeRequired = action.getTimeRequired();
+		return creationTime.toMilliseconds() + timeRequired.toMilliseconds();
 	}
 
 	/**
 	 * Check if an action is ready to execute.
 	 */
-	public boolean isActionReady(Reference actionRef, DTime currentTime) throws DatabaseException {
-		long readyTime = getActionReadyTime(actionRef);
+	public boolean isActionReady(Action action, DTime currentTime) throws DatabaseException {
+		long readyTime = getActionReadyTime(action);
 		return readyTime != Long.MAX_VALUE && currentTime.toMilliseconds() >= readyTime;
 	}
 
 	/**
 	 * Execute and clear a pending action.
 	 */
-	public boolean executePendingAction(Actor actor, Reference actionRef, DTime currentTime) throws DatabaseException {
-		ActionDescriptor action = createActionFromReference(actionRef, currentTime);
-		if (action == null) {
-			return false;
-		}
-
+	public boolean executePendingAction(Actor actor, Action action, DTime currentTime) throws DatabaseException {
 		CommandOutput result = action.execute();
-		eventSystem.cancelEventsByTypeAndReference(ACTION, actionRef, currentTime);
+		eventSystem.cancelEventsByTypeAndReference(ACTION, action, currentTime);
 
 		return result != null;
 	}
@@ -357,13 +430,11 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 	 * Get description of pending action for observers.
 	 */
 	public String getPendingActionDescription(Actor actor) throws DatabaseException {
-		Reference actionRef = getPendingAction(actor);
-		if (actionRef == null) {
+		Action action = getPendingAction(actor);
+		if (action == null) {
 			return null;
 		}
-
-		ActionDescriptor action = createActionFromReference(actionRef, worldSystem.getCurrentTime());
-		return action != null ? action.getDescription() : null;
+		return action.getDescription();
 	}
 
 	/**
@@ -375,7 +446,7 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 		DTime currentTime = worldSystem.getCurrentTime();
 
 		// Check if entity has pending action
-		Reference pendingAction = getPendingAction(actor);
+		Action pendingAction = getPendingAction(actor);
 
 		if (pendingAction != null) {
 			// Has pending action - check if ready to execute

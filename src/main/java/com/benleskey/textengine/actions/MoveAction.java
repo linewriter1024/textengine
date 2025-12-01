@@ -3,9 +3,8 @@ package com.benleskey.textengine.actions;
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.entities.Actor;
-import com.benleskey.textengine.model.ActionDescriptor;
+import com.benleskey.textengine.model.Action;
 import com.benleskey.textengine.model.ActionValidation;
-import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.UniqueType;
 import com.benleskey.textengine.systems.*;
@@ -15,7 +14,7 @@ import com.benleskey.textengine.util.Markup;
  * Action for moving an actor from one location to another.
  * Broadcasts departure and arrival messages to nearby entities.
  */
-public class MoveAction extends ActionDescriptor {
+public class MoveAction extends Action {
 
 	// Command and message constants
 	public static final String CMD_GO = "go";
@@ -26,8 +25,8 @@ public class MoveAction extends ActionDescriptor {
 	// Note: M_ACTOR_ID, M_ACTOR_NAME defined in EntitySystem
 	// Note: M_FROM, M_TO defined in RelationshipSystem
 
-	public MoveAction(Game game, Actor actor, Entity destination, DTime timeRequired) {
-		super(game, actor, destination, timeRequired);
+	public MoveAction(long id, Game game) {
+		super(id, game);
 	}
 
 	@Override
@@ -40,6 +39,9 @@ public class MoveAction extends ActionDescriptor {
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		EntitySystem es = game.getSystem(EntitySystem.class);
+
+		Actor actor = getActor().orElseThrow();
+		Entity target = getTarget().orElseThrow();
 
 		// Check if actor has a current location
 		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
@@ -69,6 +71,9 @@ public class MoveAction extends ActionDescriptor {
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		BroadcastSystem bs = game.getSystem(BroadcastSystem.class);
 		EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
+
+		Actor actor = getActor().orElseThrow();
+		Entity target = getTarget().orElseThrow();
 
 		// Get current location
 		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
@@ -129,6 +134,7 @@ public class MoveAction extends ActionDescriptor {
 		EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 
+		Entity target = getTarget().orElseThrow();
 		String destDesc = eds.getSimpleDescription(target, ws.getCurrentTime(), "somewhere");
 
 		return "moving to " + destDesc;

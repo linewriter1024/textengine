@@ -4,9 +4,8 @@ import com.benleskey.textengine.Game;
 import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.entities.Actor;
 import com.benleskey.textengine.entities.Item;
-import com.benleskey.textengine.model.ActionDescriptor;
+import com.benleskey.textengine.model.Action;
 import com.benleskey.textengine.model.ActionValidation;
-import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.UniqueType;
 import com.benleskey.textengine.systems.*;
@@ -17,7 +16,7 @@ import com.benleskey.textengine.util.StringUtils;
  * Action for taking an item from the ground or a container.
  * Broadcasts the action to nearby entities.
  */
-public class TakeItemAction extends ActionDescriptor {
+public class TakeItemAction extends Action {
 
 	// Command and message constants
 	public static final String CMD_TAKE = "take";
@@ -38,8 +37,8 @@ public class TakeItemAction extends ActionDescriptor {
 	// Note: ItemSystem.M_ITEM_ID, ItemSystem.M_ITEM_NAME, ItemSystem.M_WEIGHT,
 	// ItemSystem.M_CARRY_WEIGHT defined in ItemSystem
 
-	public TakeItemAction(Game game, Actor actor, Entity item, DTime timeRequired) {
-		super(game, actor, item, timeRequired);
+	public TakeItemAction(long id, Game game) {
+		super(id, game);
 	}
 
 	@Override
@@ -53,8 +52,11 @@ public class TakeItemAction extends ActionDescriptor {
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 
+		Actor actor = getActor().orElseThrow();
+		Entity target = getTarget().orElseThrow();
+
 		// Get item description for error messages
-		String itemName = getItemDescription();
+		String itemName = getEntityDescription(target);
 
 		// Check if item still exists and has a container
 		var itemContainers = rs.getProvidingRelationships(target, rs.rvContains, ws.getCurrentTime());
@@ -115,6 +117,9 @@ public class TakeItemAction extends ActionDescriptor {
 		BroadcastSystem bs = game.getSystem(BroadcastSystem.class);
 		EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
 
+		Actor actor = getActor().orElseThrow();
+		Entity target = getTarget().orElseThrow();
+
 		// Verify item exists and has a container
 		var itemContainers = rs.getProvidingRelationships(target, rs.rvContains, ws.getCurrentTime());
 		if (itemContainers.isEmpty()) {
@@ -125,7 +130,7 @@ public class TakeItemAction extends ActionDescriptor {
 
 		// Get descriptions
 		String actorDesc = eds.getActorDescription(actor, ws.getCurrentTime());
-		String itemDesc = getItemDescription();
+		String itemDesc = getEntityDescription(target);
 
 		// Remove from old container by canceling its relationship event
 		var oldContainment = itemContainers.get(0).getRelationship();
@@ -180,12 +185,9 @@ public class TakeItemAction extends ActionDescriptor {
 
 	@Override
 	public String getDescription() {
-		String itemDesc = getItemDescription();
+		Entity target = getTarget().orElseThrow();
+		String itemDesc = getEntityDescription(target);
 		return "taking " + itemDesc;
-	}
-
-	private String getItemDescription() {
-		return getEntityDescription(target);
 	}
 
 	private String getEntityDescription(Entity entity) {
