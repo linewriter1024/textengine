@@ -100,9 +100,10 @@ public class DropItemAction extends ActionDescriptor {
 		String actorDesc = eds.getActorDescription(actor, ws.getCurrentTime());
 		String itemDesc = getItemDescription();
 
-		// Remove from actor
+		// Remove from actor by canceling its relationship event
 		var oldContainment = itemContainers.get(0).getRelationship();
-		game.getSystem(EventSystem.class).cancelEvent(oldContainment);
+		EventSystem es = game.getSystem(EventSystem.class);
+		es.cancelEventsByTypeAndReference(rs.etEntityRelationship, oldContainment, ws.getCurrentTime());
 
 		// Add to current location
 		rs.add(currentLocation, target, rs.rvContains);

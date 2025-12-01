@@ -184,8 +184,8 @@ public class EntityTagSystem extends SingletonGameSystem implements OnSystemInit
 
 					// If this tag matches the type we're removing
 					if (tagType == tag.type()) {
-						// Cancel the event
-						eventSystem.cancelEvent(new Reference(tagId, game));
+						// Cancel the tag event
+						eventSystem.cancelEventsByTypeAndReference(etEntityTag, new Reference(tagId, game), when);
 					}
 				}
 			}

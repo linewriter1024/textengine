@@ -94,9 +94,10 @@ public class MoveAction extends ActionDescriptor {
 						Markup.verb("leave", "leaves"),
 						Markup.raw("."))));
 
-		// Cancel old containment relationship
+		// Cancel old containment relationship by canceling its event
 		var oldContainment = containers.get(0).getRelationship();
-		game.getSystem(EventSystem.class).cancelEvent(oldContainment);
+		EventSystem es = game.getSystem(EventSystem.class);
+		es.cancelEventsByTypeAndReference(rs.etEntityRelationship, oldContainment, ws.getCurrentTime());
 
 		// Create new containment relationship
 		rs.add(target, actor, rs.rvContains);

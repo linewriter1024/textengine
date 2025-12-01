@@ -1223,11 +1223,12 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		}
 
 		// Move item from inventory to container
-		// Cancel old containment relationship
+		// Cancel old containment relationship event
 		var oldContainment = relationshipSystem.getProvidingRelationships(item, relationshipSystem.rvContains,
 				worldSystem.getCurrentTime());
 		if (!oldContainment.isEmpty()) {
-			eventSystem.cancelEvent(oldContainment.get(0).getRelationship());
+			eventSystem.cancelEventsByTypeAndReference(relationshipSystem.etEntityRelationship,
+					oldContainment.get(0).getRelationship(), worldSystem.getCurrentTime());
 		}
 
 		// Add new containment relationship

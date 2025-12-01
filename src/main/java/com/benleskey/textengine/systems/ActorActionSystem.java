@@ -348,7 +348,7 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 		}
 
 		CommandOutput result = action.execute();
-		eventSystem.cancelEvent(actionRef);
+		eventSystem.cancelEventsByTypeAndReference(ACTION, actionRef, currentTime);
 
 		return result != null;
 	}

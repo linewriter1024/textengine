@@ -127,9 +127,10 @@ public class TakeItemAction extends ActionDescriptor {
 		String actorDesc = eds.getActorDescription(actor, ws.getCurrentTime());
 		String itemDesc = getItemDescription();
 
-		// Remove from old container
+		// Remove from old container by canceling its relationship event
 		var oldContainment = itemContainers.get(0).getRelationship();
-		game.getSystem(EventSystem.class).cancelEvent(oldContainment);
+		EventSystem es = game.getSystem(EventSystem.class);
+		es.cancelEventsByTypeAndReference(rs.etEntityRelationship, oldContainment, ws.getCurrentTime());
 
 		// Add to actor's inventory
 		rs.add(actor, target, rs.rvContains);

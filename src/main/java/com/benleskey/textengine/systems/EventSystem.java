@@ -76,21 +76,51 @@ public class EventSystem extends SingletonGameSystem implements OnSystemInitiali
 	/**
 	 * Cancel an event by creating a cancel-event.
 	 * 
-	 * @param eventToCancel The reference (event) to cancel
+	 * @param eventId The ID of the event to cancel
 	 */
-	public synchronized void cancelEvent(Reference eventToCancel) {
-		addEventNow(etCancel, eventToCancel);
+	public synchronized void cancelEvent(long eventId) {
+		addEventNow(etCancel, new Reference(eventId, game));
+	}
+
+	/**
+	 * Cancel all events of a specific type that reference a specific subject.
+	 * 
+	 * @param eventType The type of events to cancel
+	 * @param reference The reference (subject) of the events to cancel
+	 * @param when      The time at which to find and cancel events
+	 */
+	public synchronized void cancelEventsByTypeAndReference(UniqueType eventType, Reference reference, DTime when) {
+		try {
+			// Find all valid (non-canceled) events of this type with this reference
+			// We need to select event_id, not reference, so we use a custom query
+			PreparedStatement findEventsStatement = game.db().prepareStatement(
+					"SELECT event.event_id FROM event WHERE event.type = ? AND event.reference = ? AND event.time <= ? "
+							+ "AND event.event_id NOT IN (SELECT event_cancel.reference FROM event AS event_cancel WHERE event_cancel.type = ? AND event_cancel.time <= ?)");
+			findEventsStatement.setLong(1, eventType.type());
+			findEventsStatement.setLong(2, reference.getId());
+			findEventsStatement.setLong(3, when.raw());
+			findEventsStatement.setLong(4, etCancel.type());
+			findEventsStatement.setLong(5, when.raw());
+
+			try (var rs = findEventsStatement.executeQuery()) {
+				while (rs.next()) {
+					cancelEvent(rs.getLong(1));
+				}
+			}
+		} catch (SQLException e) {
+			throw new DatabaseException(
+					String.format("Could not cancel events of type %s for reference %s", eventType, reference), e);
+		}
 	}
 
 	public String getValidEventsSubquery(String reference) {
 		// Returns a subquery that finds the most recent non-canceled event for a given
 		// reference
-		// An event is canceled if there exists a cancel-event whose reference matches
-		// this event's reference
-		// (both point to the same underlying entity, e.g. the same relationship_id)
+		// An event is canceled if there exists a cancel-event whose event_id matches
+		// this event's event_id (the cancel-event's reference points to the event_id)
 		return "(SELECT event.reference FROM event WHERE event.type = ? AND event.time <= ? AND event.reference = "
 				+ reference
-				+ " AND event.reference NOT IN (SELECT event_cancel.reference FROM event AS event_cancel WHERE event_cancel.type = ? AND event_cancel.time <= ?) ORDER BY event.event_order DESC LIMIT 1)";
+				+ " AND event.event_id NOT IN (SELECT event_cancel.reference FROM event AS event_cancel WHERE event_cancel.type = ? AND event_cancel.time <= ?) ORDER BY event.event_order DESC LIMIT 1)";
 	}
 
 	/**

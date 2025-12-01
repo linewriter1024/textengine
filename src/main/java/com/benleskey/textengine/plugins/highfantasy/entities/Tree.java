@@ -88,10 +88,11 @@ public class Tree extends Item implements Cuttable {
 		// Add wood to location
 		rs.add(currentLocation, wood, rs.rvContains);
 
-		// Remove this tree (cancel its containment)
+		// Remove this tree (cancel its containment event)
 		var treeContainment = rs.getProvidingRelationships(this, rs.rvContains, ws.getCurrentTime());
 		if (!treeContainment.isEmpty()) {
-			evs.cancelEvent(treeContainment.get(0).getRelationship());
+			evs.cancelEventsByTypeAndReference(rs.etEntityRelationship, treeContainment.get(0).getRelationship(),
+					ws.getCurrentTime());
 		}
 
 		// Get actor description for broadcast
