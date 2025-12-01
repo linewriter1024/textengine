@@ -53,12 +53,13 @@ public class Game {
 
 		registerPlugin(new CorePlugin(this));
 		registerPlugin(new Echo(this));
-		registerPlugin(new com.benleskey.textengine.plugins.core.NameGenerationPlugin(this));
+		registerPlugin(new NameGenerationPlugin(this));
 		registerPlugin(new EntityPlugin(this));
 		registerPlugin(new EventPlugin(this));
 		registerPlugin(new InteractionPlugin(this));
 		registerPlugin(new ItemInteractionPlugin(this));
 		registerPlugin(new NavigationPlugin(this));
+		registerPlugin(new DicePlugin(this));
 		registerPlugin(new Quit(this));
 		registerPlugin(new UnknownCommand(this));
 
