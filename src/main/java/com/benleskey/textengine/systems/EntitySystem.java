@@ -242,8 +242,6 @@ public class EntitySystem extends SingletonGameSystem implements OnSystemInitial
 			return; // Already populated
 		}
 
-		log.log("Populating skeleton entity %d", entity.getId());
-
 		// Remove the skeleton tag
 		tagSystem.removeTag(entity, TAG_SKELETON, worldSystem.getCurrentTime());
 
