@@ -93,13 +93,13 @@ public class DicePlugin extends Plugin implements OnPluginInitialize {
         int difficulty = input.get(M_DIFFICULTY);
 
         // Create dice roll configuration
-        DiceSystem.DiceRoll roll = new DiceSystem.DiceRoll(poolSize, dieSize, threshold, explosionThreshold);
+        DiceSystem.PoolDiceRoll roll = new DiceSystem.PoolDiceRoll(poolSize, dieSize, threshold, explosionThreshold);
 
         // Roll the dice with a new Random instance
-        DiceSystem.DiceResult result = diceSystem.roll(new Random(), roll);
+        DiceSystem.PoolDiceResult result = diceSystem.rollPool(new Random(), roll);
 
         // Evaluate outcome
-        DiceSystem.Outcome outcome = diceSystem.getOutcome(result.successes, difficulty);
+        DiceSystem.Outcome outcome = result.getOutcome(difficulty);
 
         // Build response
         CommandOutput output = CommandOutput.make(ROLL)

@@ -30,13 +30,13 @@ public class DiceSystem extends SingletonGameSystem implements OnSystemInitializ
     }
 
     /**
-     * Roll a pool of dice with all parameters specified in DiceRoll.
+     * Roll a pool of dice with all parameters specified in PoolDiceRoll.
      * 
      * @param random Random instance for dice rolls
-     * @param roll   DiceRoll containing all roll parameters
-     * @return DiceResult containing successes and details
+     * @param roll   PoolDiceRoll containing all roll parameters
+     * @return PoolDiceResult containing successes and details
      */
-    public DiceResult roll(Random random, DiceRoll roll) {
+    public PoolDiceResult rollPool(Random random, PoolDiceRoll roll) {
         java.util.List<Integer> allDice = new java.util.ArrayList<>();
         int successes = 0;
         int explosions = 0;
@@ -49,7 +49,7 @@ public class DiceSystem extends SingletonGameSystem implements OnSystemInitializ
                 successes++;
                 // Exploding dice: roll again if at explosion threshold
                 if (die >= roll.explosionThreshold) {
-                    int explosionResult = countExplosions(random, roll, allDice);
+                    int explosionResult = countPoolExplosions(random, roll, allDice);
                     successes += explosionResult;
                     explosions += explosionResult;
                 }
@@ -61,7 +61,7 @@ public class DiceSystem extends SingletonGameSystem implements OnSystemInitializ
             diceArray[i] = allDice.get(i);
         }
 
-        return new DiceResult(roll.poolSize, roll.threshold, diceArray, successes, explosions);
+        return new PoolDiceResult(roll.poolSize, roll.threshold, diceArray, successes, explosions);
     }
 
     /**
@@ -143,13 +143,13 @@ public class DiceSystem extends SingletonGameSystem implements OnSystemInitializ
     }
 
     /**
-     * Determine outcome quality based on successes vs. requirement.
+     * Determine outcome quality for pool dice based on successes vs. requirement.
      * 
      * @param successes   Actual successes rolled
      * @param requirement Successes needed for base success
      * @return Outcome describing quality
      */
-    public Outcome getOutcome(int successes, int requirement) {
+    public static Outcome getPoolOutcome(int successes, int requirement) {
         double ratio = (double) successes / requirement;
 
         if (ratio >= 2.0) {
@@ -166,9 +166,10 @@ public class DiceSystem extends SingletonGameSystem implements OnSystemInitializ
     }
 
     /**
-     * Count additional successes from explosions, adding exploded dice to the list.
+     * Count additional successes from explosions in pool rolls, adding exploded
+     * dice to the list.
      */
-    private int countExplosions(Random random, DiceRoll roll, java.util.List<Integer> allDice) {
+    private int countPoolExplosions(Random random, PoolDiceRoll roll, java.util.List<Integer> allDice) {
         int additionalSuccesses = 0;
         while (true) {
             int die = random.nextInt(roll.dieSize) + 1;
@@ -202,16 +203,16 @@ public class DiceSystem extends SingletonGameSystem implements OnSystemInitializ
     }
 
     /**
-     * Encapsulates all parameters for a dice roll.
+     * Encapsulates all parameters for a pool dice roll.
      */
-    public static class DiceRoll {
+    public static class PoolDiceRoll {
         public final int poolSize;
         public final int dieSize;
         public final int threshold;
         public final int explosionThreshold;
 
         /**
-         * Create a dice roll configuration.
+         * Create a pool dice roll configuration.
          * 
          * @param poolSize           Number of dice to roll
          * @param dieSize            Maximum value per die (e.g., 10 for d10)
@@ -219,7 +220,7 @@ public class DiceSystem extends SingletonGameSystem implements OnSystemInitializ
          * @param explosionThreshold Die value that triggers explosion (usually dieSize)
          * @throws IllegalArgumentException if explosionThreshold <= threshold
          */
-        public DiceRoll(int poolSize, int dieSize, int threshold, int explosionThreshold) {
+        public PoolDiceRoll(int poolSize, int dieSize, int threshold, int explosionThreshold) {
             if (explosionThreshold <= threshold) {
                 throw new IllegalArgumentException(
                         String.format(
@@ -234,16 +235,16 @@ public class DiceSystem extends SingletonGameSystem implements OnSystemInitializ
     }
 
     /**
-     * Immutable result of a dice roll.
+     * Immutable result of a pool dice roll.
      */
-    public static class DiceResult {
+    public static class PoolDiceResult {
         public final int poolSize;
         public final int threshold;
         public final int[] dice;
         public final int successes;
         public final int explosions;
 
-        public DiceResult(int poolSize, int threshold, int[] dice, int successes, int explosions) {
+        public PoolDiceResult(int poolSize, int threshold, int[] dice, int successes, int explosions) {
             this.poolSize = poolSize;
             this.threshold = threshold;
             this.dice = dice;
@@ -262,10 +263,20 @@ public class DiceSystem extends SingletonGameSystem implements OnSystemInitializ
             return sb.toString();
         }
 
+        /**
+         * Determine outcome quality based on successes vs. requirement.
+         * 
+         * @param requirement Successes needed for base success
+         * @return Outcome describing quality
+         */
+        public Outcome getOutcome(int requirement) {
+            return DiceSystem.getPoolOutcome(successes, requirement);
+        }
+
         @Override
         public String toString() {
             return String.format(
-                    "DiceResult{pool=%d, threshold=%d, successes=%d, explosions=%d}",
+                    "PoolDiceResult{pool=%d, threshold=%d, successes=%d, explosions=%d}",
                     poolSize, threshold, successes, explosions);
         }
     }
