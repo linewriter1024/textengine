@@ -20,6 +20,7 @@ import com.benleskey.textengine.exceptions.DatabaseException;
 import com.benleskey.textengine.exceptions.InternalException;
 import com.benleskey.textengine.hooks.core.OnSystemInitialize;
 import com.benleskey.textengine.model.Action;
+import com.benleskey.textengine.model.ActionResult;
 import com.benleskey.textengine.model.ActionValidation;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
@@ -364,8 +365,8 @@ public class ActionSystem extends SingletonGameSystem implements OnSystemInitial
 			return false;
 		}
 
-		CommandOutput result = action.execute();
-		return result != null;
+		ActionResult result = action.execute();
+		return result.isSuccess();
 	}
 
 	/**
@@ -466,10 +467,10 @@ public class ActionSystem extends SingletonGameSystem implements OnSystemInitial
 	 * Execute and clear a pending action.
 	 */
 	public boolean executePendingAction(Acting actor, Action action, DTime currentTime) throws DatabaseException {
-		CommandOutput result = action.execute();
+		ActionResult result = action.execute();
 		eventSystem.cancelEventsByTypeAndReference(ACTION, action, currentTime);
 
-		return result != null;
+		return result.isSuccess();
 	}
 
 	/**

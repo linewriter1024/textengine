@@ -3,6 +3,7 @@ package com.benleskey.textengine.actions;
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.model.Action;
+import com.benleskey.textengine.model.ActionResult;
 import com.benleskey.textengine.model.ActionValidation;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
@@ -45,7 +46,7 @@ public class WaitAction extends Action {
 	}
 
 	@Override
-	public CommandOutput execute() {
+	public ActionResult execute() {
 		BroadcastSystem bs = game.getSystem(BroadcastSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
@@ -70,7 +71,7 @@ public class WaitAction extends Action {
 						Markup.raw(".")));
 
 		bs.broadcast(actor, broadcast);
-		return broadcast;
+		return ActionResult.success();
 	}
 
 	@Override

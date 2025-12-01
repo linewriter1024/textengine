@@ -2,8 +2,8 @@ package com.benleskey.textengine.actions;
 
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.commands.CommandOutput;
-import com.benleskey.textengine.entities.Actor;
 import com.benleskey.textengine.model.Action;
+import com.benleskey.textengine.model.ActionResult;
 import com.benleskey.textengine.model.ActionValidation;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.UniqueType;
@@ -66,7 +66,7 @@ public class MoveAction extends Action {
 	}
 
 	@Override
-	public CommandOutput execute() {
+	public ActionResult execute() {
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		BroadcastSystem bs = game.getSystem(BroadcastSystem.class);
@@ -78,7 +78,7 @@ public class MoveAction extends Action {
 		// Get current location
 		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
 		if (containers.isEmpty()) {
-			return null; // Actor has no location
+			return ActionResult.failure(); // Actor has no location
 		}
 
 		Entity currentLocation = containers.get(0).getProvider();
@@ -113,7 +113,7 @@ public class MoveAction extends Action {
 		// Broadcast arrival to entities in destination
 		// Using new markup: <capital><entity id="X">name</entity></capital>
 		// <you>arrive</you><notyou>arrives</notyou>
-		CommandOutput arrivalBroadcast = CommandOutput.make(BROADCAST_ARRIVES)
+		bs.broadcast(actor, CommandOutput.make(BROADCAST_ARRIVES)
 				.put(EntitySystem.M_ACTOR_ID, actor.getKeyId())
 				.put(EntitySystem.M_ACTOR_NAME, actorDesc)
 				.put(RelationshipSystem.M_TO, target.getKeyId())
@@ -123,10 +123,8 @@ public class MoveAction extends Action {
 						Markup.verb("arrive", "arrives"),
 						Markup.raw(" from "),
 						Markup.em(destDesc),
-						Markup.raw(".")));
-
-		bs.broadcast(actor, arrivalBroadcast);
-		return arrivalBroadcast;
+						Markup.raw("."))));
+		return ActionResult.success();
 	}
 
 	@Override

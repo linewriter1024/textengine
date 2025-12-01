@@ -2,8 +2,8 @@ package com.benleskey.textengine.actions;
 
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.commands.CommandOutput;
-import com.benleskey.textengine.entities.Actor;
 import com.benleskey.textengine.model.Action;
+import com.benleskey.textengine.model.ActionResult;
 import com.benleskey.textengine.model.ActionValidation;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.UniqueType;
@@ -78,7 +78,7 @@ public class DropItemAction extends Action {
 	}
 
 	@Override
-	public CommandOutput execute() {
+	public ActionResult execute() {
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		BroadcastSystem bs = game.getSystem(BroadcastSystem.class);
@@ -90,13 +90,13 @@ public class DropItemAction extends Action {
 		// Verify actor has the item
 		var itemContainers = rs.getProvidingRelationships(target, rs.rvContains, ws.getCurrentTime());
 		if (itemContainers.isEmpty() || !itemContainers.get(0).getProvider().equals(actor)) {
-			return null; // Actor doesn't have this item
+			return ActionResult.failure(); // Actor doesn't have this item
 		}
 
 		// Get current location
 		var actorContainers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
 		if (actorContainers.isEmpty()) {
-			return null; // Actor has no location
+			return ActionResult.failure(); // Actor has no location
 		}
 
 		Entity currentLocation = actorContainers.get(0).getProvider();
@@ -128,7 +128,7 @@ public class DropItemAction extends Action {
 						Markup.raw(".")));
 
 		bs.broadcast(actor, broadcast);
-		return broadcast;
+		return ActionResult.success();
 	}
 
 	@Override

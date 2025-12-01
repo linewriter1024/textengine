@@ -1,8 +1,8 @@
 package com.benleskey.textengine.plugins.highfantasy.entities.clock;
 
 import com.benleskey.textengine.Game;
-import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.model.Action;
+import com.benleskey.textengine.model.ActionResult;
 import com.benleskey.textengine.model.ActionValidation;
 import com.benleskey.textengine.model.UniqueType;
 
@@ -29,7 +29,7 @@ public class ClockWaitAction extends Action {
     }
 
     @Override
-    public CommandOutput execute() {
+    public ActionResult execute() {
         // When wait completes, trigger the chiming sequence on the clock
         GrandfatherClock clock = getTarget()
                 .filter(e -> e instanceof GrandfatherClock)
@@ -39,9 +39,7 @@ public class ClockWaitAction extends Action {
         if (clock != null) {
             clock.onWaitComplete();
         }
-
-        // No broadcast for wait action
-        return CommandOutput.make("clock_wait");
+        return ActionResult.success();
     }
 
     @Override

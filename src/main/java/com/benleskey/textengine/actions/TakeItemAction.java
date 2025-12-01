@@ -2,9 +2,9 @@ package com.benleskey.textengine.actions;
 
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.commands.CommandOutput;
-import com.benleskey.textengine.entities.Actor;
 import com.benleskey.textengine.entities.Item;
 import com.benleskey.textengine.model.Action;
+import com.benleskey.textengine.model.ActionResult;
 import com.benleskey.textengine.model.ActionValidation;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.UniqueType;
@@ -111,7 +111,7 @@ public class TakeItemAction extends Action {
 	}
 
 	@Override
-	public CommandOutput execute() {
+	public ActionResult execute() {
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		BroadcastSystem bs = game.getSystem(BroadcastSystem.class);
@@ -123,7 +123,7 @@ public class TakeItemAction extends Action {
 		// Verify item exists and has a container
 		var itemContainers = rs.getProvidingRelationships(target, rs.rvContains, ws.getCurrentTime());
 		if (itemContainers.isEmpty()) {
-			return null; // Item has no container
+			return ActionResult.failure(); // Item has no container
 		}
 
 		Entity fromContainer = itemContainers.get(0).getProvider();
@@ -180,7 +180,7 @@ public class TakeItemAction extends Action {
 
 		// Broadcast to all entities including the actor (player will see via broadcast)
 		bs.broadcast(actor, broadcast);
-		return broadcast;
+		return ActionResult.success();
 	}
 
 	@Override

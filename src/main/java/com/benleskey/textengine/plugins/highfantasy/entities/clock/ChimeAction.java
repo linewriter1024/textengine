@@ -3,6 +3,7 @@ package com.benleskey.textengine.plugins.highfantasy.entities.clock;
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.model.Action;
+import com.benleskey.textengine.model.ActionResult;
 import com.benleskey.textengine.model.ActionValidation;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.UniqueType;
@@ -62,7 +63,7 @@ public class ChimeAction extends Action {
     }
 
     @Override
-    public CommandOutput execute() {
+    public ActionResult execute() {
         BroadcastSystem bs = game.getSystem(BroadcastSystem.class);
 
         Entity actor = (Entity) getActor().orElseThrow();
@@ -84,8 +85,7 @@ public class ChimeAction extends Action {
             GrandfatherClock clock = (GrandfatherClock) actor;
             clock.queueNextWait();
         }
-
-        return broadcast;
+        return ActionResult.success();
     }
 
     @Override

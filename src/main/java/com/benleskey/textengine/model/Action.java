@@ -3,7 +3,6 @@ package com.benleskey.textengine.model;
 import java.util.Optional;
 
 import com.benleskey.textengine.Game;
-import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.entities.Acting;
 import com.benleskey.textengine.systems.ActionSystem;
 import com.benleskey.textengine.systems.EntitySystem;
@@ -44,13 +43,11 @@ public abstract class Action extends BaseReference {
     /**
      * Execute this action.
      * Called when the action's time requirement is met.
-     * Should return CommandOutput that will be broadcast to the actor and nearby
-     * entities.
+     * Actions should broadcast their state changes to nearby entities.
      * 
-     * @return CommandOutput to broadcast (both to actor and nearby entities), or
-     *         null if action failed
+     * @return ActionResult indicating success or failure
      */
-    public abstract CommandOutput execute();
+    public abstract ActionResult execute();
 
     /**
      * Check if this action can be executed.
