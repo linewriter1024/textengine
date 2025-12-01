@@ -4,6 +4,7 @@ import com.benleskey.textengine.Game;
 import com.benleskey.textengine.SingletonGameSystem;
 import com.benleskey.textengine.exceptions.DatabaseException;
 import com.benleskey.textengine.exceptions.InternalException;
+import com.benleskey.textengine.hooks.core.OnSkeletonInteraction;
 import com.benleskey.textengine.hooks.core.OnSystemInitialize;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
@@ -243,10 +244,10 @@ public class EntitySystem extends SingletonGameSystem implements OnSystemInitial
 
 		log.log("Populating skeleton entity %d", entity.getId());
 
-		// Fire the hook to let plugins populate the entity
-		game.fireSkeletonInteraction(entity);
-
 		// Remove the skeleton tag
 		tagSystem.removeTag(entity, TAG_SKELETON, worldSystem.getCurrentTime());
+
+		// Fire the hook to let plugins populate the entity
+		game.doHookEvent(OnSkeletonInteraction.class, handler -> handler.onSkeletonInteraction(entity));
 	}
 }

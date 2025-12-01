@@ -248,14 +248,16 @@ public class Game {
 	}
 
 	/**
-	 * Fire the OnSkeletonInteraction hook for a skeleton entity.
-	 * Called by EntitySystem.ensurePopulated() when an entity needs to be
-	 * populated.
+	 * Fire a hook event to all registered handlers.
+	 * This provides a general-purpose way for systems to fire hooks without
+	 * requiring Game to know about specific hook types.
 	 * 
-	 * @param entity The skeleton entity to populate
+	 * @param <T>      The hook event type
+	 * @param clazz    The hook event class
+	 * @param consumer The consumer to run on each handler
 	 */
-	public void fireSkeletonInteraction(com.benleskey.textengine.model.Entity entity) {
-		hooks.doEvent(OnSkeletonInteraction.class, handler -> handler.onSkeletonInteraction(entity));
+	public <T extends HookEvent> void doHookEvent(Class<T> clazz, java.util.function.Consumer<T> consumer) {
+		hooks.doEvent(clazz, consumer);
 	}
 
 	@SuppressWarnings("null") // Generic type T will never be null
