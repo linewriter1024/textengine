@@ -2,6 +2,9 @@ package com.benleskey.textengine.model;
 
 public record DTime(long raw) {
 
+	/** Zero duration - for instant actions */
+	public static final DTime ZERO = new DTime(0);
+
 	public static DTime fromSeconds(long seconds) {
 		return new DTime(seconds * 1000);
 	}

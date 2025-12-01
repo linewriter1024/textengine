@@ -468,6 +468,13 @@ public class ActionSystem extends SingletonGameSystem implements OnSystemInitial
 		// No pending action (or action just completed) - call entity to decide
 		acting.onActionReady();
 
+		// Check if entity just queued an instant action (timeRequired == 0)
+		// If so, execute it immediately
+		Action newAction = getPendingAction(acting);
+		if (newAction != null && isActionReady(newAction, currentTime)) {
+			executePendingAction(acting, newAction, currentTime);
+		}
+
 		return true;
 	}
 }
