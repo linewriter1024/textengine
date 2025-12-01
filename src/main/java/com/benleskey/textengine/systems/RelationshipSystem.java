@@ -12,7 +12,9 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class RelationshipSystem extends SingletonGameSystem implements OnSystemInitialize {
@@ -23,6 +25,23 @@ public class RelationshipSystem extends SingletonGameSystem implements OnSystemI
 	private PreparedStatement addStatement;
 	private PreparedStatement getProviderStatement;
 	private PreparedStatement getReceiverStatement;
+
+	// LRU caches for relationship lookups
+	private final Map<String, List<RelationshipDescriptor>> providingCache = new LinkedHashMap<String, List<RelationshipDescriptor>>(
+			Game.CACHE_SIZE, 0.75f, true) {
+		@Override
+		protected boolean removeEldestEntry(Map.Entry<String, List<RelationshipDescriptor>> eldest) {
+			return size() > Game.CACHE_SIZE;
+		}
+	};
+
+	private final Map<String, List<RelationshipDescriptor>> receivingCache = new LinkedHashMap<String, List<RelationshipDescriptor>>(
+			Game.CACHE_SIZE, 0.75f, true) {
+		@Override
+		protected boolean removeEldestEntry(Map.Entry<String, List<RelationshipDescriptor>> eldest) {
+			return size() > Game.CACHE_SIZE;
+		}
+	};
 
 	// Common message field constants for relationship-related data
 	public static final String M_CONTAINER = "container";
@@ -45,6 +64,12 @@ public class RelationshipSystem extends SingletonGameSystem implements OnSystemI
 				try (Statement s = game.db().createStatement()) {
 					s.executeUpdate(
 							"CREATE TABLE entity_relationship(relationship_id INTEGER PRIMARY KEY, provider_id INTEGER, receiver_id INTEGER, relationship_verb INTEGER)");
+					// Index for getProviderStatement (receiver_id + relationship_verb lookup)
+					s.executeUpdate(
+							"CREATE INDEX idx_relationship_receiver ON entity_relationship(receiver_id, relationship_verb)");
+					// Index for getReceiverStatement (provider_id + relationship_verb lookup)
+					s.executeUpdate(
+							"CREATE INDEX idx_relationship_provider ON entity_relationship(provider_id, relationship_verb)");
 				}
 			} catch (SQLException e) {
 				throw new DatabaseException("Unable to create entity relationship table", e);
@@ -112,6 +137,14 @@ public class RelationshipSystem extends SingletonGameSystem implements OnSystemI
 
 	public synchronized List<RelationshipDescriptor> getProvidingRelationships(Entity receiver, UniqueType verb,
 			DTime when) throws DatabaseException {
+		// Check cache first
+		String cacheKey = receiver.getId() + ":" + verb.type() + ":" + when.raw();
+		List<RelationshipDescriptor> cached = providingCache.get(cacheKey);
+		if (cached != null) {
+			return cached;
+		}
+
+		// Query database
 		try {
 			List<RelationshipDescriptor> rds = new ArrayList<>();
 			getProviderStatement.setLong(1, receiver.getId());
@@ -127,6 +160,8 @@ public class RelationshipSystem extends SingletonGameSystem implements OnSystemI
 							.build());
 				}
 			}
+			// Cache the result
+			providingCache.put(cacheKey, rds);
 			return rds;
 		} catch (SQLException e) {
 			throw new DatabaseException(
@@ -136,6 +171,14 @@ public class RelationshipSystem extends SingletonGameSystem implements OnSystemI
 
 	public synchronized List<RelationshipDescriptor> getReceivingRelationships(Entity provider, UniqueType verb,
 			DTime when) throws DatabaseException {
+		// Check cache first
+		String cacheKey = provider.getId() + ":" + verb.type() + ":" + when.raw();
+		List<RelationshipDescriptor> cached = receivingCache.get(cacheKey);
+		if (cached != null) {
+			return cached;
+		}
+
+		// Query database
 		try {
 			List<RelationshipDescriptor> rds = new ArrayList<>();
 			getReceiverStatement.setLong(1, provider.getId());
@@ -151,6 +194,8 @@ public class RelationshipSystem extends SingletonGameSystem implements OnSystemI
 							.build());
 				}
 			}
+			// Cache the result
+			receivingCache.put(cacheKey, rds);
 			return rds;
 		} catch (SQLException e) {
 			throw new DatabaseException(

@@ -33,6 +33,18 @@ public class EventSystem extends SingletonGameSystem implements OnSystemInitiali
 				try (Statement s = game.db().createStatement()) {
 					s.executeUpdate(
 							"CREATE TABLE event(event_order INTEGER PRIMARY KEY, event_id INTEGER, type INTEGER, time INTEGER, reference INTEGER)");
+					// Index for finding events by reference (action lookups)
+					s.executeUpdate(
+							"CREATE INDEX idx_event_reference ON event(reference)");
+					// Index for cancel event lookups (type + reference for NOT IN subquery)
+					s.executeUpdate(
+							"CREATE INDEX idx_event_type_reference ON event(type, reference)");
+					// Index for time-based queries
+					s.executeUpdate(
+							"CREATE INDEX idx_event_type_time ON event(type, time)");
+					// Composite index for the common valid events subquery pattern
+					s.executeUpdate(
+							"CREATE INDEX idx_event_type_time_ref ON event(type, time, reference)");
 				}
 			} catch (SQLException e) {
 				throw new DatabaseException("Unable to create event system tables", e);

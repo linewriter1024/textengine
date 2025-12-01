@@ -35,20 +35,23 @@ public class LookSystem extends SingletonGameSystem implements OnSystemInitializ
 	public void onSystemInitialize() {
 		int v = getSchema().getVersionNumber();
 
-		// Schema version 2: type is now INTEGER (UniqueType) instead of TEXT
-		if (v < 2) {
+		// Schema version 3: added indexes
+		if (v < 3) {
 			try {
 				try (Statement s = game.db().createStatement()) {
 					// Drop old table if exists and recreate with new schema
 					s.executeUpdate("DROP TABLE IF EXISTS entity_look");
 					s.executeUpdate(
 							"CREATE TABLE entity_look(look_id INTEGER PRIMARY KEY, entity_id INTEGER, type INTEGER, description TEXT)");
+					// Index for getCurrentLookStatement (entity lookup)
+					s.executeUpdate(
+							"CREATE INDEX idx_entity_look_entity ON entity_look(entity_id)");
 				}
 			} catch (SQLException e) {
 				throw new DatabaseException("Unable to create look system tables", e);
 			}
 
-			getSchema().setVersionNumber(2);
+			getSchema().setVersionNumber(3);
 		}
 
 		eventSystem = game.getSystem(EventSystem.class);

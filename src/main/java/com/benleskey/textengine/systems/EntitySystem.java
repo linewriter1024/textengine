@@ -15,6 +15,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -25,6 +26,14 @@ public class EntitySystem extends SingletonGameSystem implements OnSystemInitial
 	private EntityTagSystem tagSystem;
 	private WorldSystem worldSystem;
 	private UniqueTypeSystem typeSystem;
+
+	// LRU cache for entity instances
+	private final Map<Long, Entity> entityCache = new LinkedHashMap<Long, Entity>(Game.CACHE_SIZE, 0.75f, true) {
+		@Override
+		protected boolean removeEldestEntry(Map.Entry<Long, Entity> eldest) {
+			return size() > Game.CACHE_SIZE;
+		}
+	};
 
 	// Common message field constants for entity-related data
 	public static final String M_ENTITY_ID = "entity_id";
@@ -110,8 +119,20 @@ public class EntitySystem extends SingletonGameSystem implements OnSystemInitial
 	}
 
 	public synchronized <T extends Entity> T get(long id, Class<T> clazz) {
+		// Check cache first
+		Entity cached = entityCache.get(id);
+		if (cached != null && clazz.isInstance(cached)) {
+			return clazz.cast(cached);
+		}
+
+		// Create new instance
 		try {
-			return clazz.getDeclaredConstructor(long.class, Game.class).newInstance(id, game);
+			T entity = clazz.getDeclaredConstructor(long.class, Game.class).newInstance(id, game);
+			// Cache the entity (only if id != 0, which is used for dummy entities)
+			if (id != 0) {
+				entityCache.put(id, entity);
+			}
+			return entity;
 		} catch (InvocationTargetException | InstantiationException | IllegalAccessException
 				| NoSuchMethodException e) {
 			throw new InternalException("Unable to add entity of class " + clazz.toGenericString(), e);
@@ -119,6 +140,13 @@ public class EntitySystem extends SingletonGameSystem implements OnSystemInitial
 	}
 
 	public synchronized Entity get(long id) throws DatabaseException {
+		// Check cache first
+		Entity cached = entityCache.get(id);
+		if (cached != null) {
+			return cached;
+		}
+
+		// Fetch from database
 		try {
 			getStatement.setLong(1, id);
 			try (ResultSet rs = getStatement.executeQuery()) {

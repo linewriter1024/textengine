@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
 
 public class Game {
+	public static final int CACHE_SIZE = 2000;
 	public static final String M_WELCOME = "welcome";
 	public static final String M_VERSION = "version";
 	private final Collection<Client> clients = new ArrayList<>();
@@ -253,8 +254,10 @@ public class Game {
 					feedCommand(client, client.waitForInput());
 				}
 
-				// Process ticks after all client commands
-				processTicks();
+				// Process ticks after all client commands (only if clients still alive)
+				if (anyClientAlive()) {
+					processTicks();
+				}
 
 				try {
 					databaseConnection.commit();
