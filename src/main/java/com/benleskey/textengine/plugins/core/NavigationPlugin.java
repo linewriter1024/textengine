@@ -263,9 +263,9 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 					.text(Markup.concat(
 							Markup.raw("You head toward "),
 							Markup.em(destinationDesc),
-						Markup.raw(", moving closer to "),
-						Markup.em(landmarkDesc),
-						Markup.raw("."))));
+							Markup.raw(", moving closer to "),
+							Markup.em(landmarkDesc),
+							Markup.raw("."))));
 		}
 	}
 }
