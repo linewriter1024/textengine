@@ -1,4 +1,4 @@
-# 2025-11-28
+# Project Ember
 
 We have a rough prototype architecture in the highfantasy and procgen1 plugins. These were good for developing the core, but are very messy. We need a better architecture, and to create our first real game.
 
@@ -12,6 +12,8 @@ Plugin path: plugins/ember
 This new game must have a very well-built architecture.
 
 Inspirations: Dwarf Fortress
+
+Every place, person, region, organization, etc. must have a unique name generated using our name generation system. Ember will define appropriate name generation patterns.
 
 We need:
 
