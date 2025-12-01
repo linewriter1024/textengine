@@ -30,7 +30,8 @@ import com.benleskey.textengine.util.Markup;
 /**
  * ActorActionSystem manages actions for all actors (players and NPCs).
  * 
- * Actions extend Reference and are stored in the database with flexible properties.
+ * Actions extend Reference and are stored in the database with flexible
+ * properties.
  * Action types are registered like entity types.
  * 
  * For Acting-tagged entities:
@@ -84,7 +85,7 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 	@Override
 	public void onSystemInitialize() throws DatabaseException {
 		int v = getSchema().getVersionNumber();
-		
+
 		// No backwards compatibility - just recreate schema
 		if (v == 0) {
 			try (Statement s = game.db().createStatement()) {
@@ -164,7 +165,8 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 							"FROM event " +
 							"WHERE event.reference = ? " +
 							"AND event.type = ? " +
-							"AND event.event_id NOT IN (SELECT event_cancel.reference FROM event AS event_cancel WHERE event_cancel.type = ? AND event_cancel.time <= ?) " +
+							"AND event.event_id NOT IN (SELECT event_cancel.reference FROM event AS event_cancel WHERE event_cancel.type = ? AND event_cancel.time <= ?) "
+							+
 							"ORDER BY event.event_order DESC LIMIT 1");
 		} catch (SQLException e) {
 			throw new DatabaseException("Unable to prepare action statements", e);
@@ -211,7 +213,8 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 			getActionTypeStatement.setLong(1, id);
 			try (ResultSet rs = getActionTypeStatement.executeQuery()) {
 				if (rs.next()) {
-					UniqueType actionType = new UniqueType(rs.getLong("action_type"), game.getSystem(UniqueTypeSystem.class));
+					UniqueType actionType = new UniqueType(rs.getLong("action_type"),
+							game.getSystem(UniqueTypeSystem.class));
 					Class<? extends Action> actionClass = getActionClass(actionType);
 					if (actionClass == null) {
 						throw new InternalException("Unknown action type: " + actionType);
@@ -228,7 +231,8 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 	/**
 	 * Create a new action in the database.
 	 */
-	public synchronized <T extends Action> T add(Class<T> clazz, Actor actor, Entity target, DTime timeRequired) throws DatabaseException {
+	public synchronized <T extends Action> T add(Class<T> clazz, Actor actor, Entity target, DTime timeRequired)
+			throws DatabaseException {
 		try {
 			T dummy = get(0, clazz);
 			UniqueType actionType = dummy.getActionType();
@@ -288,11 +292,13 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 
 	/**
 	 * Queue an action for an actor.
-	 * Validates the action first. If invalid, returns the validation result with error output.
+	 * Validates the action first. If invalid, returns the validation result with
+	 * error output.
 	 * Players: auto-advance time and execute immediately.
 	 * NPCs: store in database for later execution.
 	 * 
-	 * @return ActionValidation indicating success or failure with error output for players
+	 * @return ActionValidation indicating success or failure with error output for
+	 *         players
 	 */
 	public ActionValidation queueAction(Actor actor, UniqueType actionType, Entity target, DTime timeRequired)
 			throws DatabaseException {
