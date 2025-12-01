@@ -16,14 +16,19 @@ import java.util.Random;
  * DicePlugin provides dice rolling commands using the Dice Pool System.
  * 
  * Commands:
- * - roll [pool_size] [difficulty] [threshold] - Roll a pool of d10 dice
- * Example: "roll 10 5 7" rolls 10d10 with difficulty 5 and threshold 7+
- * Threshold for success: configurable (1-10)
- * Exploding dice: 10's roll again
+ * - debug:roll [pool_size] [die_size] [threshold] [explosion_threshold]
+ * [difficulty] - Roll a pool of dice
+ * Example: "debug:roll 10 10 7 10 5" rolls 10d10 with difficulty 5 and
+ * threshold 7+
+ * - debug:roll [notation] - Roll generic dice notation
+ * Example: "debug:roll 3d6+2"
+ * 
+ * Threshold for success: configurable (1-max die size)
+ * Exploding dice: at explosion threshold
  */
 public class DicePlugin extends Plugin implements OnPluginInitialize {
 
-    public static final String ROLL = "roll";
+    public static final String ROLL = "debug:roll";
     public static final String ROLL_VARIANT = "roll_variant";
     public static final String ROLL_GENERIC_VARIANT = "roll_generic_variant";
     public static final String M_POOL_SIZE = "pool_size";
@@ -51,10 +56,10 @@ public class DicePlugin extends Plugin implements OnPluginInitialize {
         diceSystem = new DiceSystem(game);
         game.registerSystem(diceSystem);
 
-        // Register roll command: "roll [pool] [die_size] [threshold]
+        // Register roll command: "debug:roll [pool] [die_size] [threshold]
         // [explosion_threshold] [difficulty]"
         game.registerCommand(new Command(ROLL, this::handleRoll,
-                new CommandVariant(ROLL_VARIANT, "^roll\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s*$",
+                new CommandVariant(ROLL_VARIANT, "^debug:roll\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s*$",
                         args -> {
                             int poolSize = Integer.parseInt(args.group(1));
                             int dieSize = Integer.parseInt(args.group(2));
@@ -68,7 +73,8 @@ public class DicePlugin extends Plugin implements OnPluginInitialize {
                                     .put(M_EXPLOSION_THRESHOLD, explosionThreshold)
                                     .put(M_DIFFICULTY, difficulty);
                         }),
-                new CommandVariant(ROLL_GENERIC_VARIANT, "^roll\\s+([0-9]+\\s*d\\s*[0-9]+(?:\\s*[+-]\\s*[0-9]+)?)\\s*$",
+                new CommandVariant(ROLL_GENERIC_VARIANT,
+                        "^debug:roll\\s+([0-9]+\\s*d\\s*[0-9]+(?:\\s*[+-]\\s*[0-9]+)?)\\s*$",
                         args -> {
                             String notation = args.group(1).trim();
                             return CommandInput.makeNone()
