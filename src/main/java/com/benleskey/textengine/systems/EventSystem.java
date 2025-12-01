@@ -45,6 +45,9 @@ public class EventSystem extends SingletonGameSystem implements OnSystemInitiali
 					// Composite index for the common valid events subquery pattern
 					s.executeUpdate(
 							"CREATE INDEX idx_event_type_time_ref ON event(type, time, reference)");
+					// Index optimized for correlated subquery with reference equality
+					s.executeUpdate(
+							"CREATE INDEX idx_event_type_ref_time ON event(type, reference, time)");
 				}
 			} catch (SQLException e) {
 				throw new DatabaseException("Unable to create event system tables", e);
