@@ -8,10 +8,12 @@ import com.benleskey.textengine.commands.CommandInput;
 import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.commands.CommandVariant;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
+import com.benleskey.textengine.systems.CommandCompletionSystem;
 import com.benleskey.textengine.systems.CommandHelpSystem;
 import com.benleskey.textengine.util.Markup;
 
 import java.util.Collection;
+import java.util.Map;
 
 /**
  * HelpCommandPlugin provides the help command for listing and viewing
@@ -41,6 +43,11 @@ public class HelpCommandPlugin extends Plugin implements OnPluginInitialize {
                     return CommandInput.makeNone().put(M_TOPIC, args.group(1).trim());
                 }),
                 new CommandVariant("help_list", "^help\\s*$", args -> CommandInput.makeNone())));
+
+        // Register tab completion for help topics (command names)
+        CommandCompletionSystem cc = game.getSystem(CommandCompletionSystem.class);
+        cc.registerCompletionsForCommandToken(HELP, null,
+                Map.of(1, () -> helpSystem.getCommandTokens()));
     }
 
     private void handleHelp(Client client, CommandInput input) {
