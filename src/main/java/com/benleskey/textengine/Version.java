@@ -12,7 +12,7 @@ public class Version {
 
 	public static final String internalName = "com.benleskey.textengine";
 	public static final String humanName = "Text Engine";
-	public static final VersionNumber versionNumber = new VersionNumber(0, 0, 1);
+	public static final VersionNumber versionNumber = new VersionNumber(0, 1, 0);
 	public static final String url = "https://benleskey.com/aka/textengine";
 
 	public static String toHumanString() {

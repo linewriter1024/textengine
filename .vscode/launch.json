@@ -12,11 +12,19 @@
         },
         {
             "type": "java",
-            "name": "Main",
+            "name": "Ember",
             "request": "launch",
             "mainClass": "com.benleskey.textengine.cli.Main",
             "projectName": "textengine",
             "args": ["--showlog", "--plugin", "com.benleskey.textengine.plugins.ember.EmberPlugin"]
+        },
+        {
+            "type": "java",
+            "name": "Highfantasy",
+            "request": "launch",
+            "mainClass": "com.benleskey.textengine.cli.Main",
+            "projectName": "textengine",
+            "args": ["--showlog", "--plugin", "com.benleskey.textengine.plugins.highfantasy.HighFantasyPlugin"]
         }
     ]
 }

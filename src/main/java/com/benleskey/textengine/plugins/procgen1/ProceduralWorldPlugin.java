@@ -37,9 +37,8 @@ public class ProceduralWorldPlugin extends Plugin
 		implements OnPluginInitialize, OnEntityTypesRegistered, OnStartClient {
 
 	// Generation parameters
-	private final Random random;
-	private long seed; // Will be set from WorldSystem or parameter
-	private final Long providedSeed; // Seed provided via constructor (may be null)
+	private Random random;
+	private long seed;
 
 	// Track generated places by biome for spatial coherence
 	private Map<String, List<Entity>> placesByBiome = new HashMap<>();
@@ -68,12 +67,8 @@ public class ProceduralWorldPlugin extends Plugin
 	private ItemTemplateSystem itemTemplateSystem;
 	private LandmarkTemplateSystem landmarkTemplateSystem;
 
-	public ProceduralWorldPlugin(Game game, Long seed) {
+	public ProceduralWorldPlugin(Game game) {
 		super(game);
-		this.providedSeed = seed;
-		// Random will be initialized in onEntityTypesRegistered after seed itemSystem
-		// determined
-		this.random = null;
 	}
 
 	@Override
@@ -94,38 +89,12 @@ public class ProceduralWorldPlugin extends Plugin
 
 	@Override
 	public void onEntityTypesRegistered() {
-		// Determine seed: use persisted value if exists, otherwise use provided or
-		// generate
+		// Get seed from WorldSystem (already initialized during system init)
 		WorldSystem ws = game.getSystem(WorldSystem.class);
-		Long persistedSeed = ws.getSeed();
+		seed = ws.getSeed();
+		random = new Random(seed);
 
-		if (persistedSeed != null) {
-			// World already exists, use persisted seed
-			seed = persistedSeed;
-			log.log("Loading existing world with seed %d", seed);
-		} else {
-			// New world - use provided seed or generate from timestamp
-			seed = (providedSeed != null) ? providedSeed : System.currentTimeMillis();
-			ws.setSeed(seed);
-			log.log("Generating new procedural world with seed %d", seed);
-		}
-
-		// Initialize random with determined seed
-		// Note: We create a new Random here even for existing worlds to ensure
-		// consistent state for any future procedural generation
-		@SuppressWarnings("resource")
-		Random newRandom = new Random(seed);
-		// Update the field by using reflection workaround for final field
-		// Actually, we already changed it to non-final above
-		try {
-			java.lang.reflect.Field randomField = ProceduralWorldPlugin.class.getDeclaredField("random");
-			randomField.setAccessible(true);
-			randomField.set(this, newRandom);
-		} catch (Exception e) {
-			throw new InternalException("Failed to initialize random generator", e);
-		}
-
-		log.log("Generating procedural world with seed %d...", seed);
+		log.log("Procedural world using seed %d", seed);
 
 		// Cache all systems for lazy generation
 		entitySystem = game.getSystem(EntitySystem.class);

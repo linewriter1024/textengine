@@ -34,6 +34,7 @@ public class Game {
 	@Getter
 	private UniqueTypeSystem uniqueTypeSystem;
 	private final Connection databaseConnection;
+	@Getter
 	private final Long seed;
 	private final AtomicLong idCounter = new AtomicLong();
 	public Logger log;
@@ -68,7 +69,7 @@ public class Game {
 		registerPlugin(new UnknownCommand(this));
 
 		// Register tentative plugins (activated only if needed as dependencies)
-		registerTentativePlugin(new com.benleskey.textengine.plugins.procgen1.ProceduralWorldPlugin(this, seed));
+		registerTentativePlugin(new com.benleskey.textengine.plugins.procgen1.ProceduralWorldPlugin(this));
 	}
 
 	public void initialize() throws InternalException {

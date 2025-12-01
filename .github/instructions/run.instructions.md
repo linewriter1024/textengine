@@ -27,10 +27,12 @@ printf "look\nquit\n" | mvn -q exec:java ... -Dexec.args="--seed 12345 --apidebu
 
 ## Loading Plugins
 
+**A game plugin must be loaded to have a world to interact with.** The core engine provides commands and systems, but no world content. Load a game plugin like `HighFantasyPlugin` or `EmberPlugin` to generate places, items, and NPCs.
+
 Use `--plugin <class name>` to load additional plugins (can be specified multiple times):
 
 ```bash
-# Load the high fantasy plugin
+# Load the high fantasy plugin (required for a playable world)
 printf "look\nquit\n" | mvn -q exec:java ... -Dexec.args="--seed 12345 --plugin com.benleskey.textengine.plugins.highfantasy.HighFantasyPlugin"
 
 # Load multiple plugins

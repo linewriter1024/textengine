@@ -21,6 +21,7 @@ public class WorldSystem extends SingletonGameSystem implements OnSystemInitiali
 	private final GrouplessPropertiesSubSystem<String, Long> referencePoints;
 	private final GrouplessPropertiesSubSystem<Long, Long> time;
 	private long currentTime;
+	private long seed;
 
 	public WorldSystem(Game game) {
 		super(game);
@@ -34,6 +35,18 @@ public class WorldSystem extends SingletonGameSystem implements OnSystemInitiali
 	public void onSystemInitialize() throws DatabaseException {
 		currentTime = time.get(TIME_NOW).orElse(0L);
 		log.log("The current world time is " + getCurrentTime());
+
+		// Initialize seed: use persisted value, or CLI-provided, or generate new
+		Long persistedSeed = time.get(WORLD_SEED).orElse(null);
+		if (persistedSeed != null) {
+			seed = persistedSeed;
+			log.log("Using existing world seed: %d", seed);
+		} else {
+			Long providedSeed = game.getSeed();
+			seed = (providedSeed != null) ? providedSeed : System.currentTimeMillis();
+			time.set(WORLD_SEED, seed);
+			log.log("Initialized new world with seed: %d", seed);
+		}
 	}
 
 	public synchronized DTime getCurrentTime() throws DatabaseException {
@@ -54,19 +67,10 @@ public class WorldSystem extends SingletonGameSystem implements OnSystemInitiali
 
 	/**
 	 * Get the world generation seed.
-	 * Returns null if seed has not been set (new world).
+	 * Always returns a valid seed after system initialization.
 	 */
-	public synchronized Long getSeed() throws DatabaseException {
-		return time.get(WORLD_SEED).orElse(null);
-	}
-
-	/**
-	 * Set the world generation seed.
-	 * Should only be called once when creating a new world.
-	 */
-	public synchronized void setSeed(long seed) throws DatabaseException {
-		time.set(WORLD_SEED, seed);
-		log.log("World seed set to %d", seed);
+	public synchronized long getSeed() {
+		return seed;
 	}
 
 	/**
