@@ -20,7 +20,7 @@ import com.benleskey.textengine.entities.Actor;
 import com.benleskey.textengine.exceptions.DatabaseException;
 import com.benleskey.textengine.exceptions.InternalException;
 import com.benleskey.textengine.hooks.core.OnSystemInitialize;
-import com.benleskey.textengine.model.Action;
+import com.benleskey.textengine.model.ActionDescriptor;
 import com.benleskey.textengine.model.ActionValidation;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
@@ -45,7 +45,7 @@ import com.benleskey.textengine.util.Markup;
 public class ActorActionSystem extends SingletonGameSystem implements OnSystemInitialize {
 
 	// Action type registry
-	private final Map<UniqueType, Class<? extends Action>> actionTypes = new HashMap<>();
+	private final Map<UniqueType, Class<? extends ActionDescriptor>> actionTypes = new HashMap<>();
 
 	// Event type for all actions (reference points to action table)
 	public UniqueType ACTION;
@@ -154,7 +154,7 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 	/**
 	 * Register an action type with its implementation class.
 	 */
-	public void registerActionType(UniqueType actionType, Class<? extends Action> actionClass) {
+	public void registerActionType(UniqueType actionType, Class<? extends ActionDescriptor> actionClass) {
 		actionTypes.put(actionType, actionClass);
 		log.log("Registered action type %s to class %s", actionType, actionClass.getCanonicalName());
 	}
@@ -162,7 +162,7 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 	/**
 	 * Create an action instance from a Reference.
 	 */
-	private synchronized Action createActionFromReference(Reference actionRef, DTime currentTime)
+	private synchronized ActionDescriptor createActionFromReference(Reference actionRef, DTime currentTime)
 			throws DatabaseException {
 		try {
 			loadActionStatement.setLong(1, actionRef.getId());
@@ -192,14 +192,14 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 	/**
 	 * Create an action instance from parameters.
 	 */
-	private Action createAction(UniqueType actionType, Actor actor, Entity target, DTime timeRequired) {
-		Class<? extends Action> actionClass = actionTypes.get(actionType);
+	private ActionDescriptor createAction(UniqueType actionType, Actor actor, Entity target, DTime timeRequired) {
+		Class<? extends ActionDescriptor> actionClass = actionTypes.get(actionType);
 		if (actionClass == null) {
 			throw new InternalException(String.format("Cannot create action %s: not registered", actionType));
 		}
 
 		try {
-			Constructor<? extends Action> constructor = actionClass.getDeclaredConstructor(
+			Constructor<? extends ActionDescriptor> constructor = actionClass.getDeclaredConstructor(
 					Game.class, Actor.class, Entity.class, DTime.class);
 			return constructor.newInstance(game, actor, target, timeRequired);
 		} catch (Exception e) {
@@ -220,7 +220,7 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 	public ActionValidation queueAction(Actor actor, UniqueType actionType, Entity target, DTime timeRequired)
 			throws DatabaseException {
 		// Validate the action first
-		Action action = createAction(actionType, actor, target, timeRequired);
+		ActionDescriptor action = createAction(actionType, actor, target, timeRequired);
 		if (action == null) {
 			return ActionValidation.failure(
 					CommandOutput.make("action")
@@ -268,7 +268,7 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 	 * Used internally for NPC action execution.
 	 */
 	public boolean executeAction(Actor actor, UniqueType actionType, Entity target, DTime timeRequired) {
-		Action action = createAction(actionType, actor, target, timeRequired);
+		ActionDescriptor action = createAction(actionType, actor, target, timeRequired);
 		if (action == null) {
 			return false;
 		}
@@ -342,7 +342,7 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 	 * Execute and clear a pending action.
 	 */
 	public boolean executePendingAction(Actor actor, Reference actionRef, DTime currentTime) throws DatabaseException {
-		Action action = createActionFromReference(actionRef, currentTime);
+		ActionDescriptor action = createActionFromReference(actionRef, currentTime);
 		if (action == null) {
 			return false;
 		}
@@ -362,7 +362,7 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 			return null;
 		}
 
-		Action action = createActionFromReference(actionRef, worldSystem.getCurrentTime());
+		ActionDescriptor action = createActionFromReference(actionRef, worldSystem.getCurrentTime());
 		return action != null ? action.getDescription() : null;
 	}
 

@@ -3,7 +3,7 @@ package com.benleskey.textengine.actions;
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.entities.Actor;
-import com.benleskey.textengine.model.Action;
+import com.benleskey.textengine.model.ActionDescriptor;
 import com.benleskey.textengine.model.ActionValidation;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
@@ -15,7 +15,7 @@ import com.benleskey.textengine.util.Markup;
  * Action for moving an actor from one location to another.
  * Broadcasts departure and arrival messages to nearby entities.
  */
-public class MoveAction extends Action {
+public class MoveAction extends ActionDescriptor {
 
 	// Command and message constants
 	public static final String CMD_GO = "go";

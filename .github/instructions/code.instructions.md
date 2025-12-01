@@ -6,6 +6,11 @@ applyTo: "**"
 
 Critical patterns and gotchas.
 
+- Always seek the least complex code.
+- Reduce complexity at every opportunity.
+- Seek out ways to reduce complexity and/or code size.
+- When making a change, reduce the complexity of any related code or code you touch.
+
 ## System Access
 
 **Never pass systems as parameters.** Fetch locally or store as class fields.
@@ -24,7 +29,7 @@ private void handle(Client c) {
 public class MyPlugin extends Plugin {
     private LookSystem ls;
     private WorldSystem ws;
-    
+
     @Override
     public void onPluginInitialize() {
         ls = game.getSystem(LookSystem.class);
@@ -63,6 +68,7 @@ Plugins execute in **dependency order**, not registration order. Use `getDepende
 ## Entity System
 
 **Register entity types before creating:**
+
 ```java
 EntitySystem es = game.getSystem(EntitySystem.class);
 es.registerEntityType(Place.class);
@@ -79,10 +85,11 @@ UniqueType type = game.getUniqueTypeSystem().getType("scale_continent");
 ```
 
 Define constants in the system that uses them:
+
 ```java
 public class SpatialSystem {
     public static UniqueType SCALE_CONTINENT;
-    
+
     @Override
     public void onSystemInitialize() {
         SCALE_CONTINENT = game.getUniqueTypeSystem().getType("scale_continent");
@@ -93,6 +100,7 @@ public class SpatialSystem {
 ## Markup System
 
 **Explicit escaping:**
+
 ```java
 Markup.escape(userInput);      // Escapes HTML
 Markup.raw("<em>text</em>");   // Trusts markup
@@ -103,7 +111,7 @@ Markup.em("emphasized");       // <em>emphasized</em>
 
 **Success = no error field. Failure = error field present.**
 
-**Error codes must be constants**, defined where they're used (like M_ constants).
+**Error codes must be constants**, defined where they're used (like M\_ constants).
 
 ```java
 // Define error codes in the plugin/system where they're used
@@ -136,7 +144,7 @@ client.sendOutput(CommandOutput.make(TAKE)
 - `canExecute()` validates and returns `ActionValidation` with error `CommandOutput`
 - `execute()` performs action and broadcasts `CommandOutput` to all nearby entities (including actor)
 - Players auto-execute with time advance; NPCs queue for later
-- Use constants (CMD_*, ERR_*, M_*) defined in action classes, not magic strings
+- Use constants (CMD*\*, ERR*\_, M\_\_) defined in action classes, not magic strings
 
 ## Entity References
 
@@ -150,10 +158,11 @@ printf "open #1366\n" | mvn -q exec:java ... -Dexec.args="--seed 12345"
 ## World Generation
 
 **Use seeds for deterministic generation:**
+
 ```java
 public class ProceduralWorldPlugin extends Plugin {
     private final Random random;
-    
+
     public ProceduralWorldPlugin(Game game, long seed) {
         super(game);
         this.random = new Random(seed);
@@ -164,6 +173,7 @@ public class ProceduralWorldPlugin extends Plugin {
 ## Testing
 
 **Use scripted input:**
+
 ```bash
 printf "look\ngo north\nlook\nquit\n" | mvn -q exec:java ...
 ```
@@ -190,14 +200,15 @@ printf "look\ngo north\nlook\nquit\n" | mvn -q exec:java ...
 **Critical**: Entity instances are constantly reconstructed from the database, NOT singletons.
 
 **Why this matters**:
+
 - Entities are loaded from DB on demand
 - Constructor called many times per entity
 - Instance fields reset to initial values
 - Only database state (relationships, properties, tags) persists
 
 **Use for persistence**:
+
 - Relationships: Entity-to-entity connections
 - Properties: Entity key-value data
 - Tags: Entity boolean flags
 - Event system: Temporal state changes
-

@@ -16,7 +16,7 @@ import com.benleskey.textengine.entities.Actor;
  * Action instances are created per execution, not stored in database.
  * The database stores action type ID + target entity ID.
  */
-public abstract class Action {
+public abstract class ActionDescriptor {
 	protected final Game game;
 	protected final Actor actor;
 	protected final Entity target;
@@ -31,7 +31,7 @@ public abstract class Action {
 	 *                     take/drop, etc.)
 	 * @param timeRequired How long this action takes to complete
 	 */
-	public Action(Game game, Actor actor, Entity target, DTime timeRequired) {
+	public ActionDescriptor(Game game, Actor actor, Entity target, DTime timeRequired) {
 		this.game = game;
 		this.actor = actor;
 		this.target = target;
