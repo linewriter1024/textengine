@@ -109,6 +109,12 @@ public class RelationshipSystem extends SingletonGameSystem implements OnSystemI
 			addStatement.setLong(3, receiver.getId());
 			addStatement.setLong(4, verb.type());
 			addStatement.executeUpdate();
+
+			// Invalidate caches for this specific relationship
+			// Remove entries that match provider:verb or receiver:verb
+			providingCache.keySet().removeIf(key -> key.startsWith(receiver.getId() + ":" + verb.type() + ":"));
+			receivingCache.keySet().removeIf(key -> key.startsWith(provider.getId() + ":" + verb.type() + ":"));
+
 			return eventSystem.addEventNow(etEntityRelationship, new Relationship(newId, game));
 		} catch (SQLException e) {
 			throw new DatabaseException(
