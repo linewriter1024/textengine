@@ -27,8 +27,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 
-import static com.benleskey.textengine.plugins.core.InteractionPlugin.LOOK;
-
 /**
  * NavigationPlugin handles player movement between locations.
  */
@@ -265,12 +263,9 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 					.text(Markup.concat(
 							Markup.raw("You head toward "),
 							Markup.em(destinationDesc),
-							Markup.raw(", moving closer to "),
-							Markup.em(landmarkDesc),
-							Markup.raw("."))));
+						Markup.raw(", moving closer to "),
+						Markup.em(landmarkDesc),
+						Markup.raw("."))));
 		}
-
-		// Automatically look around the new location
-		game.feedCommand(client, CommandInput.make(LOOK));
 	}
 }

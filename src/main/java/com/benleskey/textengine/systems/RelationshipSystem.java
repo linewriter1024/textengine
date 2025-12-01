@@ -84,13 +84,13 @@ public class RelationshipSystem extends SingletonGameSystem implements OnSystemI
 	public synchronized FullEvent<Relationship> add(Entity provider, Entity receiver, UniqueType verb)
 			throws DatabaseException {
 		try {
-		long newId = game.getNewGlobalId();
-		addStatement.setLong(1, newId);
-		addStatement.setLong(2, provider.getId());
-		addStatement.setLong(3, receiver.getId());
-		addStatement.setLong(4, verb.type());
-		addStatement.executeUpdate();
-		return eventSystem.addEventNow(etEntityRelationship, new Relationship(newId, game));
+			long newId = game.getNewGlobalId();
+			addStatement.setLong(1, newId);
+			addStatement.setLong(2, provider.getId());
+			addStatement.setLong(3, receiver.getId());
+			addStatement.setLong(4, verb.type());
+			addStatement.executeUpdate();
+			return eventSystem.addEventNow(etEntityRelationship, new Relationship(newId, game));
 		} catch (SQLException e) {
 			throw new DatabaseException(
 					String.format("Unable to create relationship (%s) %s (%s)", provider, verb, receiver), e);

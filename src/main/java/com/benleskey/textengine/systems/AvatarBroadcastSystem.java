@@ -7,9 +7,11 @@ import com.benleskey.textengine.Client;
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.SingletonGameSystem;
 import com.benleskey.textengine.actions.MoveAction;
+import com.benleskey.textengine.commands.CommandInput;
 import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.entities.Actor;
 import com.benleskey.textengine.entities.Avatar;
+import com.benleskey.textengine.plugins.core.InteractionPlugin;
 import com.benleskey.textengine.util.Markup;
 
 /**
@@ -84,6 +86,7 @@ public class AvatarBroadcastSystem extends SingletonGameSystem {
 	/**
 	 * Create a modified arrival broadcast for the avatar.
 	 * Changes "You arrive from X" to "You arrive at Y".
+	 * Also triggers an automatic look at the new location.
 	 */
 	private CommandOutput createArrivalBroadcastForAvatar(Actor avatar, CommandOutput originalBroadcast) {
 		String toLocationId = originalBroadcast.<String>getO(RelationshipSystem.M_TO).orElse(null);
@@ -98,6 +101,13 @@ public class AvatarBroadcastSystem extends SingletonGameSystem {
 		long locationEntityId = Long.parseLong(toLocationId);
 		String destDesc = eds.getSimpleDescription(es.get(locationEntityId), ws.getCurrentTime(), "somewhere");
 		String actorDesc = eds.getDescriptionWithArticle(avatar, ws.getCurrentTime(), "someone");
+
+		// Send automatic look at the new location
+		if (avatar instanceof Avatar) {
+			((Avatar) avatar).getClient().ifPresent(client -> {
+				game.feedCommand(client, CommandInput.make(InteractionPlugin.LOOK));
+			});
+		}
 
 		// Create new broadcast: "You arrive at <destination>"
 		return CommandOutput.make(MoveAction.BROADCAST_ARRIVES)

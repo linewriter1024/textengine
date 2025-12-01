@@ -29,14 +29,13 @@ import com.benleskey.textengine.util.Markup;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.stream.Collectors;
 
 /**
  * ItemInteractionPlugin handles all item-related commands:
- * - Basic manipulation: take, drop, examine, inventory
+ * - Basic manipulation: take, drop, inventory
  * - Item usage: use (solo or on target)
  * - Container operations: open, close, put
  * - Taking from containers: take X from Y
@@ -44,7 +43,6 @@ import java.util.stream.Collectors;
 public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize {
 	public static final String TAKE = "take";
 	public static final String DROP = "drop";
-	public static final String EXAMINE = "examine";
 	public static final String USE = "use";
 	public static final String INVENTORY = "inventory";
 	public static final String OPEN = "open";
@@ -123,10 +121,6 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		game.registerCommand(new Command(DROP, this::handleDrop,
 				new CommandVariant("drop_item", "^drop\\s+(.+?)\\s*$", this::parseDrop)));
 
-		// Examine item (accepts entity names or #IDs)
-		game.registerCommand(new Command(EXAMINE, this::handleExamine,
-				new CommandVariant("examine_item", "^(?:examine|inspect|x)\\s+(.+?)\\s*$", this::parseExamine)));
-
 		// Use item (or use item on target)
 		// NOTE: Variants stored in HashMap (no guaranteed order), so regexes must be
 		// mutually exclusive
@@ -166,10 +160,6 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 	}
 
 	private CommandInput parseDrop(Matcher matcher) {
-		return CommandInput.makeNone().put(ItemSystem.M_ITEM, matcher.group(1).trim());
-	}
-
-	private CommandInput parseExamine(Matcher matcher) {
 		return CommandInput.makeNone().put(ItemSystem.M_ITEM, matcher.group(1).trim());
 	}
 
@@ -421,162 +411,6 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		}
 
 		// Success - action has already broadcast the result to player
-	}
-
-	private void handleExamine(Client client, CommandInput input) {
-		Entity actor = client.getEntity().orElse(null);
-		if (actor == null) {
-			client.sendOutput(Client.NO_ENTITY);
-			return;
-		}
-
-		// Get entities from both inventory and current location
-		List<Entity> availableEntities = new java.util.ArrayList<>();
-
-		// Carried entities
-		availableEntities.addAll(relationshipSystem
-				.getReceivingRelationships(actor, relationshipSystem.rvContains, worldSystem.getCurrentTime())
-				.stream()
-				.map(RelationshipDescriptor::getReceiver)
-				.filter(e -> e != actor) // Don't include self
-				.collect(Collectors.toList()));
-
-		// Entities at location
-		var containers = relationshipSystem.getProvidingRelationships(actor, relationshipSystem.rvContains,
-				worldSystem.getCurrentTime());
-		if (!containers.isEmpty()) {
-			Entity currentLocation = containers.get(0).getProvider();
-			availableEntities.addAll(relationshipSystem
-					.getReceivingRelationships(currentLocation, relationshipSystem.rvContains,
-							worldSystem.getCurrentTime())
-					.stream()
-					.map(RelationshipDescriptor::getReceiver)
-					.filter(e -> e != actor) // Don't include self
-					.collect(Collectors.toList()));
-		}
-
-		// Resolve which entity to examine
-		String itemInput = input.get(ItemSystem.M_ITEM);
-
-		java.util.function.Function<Entity, String> descExtractor = entity -> {
-			List<LookDescriptor> looks = lookSystem.getLooksFromEntity(entity, worldSystem.getCurrentTime());
-			return !looks.isEmpty() ? looks.get(0).getDescription() : null;
-		};
-
-		DisambiguationSystem.ResolutionResult<Entity> result = disambiguationSystem.resolveEntityWithAmbiguity(
-				client,
-				itemInput,
-				availableEntities,
-				descExtractor);
-
-		if (result.isNotFound()) {
-			client.sendOutput(CommandOutput.make(EXAMINE)
-					.error(ERR_ITEM_NOT_FOUND)
-					.text(Markup.concat(
-							Markup.raw("You don't see "),
-							Markup.em(itemInput),
-							Markup.raw("."))));
-			return;
-		}
-
-		if (result.isAmbiguous()) {
-			handleAmbiguousMatch(client, EXAMINE, itemInput, result.getAmbiguousMatches(), descExtractor);
-			return;
-		}
-
-		Entity targetItem = result.getUniqueMatch();
-
-		// Get item description
-		String itemName = entityDescriptionSystem.getSimpleDescription(targetItem, worldSystem.getCurrentTime(),
-				"something");
-
-		// Build examination output - all on one line
-		java.util.List<Markup.Safe> examineMarkup = new java.util.ArrayList<>();
-		examineMarkup.add(Markup.raw("You examine "));
-		examineMarkup.add(Markup.raw(itemName));
-		examineMarkup.add(Markup.raw(". "));
-
-		// Add tag-based descriptions on same line with space separation
-		List<String> tagDescriptions = entityDescriptionSystem.getTagDescriptions(targetItem,
-				worldSystem.getCurrentTime());
-		for (int i = 0; i < tagDescriptions.size(); i++) {
-			if (i > 0) {
-				examineMarkup.add(Markup.raw(" ")); // Space between descriptions
-			}
-			examineMarkup.add(Markup.escape(tagDescriptions.get(i)));
-		}
-
-		// Add weight if present
-		Long weightGrams = itemSystem.getTagValue(targetItem, itemSystem.TAG_WEIGHT, worldSystem.getCurrentTime());
-		if (weightGrams != null) {
-			if (!tagDescriptions.isEmpty()) {
-				examineMarkup.add(Markup.raw(" ")); // Space before weight
-			}
-			com.benleskey.textengine.model.DWeight weight = com.benleskey.textengine.model.DWeight
-					.fromGrams(weightGrams);
-			examineMarkup.add(Markup.escape("Weight: " + weight.toString()));
-		}
-
-		// Check if it's a container with contents
-		List<Entity> contents = relationshipSystem
-				.getReceivingRelationships(targetItem, relationshipSystem.rvContains, worldSystem.getCurrentTime())
-				.stream()
-				.map(RelationshipDescriptor::getReceiver)
-				.filter(e -> e instanceof Item)
-				.collect(Collectors.toList());
-
-		// Check if entity provides dynamic description
-		if (targetItem instanceof com.benleskey.textengine.entities.DynamicDescription dynamicDesc) {
-			String description = dynamicDesc.getDynamicDescription();
-			if (description != null && !description.isEmpty()) {
-				examineMarkup.add(Markup.raw("\n"));
-				examineMarkup.add(Markup.escape(description));
-			}
-		}
-
-		// If it's a container, show contents
-		if (!contents.isEmpty()) {
-			examineMarkup.add(Markup.raw("\nIt contains: "));
-
-			DisambiguationSystem.DisambiguatedList contentList = disambiguationSystem.buildDisambiguatedList(
-					contents,
-					item -> {
-						List<LookDescriptor> itemLooks = lookSystem.getLooksFromEntity(item,
-								worldSystem.getCurrentTime());
-						return !itemLooks.isEmpty() ? itemLooks.get(0).getDescription() : null;
-					});
-
-			List<Markup.Safe> contentParts = contentList.getMarkupParts();
-			for (int i = 0; i < contentParts.size(); i++) {
-				if (i > 0) {
-					if (i == contentParts.size() - 1) {
-						examineMarkup.add(Markup.raw(", and "));
-					} else {
-						examineMarkup.add(Markup.raw(", "));
-					}
-				}
-				examineMarkup.add(contentParts.get(i));
-			}
-			examineMarkup.add(Markup.raw("."));
-		}
-
-		// Build machine-readable contents list
-		List<Map<String, Object>> itemsList = new java.util.ArrayList<>();
-		for (Entity item : contents) {
-			List<LookDescriptor> itemLooks = lookSystem.getLooksFromEntity(item, worldSystem.getCurrentTime());
-			String desc = !itemLooks.isEmpty() ? itemLooks.get(0).getDescription() : "something";
-
-			Map<String, Object> itemData = new java.util.HashMap<>();
-			itemData.put(EntitySystem.M_ENTITY_ID, item.getKeyId());
-			itemData.put(ItemSystem.M_ITEM_NAME, desc);
-			itemsList.add(itemData);
-		}
-
-		client.sendOutput(CommandOutput.make(EXAMINE)
-				.put(EntitySystem.M_ENTITY_ID, String.valueOf(targetItem.getId()))
-				.put(ItemSystem.M_ITEM, targetItem)
-				.put(ItemSystem.M_ITEMS, itemsList)
-				.text(Markup.concat(examineMarkup.toArray(new Markup.Safe[0]))));
 	}
 
 	private void handleUse(Client client, CommandInput input) {

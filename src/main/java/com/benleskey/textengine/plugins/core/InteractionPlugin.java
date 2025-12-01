@@ -22,6 +22,7 @@ import com.benleskey.textengine.systems.ConnectionSystem;
 import com.benleskey.textengine.systems.RelationshipSystem;
 import com.benleskey.textengine.systems.WorldSystem;
 import com.benleskey.textengine.systems.SpatialSystem;
+import com.benleskey.textengine.systems.ItemSystem;
 import com.benleskey.textengine.util.Markup;
 import com.benleskey.textengine.util.Message;
 import com.benleskey.textengine.util.RawMessage;
@@ -55,6 +56,7 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 	private SpatialSystem spatialSystem;
 	private EntityDescriptionSystem entityDescriptionSystem;
 	private ActionSystem actorActionSystem;
+	private ItemSystem itemSystem;
 
 	public InteractionPlugin(Game game) {
 		super(game);
@@ -79,6 +81,7 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 		spatialSystem = game.getSystem(SpatialSystem.class);
 		entityDescriptionSystem = game.getSystem(EntityDescriptionSystem.class);
 		actorActionSystem = game.getSystem(ActionSystem.class);
+		itemSystem = game.getSystem(ItemSystem.class);
 
 		game.registerCommand(new Command(LOOK, (client, input) -> {
 			Entity entity = client.getEntity().orElse(null);
@@ -115,7 +118,7 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 	}
 
 	/**
-	 * Look at a specific target (direction, exit, or distant landmark).
+	 * Look at a specific target (item, entity, exit, or distant landmark).
 	 */
 	private void lookAtTarget(Client client, Entity currentLocation, String target) {
 
@@ -124,6 +127,23 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 			client.sendOutput(Client.NO_ENTITY);
 			return;
 		}
+
+		// Get items in inventory
+		List<Entity> carriedItems = relationshipSystem
+				.getReceivingRelationships(actor, relationshipSystem.rvContains, worldSystem.getCurrentTime())
+				.stream()
+				.map(com.benleskey.textengine.model.RelationshipDescriptor::getReceiver)
+				.filter(e -> e != actor)
+				.collect(Collectors.toList());
+
+		// Get items and entities at current location
+		List<Entity> entitiesHere = relationshipSystem
+				.getReceivingRelationships(currentLocation, relationshipSystem.rvContains,
+						worldSystem.getCurrentTime())
+				.stream()
+				.map(com.benleskey.textengine.model.RelationshipDescriptor::getReceiver)
+				.filter(e -> e != actor)
+				.collect(Collectors.toList());
 
 		// Get available exits from current location
 		List<ConnectionDescriptor> exits = connectionSystem.getConnections(currentLocation,
@@ -135,8 +155,10 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 				.map(vd -> vd.getEntity())
 				.toList();
 
-		// Combine exits and landmarks for matching
+		// Combine all possible targets for matching (items, entities, exits, landmarks)
 		List<Entity> allTargets = new java.util.ArrayList<>();
+		allTargets.addAll(carriedItems);
+		allTargets.addAll(entitiesHere);
 		List<Entity> exitDestinations = exits.stream()
 				.map(ConnectionDescriptor::getTo)
 				.toList();
@@ -144,13 +166,16 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 		allTargets.addAll(distantLandmarks);
 
 		// Use DisambiguationSystem to resolve the target
-		Entity matchedTarget = disambiguationSystem.resolveEntity(
+		java.util.function.Function<Entity, String> descExtractor = entity -> entityDescriptionSystem
+				.getSimpleDescription(entity, worldSystem.getCurrentTime());
+
+		DisambiguationSystem.ResolutionResult<Entity> result = disambiguationSystem.resolveEntityWithAmbiguity(
 				client,
 				target,
 				allTargets,
-				entity -> entityDescriptionSystem.getSimpleDescription(entity, worldSystem.getCurrentTime()));
+				descExtractor);
 
-		if (matchedTarget == null) {
+		if (result.isNotFound()) {
 			// No matching target found
 			client.sendOutput(CommandOutput.make(M_LOOK).text(
 					Markup.concat(
@@ -160,8 +185,26 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 			return;
 		}
 
-		// Check if it's an adjacent exit or a distant landmark
+		if (result.isAmbiguous()) {
+			// Handle ambiguous match - show numbered list for disambiguation
+			handleAmbiguousMatch(client, M_LOOK, target, result.getAmbiguousMatches(), descExtractor);
+			return;
+		}
+
+		Entity matchedTarget = result.getUniqueMatch();
+
+		// Check what type of target this is
+		boolean isCarriedItem = carriedItems.contains(matchedTarget);
+		boolean isNearbyEntity = entitiesHere.contains(matchedTarget);
 		boolean isDistantLandmark = distantLandmarks.contains(matchedTarget);
+
+		// Handle examining items or nearby entities
+		if (isCarriedItem || isNearbyEntity) {
+			examineEntity(client, matchedTarget);
+			return;
+		}
+
+		// Handle exits and distant landmarks
 
 		if (isDistantLandmark) {
 			// Looking at a distant landmark
@@ -547,5 +590,117 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 		// Combine all parts and set as text
 		output.text(Markup.concat(parts.toArray(new Markup.Safe[0])));
 		return output;
+	}
+
+	/**
+	 * Examine a specific entity (item or actor) in detail.
+	 * Provides tag-based descriptions, weight, dynamic descriptions, and container
+	 * contents.
+	 */
+	private void examineEntity(Client client, Entity targetEntity) {
+		// Get entity description
+		String entityName = entityDescriptionSystem.getSimpleDescription(targetEntity, worldSystem.getCurrentTime(),
+				"something");
+
+		// Build examination output - all on one line
+		java.util.List<Markup.Safe> examineMarkup = new java.util.ArrayList<>();
+		examineMarkup.add(Markup.raw("You examine "));
+		examineMarkup.add(Markup.raw(entityName));
+		examineMarkup.add(Markup.raw(". "));
+
+		// Add tag-based descriptions on same line with space separation
+		List<String> tagDescriptions = entityDescriptionSystem.getTagDescriptions(targetEntity,
+				worldSystem.getCurrentTime());
+		for (int i = 0; i < tagDescriptions.size(); i++) {
+			if (i > 0) {
+				examineMarkup.add(Markup.raw(" ")); // Space between descriptions
+			}
+			examineMarkup.add(Markup.escape(tagDescriptions.get(i)));
+		}
+
+		// Add weight if present
+		Long weightGrams = itemSystem.getTagValue(targetEntity, itemSystem.TAG_WEIGHT, worldSystem.getCurrentTime());
+		if (weightGrams != null) {
+			if (!tagDescriptions.isEmpty()) {
+				examineMarkup.add(Markup.raw(" ")); // Space before weight
+			}
+			com.benleskey.textengine.model.DWeight weight = com.benleskey.textengine.model.DWeight
+					.fromGrams(weightGrams);
+			examineMarkup.add(Markup.escape("Weight: " + weight.toString()));
+		}
+
+		// Check if it's a container with contents
+		List<Entity> contents = relationshipSystem
+				.getReceivingRelationships(targetEntity, relationshipSystem.rvContains, worldSystem.getCurrentTime())
+				.stream()
+				.map(com.benleskey.textengine.model.RelationshipDescriptor::getReceiver)
+				.filter(e -> e instanceof Item)
+				.collect(Collectors.toList());
+
+		// Check if entity provides dynamic description
+		if (targetEntity instanceof com.benleskey.textengine.entities.DynamicDescription dynamicDesc) {
+			String description = dynamicDesc.getDynamicDescription();
+			if (description != null && !description.isEmpty()) {
+				examineMarkup.add(Markup.raw("\n"));
+				examineMarkup.add(Markup.escape(description));
+			}
+		}
+
+		// If it's a container, show contents
+		if (!contents.isEmpty()) {
+			examineMarkup.add(Markup.raw("\nIt contains: "));
+
+			DisambiguationSystem.DisambiguatedList contentList = disambiguationSystem.buildDisambiguatedList(
+					contents,
+					item -> {
+						List<LookDescriptor> itemLooks = lookSystem.getLooksFromEntity(item,
+								worldSystem.getCurrentTime());
+						return !itemLooks.isEmpty() ? itemLooks.get(0).getDescription() : null;
+					});
+
+			List<Markup.Safe> contentParts = contentList.getMarkupParts();
+			for (int i = 0; i < contentParts.size(); i++) {
+				if (i > 0) {
+					if (i == contentParts.size() - 1) {
+						examineMarkup.add(Markup.raw(", and "));
+					} else {
+						examineMarkup.add(Markup.raw(", "));
+					}
+				}
+				examineMarkup.add(contentParts.get(i));
+			}
+			examineMarkup.add(Markup.raw("."));
+		}
+
+		// Build machine-readable contents list
+		List<Map<String, Object>> itemsList = new java.util.ArrayList<>();
+		for (Entity item : contents) {
+			List<LookDescriptor> itemLooks = lookSystem.getLooksFromEntity(item, worldSystem.getCurrentTime());
+			String desc = !itemLooks.isEmpty() ? itemLooks.get(0).getDescription() : "something";
+
+			Map<String, Object> itemData = new java.util.HashMap<>();
+			itemData.put("entity_id", item.getKeyId());
+			itemData.put("item_name", desc);
+			itemsList.add(itemData);
+		}
+
+		client.sendOutput(CommandOutput.make(M_LOOK)
+				.put("entity_id", String.valueOf(targetEntity.getId()))
+				.put(M_LOOK_TARGET, targetEntity)
+				.put("items", itemsList)
+				.text(Markup.concat(examineMarkup.toArray(new Markup.Safe[0]))));
+	}
+
+	/**
+	 * Handle ambiguous matches by delegating to DisambiguationSystem.
+	 */
+	private <T extends Entity> void handleAmbiguousMatch(
+			Client client,
+			String commandId,
+			String userInput,
+			List<T> matches,
+			java.util.function.Function<T, String> descriptionExtractor) {
+
+		disambiguationSystem.sendDisambiguationPrompt(client, commandId, userInput, matches, descriptionExtractor);
 	}
 }
