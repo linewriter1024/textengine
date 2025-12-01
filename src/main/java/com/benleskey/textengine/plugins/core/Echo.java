@@ -8,6 +8,7 @@ import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.commands.CommandVariant;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.llm.LlmProvider;
+import com.benleskey.textengine.systems.CommandHelpSystem;
 import com.benleskey.textengine.util.Markup;
 import dev.langchain4j.model.chat.StreamingChatLanguageModel;
 import dev.langchain4j.model.chat.response.ChatResponse;
@@ -27,6 +28,11 @@ public class Echo extends Plugin implements OnPluginInitialize {
 
 	@Override
 	public void onPluginInitialize() {
+		// Register help
+		CommandHelpSystem helpSystem = game.getSystem(CommandHelpSystem.class);
+		helpSystem.registerHelp("echo <text>", "Echo text back to you.");
+		helpSystem.registerHelp("chat <text>", "Chat with the AI assistant.");
+
 		game.registerCommand(new Command(ECHO,
 				(c, i) -> c.sendOutput(CommandOutput.make(ECHO).text(Markup.escape(i.get(M_ECHO_TEXT)))),
 				new CommandVariant(ECHO, "^echo[^\\w]*(.*)$",

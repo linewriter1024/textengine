@@ -16,6 +16,7 @@ import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.LookDescriptor;
 import com.benleskey.textengine.model.RelationshipDescriptor;
 import com.benleskey.textengine.systems.ActionSystem;
+import com.benleskey.textengine.systems.CommandHelpSystem;
 import com.benleskey.textengine.systems.DisambiguationSystem;
 import com.benleskey.textengine.systems.EntitySystem;
 import com.benleskey.textengine.systems.EntityDescriptionSystem;
@@ -106,6 +107,18 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		actorActionSystem = game.getSystem(ActionSystem.class);
 		tagInteractionSystem = game.getSystem(TagInteractionSystem.class);
 		eventSystem = game.getSystem(com.benleskey.textengine.systems.EventSystem.class);
+
+		// Register help
+		CommandHelpSystem helpSystem = game.getSystem(CommandHelpSystem.class);
+		helpSystem.registerHelp("take <item> [from <container>]",
+				"Take an item from the ground or a container.\nExamples: take coin, take key from chest");
+		helpSystem.registerHelp("drop <item>", "Drop an item you are carrying.");
+		helpSystem.registerHelp("use <item> [on <target>]",
+				"Use an item, optionally on a target.\nExamples: use torch, use key on door");
+		helpSystem.registerHelp("inventory", "Show what you are carrying. Also: inv, i");
+		helpSystem.registerHelp("open <container>", "Open a container to see its contents.");
+		helpSystem.registerHelp("close <container>", "Close an open container.");
+		helpSystem.registerHelp("put <item> in <container>", "Put an item into a container.");
 
 		// Take/get item (or take from container)
 		// Accepts entity names or entity IDs with # prefix (e.g., "take #1234" or "take

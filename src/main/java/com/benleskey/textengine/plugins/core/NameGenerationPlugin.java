@@ -11,6 +11,7 @@ import com.benleskey.textengine.hooks.core.OnCoreSystemsReady;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.systems.NameGenerationSystem;
 import com.benleskey.textengine.systems.CommandCompletionSystem;
+import com.benleskey.textengine.systems.CommandHelpSystem;
 import com.benleskey.textengine.util.Markup;
 
 /**
@@ -35,6 +36,11 @@ public class NameGenerationPlugin extends Plugin implements OnPluginInitialize, 
     @Override
     public void onPluginInitialize() {
         game.registerSystem(new NameGenerationSystem(game));
+
+        // Register help
+        CommandHelpSystem helpSystem = game.getSystem(CommandHelpSystem.class);
+        helpSystem.registerHelp("debug:generatename [<style>] [<quantity>]",
+                "Generate random names. Styles: default, elvish, orcish, etc.");
 
         game.registerCommand(new Command(DEBUG_GENERATE_NAME, this::handleDebugGenerateName,
                 new CommandVariant(DEBUG_GENERATE_NAME,

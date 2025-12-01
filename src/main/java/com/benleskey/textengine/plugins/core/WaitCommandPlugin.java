@@ -12,6 +12,7 @@ import com.benleskey.textengine.model.ActionValidation;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.systems.ActionSystem;
+import com.benleskey.textengine.systems.CommandHelpSystem;
 import com.benleskey.textengine.util.Markup;
 
 import java.util.Set;
@@ -53,6 +54,11 @@ public class WaitCommandPlugin extends Plugin implements OnPluginInitialize {
     public void onPluginInitialize() {
         // Initialize systems
         actorActionSystem = game.getSystem(ActionSystem.class);
+
+        // Register help
+        CommandHelpSystem helpSystem = game.getSystem(CommandHelpSystem.class);
+        helpSystem.registerHelp("wait [<duration>]",
+                "Wait for a period of time.\nExamples: wait, wait 30, wait 1 minute, wait 2 hours");
 
         game.registerCommand(new Command(WAIT, this::handleWait,
                 new CommandVariant(WAIT_DURATION, "^(?:wait)(?:\\s+(.+?))?\\s*$", this::parseWait)));

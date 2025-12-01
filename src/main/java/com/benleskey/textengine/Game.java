@@ -64,6 +64,7 @@ public class Game {
 		registerPlugin(new WaitCommandPlugin(this));
 		registerPlugin(new DicePlugin(this));
 		registerPlugin(new Quit(this));
+		registerPlugin(new HelpCommandPlugin(this));
 		registerPlugin(new UnknownCommand(this));
 
 		// Register tentative plugins (activated only if needed as dependencies)

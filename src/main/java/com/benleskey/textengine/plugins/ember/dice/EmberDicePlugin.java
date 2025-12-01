@@ -7,6 +7,7 @@ import com.benleskey.textengine.commands.CommandInput;
 import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.commands.CommandVariant;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
+import com.benleskey.textengine.systems.CommandHelpSystem;
 import com.benleskey.textengine.systems.DiceSystem;
 import com.benleskey.textengine.util.Markup;
 
@@ -37,6 +38,11 @@ public class EmberDicePlugin extends Plugin implements OnPluginInitialize {
     @Override
     public void onPluginInitialize() {
         diceSystem = game.getSystem(DiceSystem.class);
+
+        // Register help
+        CommandHelpSystem helpSystem = game.getSystem(CommandHelpSystem.class);
+        helpSystem.registerHelp("debug:emberroll <poolSize> <difficulty>",
+                "Roll Ember dice (d6 pool, threshold 5+, explosion at 6+).");
 
         // Register debug:emberroll command: "debug:emberroll [pool_size] [difficulty]"
         // Both parameters are required

@@ -13,6 +13,7 @@ import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.LookDescriptor;
 import com.benleskey.textengine.model.ConnectionDescriptor;
 import com.benleskey.textengine.systems.ActionSystem;
+import com.benleskey.textengine.systems.CommandHelpSystem;
 import com.benleskey.textengine.systems.DisambiguationSystem;
 import com.benleskey.textengine.systems.EntityDescriptionSystem;
 import com.benleskey.textengine.systems.LookSystem;
@@ -79,6 +80,11 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 		entityDescriptionSystem = game.getSystem(EntityDescriptionSystem.class);
 		actorActionSystem = game.getSystem(ActionSystem.class);
 		itemSystem = game.getSystem(ItemSystem.class);
+
+		// Register help
+		CommandHelpSystem helpSystem = game.getSystem(CommandHelpSystem.class);
+		helpSystem.registerHelp("look [at] [<target>]",
+				"Look at your surroundings or a specific target.\nExamples: look, look at chest, look north");
 
 		game.registerCommand(new Command(LOOK, (client, input) -> {
 			Entity entity = client.getEntity().orElse(null);

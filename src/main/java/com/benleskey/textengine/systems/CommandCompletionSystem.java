@@ -3,16 +3,14 @@ package com.benleskey.textengine.systems;
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.SingletonGameSystem;
 import com.benleskey.textengine.hooks.core.OnSystemInitialize;
-import com.benleskey.textengine.commands.Command;
-import com.benleskey.textengine.commands.CommandVariant;
 
 import java.util.*;
 import java.util.function.Supplier;
 
 /**
  * CommandCompletionSystem maintains a registry of completion suggestions for
- * command words and arguments. By default it scans registered commands and
- * extracts their starting words from regex variants for top-level completions.
+ * command words and arguments. Top-level command completions are derived from
+ * the CommandHelpSystem based on registered help syntax lines.
  */
 public class CommandCompletionSystem extends SingletonGameSystem implements OnSystemInitialize {
 
@@ -34,13 +32,8 @@ public class CommandCompletionSystem extends SingletonGameSystem implements OnSy
 
     @Override
     public void onSystemInitialize() {
-        for (Command command : game.getCommands().values()) {
-            for (CommandVariant variant : command.getVariants().values()) {
-                for (String token : extractStartingWordsFromRegex(variant.getRegex().pattern())) {
-                    registerCompletion(token, 0, List.of(token));
-                }
-            }
-        }
+        // Top-level completions are now derived from CommandHelpSystem
+        // No automatic regex parsing - plugins must register help explicitly
     }
 
     /**
@@ -186,6 +179,12 @@ public class CommandCompletionSystem extends SingletonGameSystem implements OnSy
 
     public Set<String> getTopLevelTokens() {
         Set<String> tokens = new TreeSet<>();
+
+        // Get tokens from CommandHelpSystem
+        CommandHelpSystem helpSystem = game.getSystem(CommandHelpSystem.class);
+        tokens.addAll(helpSystem.getCommandTokens());
+
+        // Also include any explicitly registered completions
         for (Map.Entry<String, Map<Integer, List<Supplier<Collection<String>>>>> e : completions.entrySet()) {
             Map<Integer, List<Supplier<Collection<String>>>> argMap = e.getValue();
             List<Supplier<Collection<String>>> topSuppliers = argMap.getOrDefault(0, Collections.emptyList());
@@ -196,66 +195,5 @@ public class CommandCompletionSystem extends SingletonGameSystem implements OnSy
             }
         }
         return tokens;
-    }
-
-    private Set<String> extractStartingWordsFromRegex(String regex) {
-        Set<String> results = new HashSet<>();
-        if (regex == null || regex.isEmpty()) {
-            return results;
-        }
-        String s = regex;
-        if (s.startsWith("^")) {
-            s = s.substring(1);
-        }
-        s = s.trim();
-
-        if (s.startsWith("(?:")) {
-
-            int depth = 0;
-            int i = 0;
-            for (; i < s.length(); i++) {
-                char c = s.charAt(i);
-                if (c == '(')
-                    depth++;
-                else if (c == ')') {
-                    depth--;
-                    if (depth == 0)
-                        break;
-                }
-            }
-            if (i < s.length()) {
-                String content = s.substring(3, i);
-                for (String alt : content.split("\\|")) {
-                    String token = extractLiteralPrefix(alt);
-                    if (!token.isEmpty())
-                        results.add(token);
-                }
-                return results;
-            }
-        }
-
-        String token = extractLiteralPrefix(s);
-        if (!token.isEmpty())
-            results.add(token);
-        return results;
-    }
-
-    private String extractLiteralPrefix(String frag) {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < frag.length(); i++) {
-            char c = frag.charAt(i);
-            if (c == '\\')
-                break;
-            if (c == '(' || c == '[' || c == '{' || c == '|' || c == '.' || c == '\\' || c == '^' || c == '$'
-                    || c == '?' || c == '+' || c == '*') {
-                break;
-            }
-            if (Character.isLetterOrDigit(c) || c == ':' || c == '_' || c == '-') {
-                sb.append(c);
-            } else {
-                break;
-            }
-        }
-        return sb.toString();
     }
 }

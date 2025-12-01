@@ -13,6 +13,7 @@ import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.systems.ActionSystem;
 import com.benleskey.textengine.systems.ConnectionSystem;
+import com.benleskey.textengine.systems.CommandHelpSystem;
 import com.benleskey.textengine.systems.DisambiguationSystem;
 import com.benleskey.textengine.systems.EntityDescriptionSystem;
 import com.benleskey.textengine.systems.RelationshipSystem;
@@ -74,6 +75,11 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		entityDescriptionSystem = game.getSystem(EntityDescriptionSystem.class);
 		spatialSystem = game.getSystem(SpatialSystem.class);
 		actorActionSystem = game.getSystem(ActionSystem.class);
+
+		// Register help
+		CommandHelpSystem helpSystem = game.getSystem(CommandHelpSystem.class);
+		helpSystem.registerHelp("go <destination>",
+				"Move to a destination.\nExamples: go north, go forest, go #1234");
 
 		game.registerCommand(new Command(GO, this::handleGo,
 				// Match: go north, go n, go castle, go #1234 (entity ID), etc.

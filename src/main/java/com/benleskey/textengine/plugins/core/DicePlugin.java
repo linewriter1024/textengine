@@ -7,6 +7,7 @@ import com.benleskey.textengine.commands.CommandInput;
 import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.commands.CommandVariant;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
+import com.benleskey.textengine.systems.CommandHelpSystem;
 import com.benleskey.textengine.systems.DiceSystem;
 import com.benleskey.textengine.util.Markup;
 
@@ -55,6 +56,13 @@ public class DicePlugin extends Plugin implements OnPluginInitialize {
         // Register the DiceSystem
         diceSystem = new DiceSystem(game);
         game.registerSystem(diceSystem);
+
+        // Register help
+        CommandHelpSystem helpSystem = game.getSystem(CommandHelpSystem.class);
+        helpSystem.registerHelp("debug:roll <pool> <die_size> <threshold> <explosion_threshold> <difficulty>",
+                "Roll a pool of dice with specified parameters.");
+        helpSystem.registerHelp("debug:roll <notation>",
+                "Roll generic dice notation (e.g., 3d6+2).");
 
         // Register roll command: "debug:roll [pool] [die_size] [threshold]
         // [explosion_threshold] [difficulty]"
