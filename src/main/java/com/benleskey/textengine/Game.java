@@ -61,6 +61,7 @@ public class Game {
 		registerPlugin(new InteractionPlugin(this));
 		registerPlugin(new ItemInteractionPlugin(this));
 		registerPlugin(new NavigationPlugin(this));
+		registerPlugin(new WaitCommandPlugin(this));
 		registerPlugin(new DicePlugin(this));
 		registerPlugin(new Quit(this));
 		registerPlugin(new UnknownCommand(this));

@@ -12,7 +12,6 @@ import com.benleskey.textengine.Game;
 import com.benleskey.textengine.Plugin;
 import com.benleskey.textengine.exceptions.InternalException;
 import com.benleskey.textengine.hooks.core.OnCoreSystemsReady;
-import com.benleskey.textengine.hooks.core.OnPluginRegister;
 import com.benleskey.textengine.plugins.highfantasy.entities.AncientCoin;
 import com.benleskey.textengine.plugins.highfantasy.entities.Axe;
 import com.benleskey.textengine.plugins.highfantasy.entities.Goblin;
@@ -48,7 +47,7 @@ import com.benleskey.textengine.systems.TagInteractionSystem;
  * Separated from ProceduralWorldPlugin to demonstrate genre-specific content
  * registration.
  */
-public class HighFantasyPlugin extends Plugin implements OnPluginRegister, OnCoreSystemsReady {
+public class HighFantasyPlugin extends Plugin implements OnCoreSystemsReady {
 
 	public static final String NAME_STYLE_DEFAULT = "highfantasy_default";
 	public static final String NAME_STYLE_TOWN = "highfantasy_town";
@@ -74,12 +73,6 @@ public class HighFantasyPlugin extends Plugin implements OnPluginRegister, OnCor
 		return Set.of(
 				game.getPlugin(com.benleskey.textengine.plugins.core.EntityPlugin.class),
 				game.getPlugin(com.benleskey.textengine.plugins.procgen1.ProceduralWorldPlugin.class));
-	}
-
-	@Override
-	public void onPluginRegister() {
-		// Register the wait command (game-specific calendar implementation)
-		game.registerPlugin(new WaitCommandPlugin(game));
 	}
 
 	@Override
