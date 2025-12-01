@@ -1,18 +1,22 @@
 package com.benleskey.textengine.cli;
 
 import com.benleskey.textengine.Game;
+import com.benleskey.textengine.Plugin;
 import com.benleskey.textengine.Version;
 import com.benleskey.textengine.exceptions.InternalException;
 import com.benleskey.textengine.util.Logger;
 import net.sourceforge.argparse4j.ArgumentParsers;
+import net.sourceforge.argparse4j.impl.action.AppendArgumentAction;
 import net.sourceforge.argparse4j.impl.action.StoreTrueArgumentAction;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.Namespace;
 
 import java.io.File;
 import java.io.OutputStream;
+import java.lang.reflect.Constructor;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.util.List;
 
 public class Main {
 	public static void main(String[] args) {
@@ -24,6 +28,9 @@ public class Main {
 				.type(Long.class);
 		parser.addArgument("--database").help("Database file path for persistence (default: timestamped temp file)")
 				.type(String.class);
+		parser.addArgument("--plugin").help("Plugin class name to load (can be specified multiple times)")
+				.action(new AppendArgumentAction())
+				.type(String.class);
 
 		Namespace ns = parser.parseArgsOrFail(args);
 
@@ -31,6 +38,7 @@ public class Main {
 		boolean showLog = ns.getBoolean("showlog");
 		Long seed = ns.getLong("seed");
 		String databasePath = ns.getString("database");
+		List<String> pluginClassNames = ns.getList("plugin");
 
 		Logger logger = Logger.builder()
 				.stream(showLog ? System.out : OutputStream.nullOutputStream())
@@ -60,6 +68,28 @@ public class Main {
 					builder.seed(seed);
 				}
 				Game game = builder.build();
+
+				// Load and register plugins specified via --plugin
+				if (pluginClassNames != null) {
+					for (String className : pluginClassNames) {
+						try {
+							@SuppressWarnings("unchecked")
+							Class<? extends Plugin> pluginClass = (Class<? extends Plugin>) Class.forName(className);
+							Constructor<? extends Plugin> constructor = pluginClass.getConstructor(Game.class);
+							Plugin plugin = constructor.newInstance(game);
+							game.registerPlugin(plugin);
+						} catch (ClassNotFoundException e) {
+							System.err.println("Plugin class not found: " + className);
+							System.exit(1);
+						} catch (NoSuchMethodException e) {
+							System.err.println("Plugin class missing Game constructor: " + className);
+							System.exit(1);
+						} catch (Exception e) {
+							System.err.println("Failed to instantiate plugin: " + className + " - " + e.getMessage());
+							System.exit(1);
+						}
+					}
+				}
 
 				game.initialize();
 

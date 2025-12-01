@@ -25,6 +25,7 @@ public class Game {
 	public static final String M_VERSION = "version";
 	private final Collection<Client> clients = new ArrayList<>();
 	private final Map<String, Plugin> plugins = new LinkedHashMap<>();
+	private final Map<String, Plugin> tentativePlugins = new LinkedHashMap<>();
 	private final HookManager<HookHandler> hooks = new HookManager<>();
 	private final Map<String, Command> commands = new LinkedHashMap<>();
 	private final Map<String, GameSystem> systems = new LinkedHashMap<>();
@@ -33,6 +34,7 @@ public class Game {
 	@Getter
 	private UniqueTypeSystem uniqueTypeSystem;
 	private final Connection databaseConnection;
+	private final Long seed;
 	private final AtomicLong idCounter = new AtomicLong();
 	public Logger log;
 	public Logger errorLog = Logger.builder().stream(System.err).build();
@@ -45,6 +47,7 @@ public class Game {
 			this.errorLog = errorLog;
 		}
 		this.databaseConnection = databaseConnection;
+		this.seed = seed;
 
 		log.log("%s", Version.toHumanString());
 
@@ -62,8 +65,8 @@ public class Game {
 		registerPlugin(new Quit(this));
 		registerPlugin(new UnknownCommand(this));
 
-		// Register TestWorldPlugin for basic world setup
-		registerPlugin(new TestWorldPlugin(this));
+		// Register tentative plugins (activated only if needed as dependencies)
+		registerTentativePlugin(new com.benleskey.textengine.plugins.procgen1.ProceduralWorldPlugin(this, seed));
 	}
 
 	public void initialize() throws InternalException {
@@ -76,6 +79,9 @@ public class Game {
 		}
 
 		try {
+			// Activate tentative plugins that are needed as dependencies
+			activateTentativePlugins();
+
 			hooks.calculateOrder();
 
 			for (Plugin plugin : plugins.values().stream().sorted(Comparator.comparing(Plugin::getEventOrder))
@@ -180,6 +186,37 @@ public class Game {
 
 		log.log("Registered plugin %s with event handlers [%s]", plugin.getId(),
 				String.join(", ", events.stream().map(Class::getSimpleName).sorted().toList()));
+	}
+
+	/**
+	 * Register a tentative plugin that will only be fully registered if another
+	 * plugin declares it as a dependency.
+	 */
+	public void registerTentativePlugin(Plugin plugin) {
+		tentativePlugins.put(plugin.getId(), plugin);
+		log.log("Registered tentative plugin %s", plugin.getId());
+	}
+
+	/**
+	 * Check all registered plugins for dependencies on tentative plugins,
+	 * and activate any tentative plugins that are needed.
+	 */
+	private void activateTentativePlugins() {
+		boolean changed = true;
+		while (changed) {
+			changed = false;
+			for (Plugin plugin : new ArrayList<>(plugins.values())) {
+				for (Plugin dependency : plugin.getDependencies()) {
+					String depId = dependency.getId();
+					if (tentativePlugins.containsKey(depId) && !plugins.containsKey(depId)) {
+						log.log("Activating tentative plugin %s (needed by %s)", depId, plugin.getId());
+						Plugin tentative = tentativePlugins.remove(depId);
+						registerPlugin(tentative);
+						changed = true;
+					}
+				}
+			}
+		}
 	}
 
 	public void registerCommand(Command command) {
@@ -305,6 +342,10 @@ public class Game {
 	}
 
 	public Plugin getPlugin(Class<? extends Plugin> plugin) {
-		return plugins.get(plugin.getCanonicalName());
+		Plugin p = plugins.get(plugin.getCanonicalName());
+		if (p == null) {
+			p = tentativePlugins.get(plugin.getCanonicalName());
+		}
+		return p;
 	}
 }

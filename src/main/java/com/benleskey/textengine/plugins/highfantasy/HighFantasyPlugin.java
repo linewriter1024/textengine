@@ -1,25 +1,43 @@
 package com.benleskey.textengine.plugins.highfantasy;
 
+import static com.benleskey.textengine.systems.NameGenerationSystem.TOK_ROOTS;
+import static com.benleskey.textengine.systems.NameGenerationSystem.TOK_SUFFIXES;
+import static com.benleskey.textengine.systems.NameGenerationSystem.TOK_SYLLABLES;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.Plugin;
 import com.benleskey.textengine.exceptions.InternalException;
 import com.benleskey.textengine.hooks.core.OnCoreSystemsReady;
-import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.hooks.core.OnPluginRegister;
-import com.benleskey.textengine.plugins.highfantasy.entities.*;
+import com.benleskey.textengine.plugins.highfantasy.entities.AncientCoin;
+import com.benleskey.textengine.plugins.highfantasy.entities.Axe;
+import com.benleskey.textengine.plugins.highfantasy.entities.Goblin;
+import com.benleskey.textengine.plugins.highfantasy.entities.Plant;
+import com.benleskey.textengine.plugins.highfantasy.entities.Rattle;
+import com.benleskey.textengine.plugins.highfantasy.entities.Rock;
+import com.benleskey.textengine.plugins.highfantasy.entities.RustySword;
+import com.benleskey.textengine.plugins.highfantasy.entities.TarnishedHelmet;
+import com.benleskey.textengine.plugins.highfantasy.entities.Timepiece;
+import com.benleskey.textengine.plugins.highfantasy.entities.Tree;
+import com.benleskey.textengine.plugins.highfantasy.entities.WeatheredScroll;
+import com.benleskey.textengine.plugins.highfantasy.entities.Wood;
+import com.benleskey.textengine.plugins.highfantasy.entities.WoodenChest;
 import com.benleskey.textengine.plugins.highfantasy.entities.clock.GrandfatherClock;
 import com.benleskey.textengine.plugins.procgen1.BiomeSystem;
 import com.benleskey.textengine.plugins.procgen1.systems.ItemTemplateSystem;
 import com.benleskey.textengine.plugins.procgen1.systems.LandmarkTemplateSystem;
 import com.benleskey.textengine.plugins.procgen1.systems.PlaceDescriptionSystem;
-import com.benleskey.textengine.systems.*;
+import com.benleskey.textengine.systems.EntityDescriptionSystem;
+import com.benleskey.textengine.systems.EntitySystem;
+import com.benleskey.textengine.systems.ItemSystem;
+import com.benleskey.textengine.systems.NameGenerationSystem;
 import com.benleskey.textengine.systems.NameGenerationSystem.NameStyle;
 import com.benleskey.textengine.systems.NameGenerationSystem.NameStyleType;
-import static com.benleskey.textengine.systems.NameGenerationSystem.TOK_SYLLABLES;
-import static com.benleskey.textengine.systems.NameGenerationSystem.TOK_ROOTS;
-import static com.benleskey.textengine.systems.NameGenerationSystem.TOK_SUFFIXES;
-
-import java.util.*;
+import com.benleskey.textengine.systems.TagInteractionSystem;
 
 /**
  * HighFantasyPlugin registers fantasy-themed content for procedural world
