@@ -5,15 +5,13 @@ import com.benleskey.textengine.Plugin;
 import com.benleskey.textengine.exceptions.InternalException;
 import com.benleskey.textengine.hooks.core.OnCoreSystemsReady;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
-import com.benleskey.textengine.model.UniqueType;
-import com.benleskey.textengine.plugins.highfantasy.actions.ChimeAction;
 import com.benleskey.textengine.plugins.highfantasy.entities.*;
+import com.benleskey.textengine.plugins.highfantasy.entities.clock.GrandfatherClock;
 import com.benleskey.textengine.plugins.procgen1.BiomeSystem;
 import com.benleskey.textengine.plugins.procgen1.systems.ItemTemplateSystem;
 import com.benleskey.textengine.plugins.procgen1.systems.LandmarkTemplateSystem;
 import com.benleskey.textengine.plugins.procgen1.systems.PlaceDescriptionSystem;
 import com.benleskey.textengine.systems.*;
-import com.benleskey.textengine.systems.NameGenerationSystem;
 import com.benleskey.textengine.systems.NameGenerationSystem.NameStyle;
 import com.benleskey.textengine.systems.NameGenerationSystem.NameStyleType;
 import static com.benleskey.textengine.systems.NameGenerationSystem.TOK_SYLLABLES;
@@ -35,9 +33,6 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 
 	public static final String NAME_STYLE_DEFAULT = "highfantasy_default";
 	public static final String NAME_STYLE_TOWN = "highfantasy_town";
-
-	// Action types for high fantasy
-	public static UniqueType ACTION_CHIME;
 
 	public HighFantasyPlugin(Game game) {
 		super(game);
@@ -81,11 +76,8 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 		entityDescriptionSystem = game.getSystem(EntityDescriptionSystem.class);
 		nameGenerationSystem = game.getSystem(NameGenerationSystem.class);
 
-		// Initialize action types
-		UniqueTypeSystem uts = game.getSystem(UniqueTypeSystem.class);
-		ActionSystem aas = game.getSystem(ActionSystem.class);
-		ACTION_CHIME = uts.getType("action_chime");
-		aas.registerActionType(ACTION_CHIME, ChimeAction.class);
+		// Register clock types and actions (delegated to GrandfatherClock)
+		GrandfatherClock.registerTypes(game);
 
 		// Register content (needs systems initialized)
 		registerBiomes();
@@ -150,8 +142,8 @@ public class HighFantasyPlugin extends Plugin implements OnPluginInitialize, OnC
 		entitySystem.registerEntityType(TarnishedHelmet.class);
 		entitySystem.registerEntityType(WeatheredScroll.class);
 		entitySystem.registerEntityType(Timepiece.class);
-		entitySystem.registerEntityType(GrandfatherClock.class);
 		entitySystem.registerEntityType(Goblin.class);
+		// GrandfatherClock registered via GrandfatherClock.registerTypes()
 	}
 
 	/**

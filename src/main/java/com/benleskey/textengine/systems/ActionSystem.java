@@ -76,6 +76,7 @@ public class ActionSystem extends SingletonGameSystem implements OnSystemInitial
 	private PreparedStatement insertPropertyStatement;
 	private PreparedStatement getPropertyStatement;
 	private PreparedStatement getPendingActionStatement;
+	private PreparedStatement getAllPendingActionsStatement;
 	private PreparedStatement getActionCreationTimeStatement;
 
 	public ActionSystem(Game game) {
@@ -159,6 +160,18 @@ public class ActionSystem extends SingletonGameSystem implements OnSystemInitial
 							"AND event.time <= ? " +
 							"AND action.action_id IN " + eventSystem.getValidEventsSubquery("action.action_id") + " " +
 							"ORDER BY event.time ASC LIMIT 1");
+
+			// Get ALL pending actions for an actor (for entities with action queues)
+			getAllPendingActionsStatement = game.db().prepareStatement(
+					"SELECT action.action_id, event.time as event_time " +
+							"FROM action " +
+							"JOIN action_property AS actor_prop ON action.action_id = actor_prop.action_id " +
+							"    AND actor_prop.property_key = ? " +
+							"JOIN event ON event.reference = action.action_id " +
+							"WHERE actor_prop.property_value = ? " +
+							"AND event.time <= ? " +
+							"AND action.action_id IN " + eventSystem.getValidEventsSubquery("action.action_id") + " " +
+							"ORDER BY event.time ASC");
 
 			getActionCreationTimeStatement = game.db().prepareStatement(
 					"SELECT event.time " +
@@ -378,6 +391,33 @@ public class ActionSystem extends SingletonGameSystem implements OnSystemInitial
 		}
 
 		return null;
+	}
+
+	/**
+	 * Get all pending actions for an actor, ordered by creation time.
+	 * Used for entities that can have multiple queued actions.
+	 */
+	public synchronized java.util.List<Action> getAllPendingActions(Acting actor) throws DatabaseException {
+		DTime currentTime = worldSystem.getCurrentTime();
+		java.util.List<Action> actions = new java.util.ArrayList<>();
+
+		try {
+			getAllPendingActionsStatement.setLong(1, PROP_ACTOR.type());
+			getAllPendingActionsStatement.setLong(2, actor.getId());
+			getAllPendingActionsStatement.setLong(3, currentTime.raw());
+			eventSystem.setValidEventsSubqueryParameters(getAllPendingActionsStatement, 4, ACTION, currentTime);
+
+			try (ResultSet rs = getAllPendingActionsStatement.executeQuery()) {
+				while (rs.next()) {
+					long actionId = rs.getLong("action_id");
+					actions.add(get(actionId));
+				}
+			}
+		} catch (SQLException e) {
+			throw new DatabaseException("Unable to query pending actions", e);
+		}
+
+		return actions;
 	}
 
 	/**

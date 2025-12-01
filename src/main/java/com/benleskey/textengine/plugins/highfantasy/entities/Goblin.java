@@ -38,6 +38,7 @@ public class Goblin extends Actor implements Acting {
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		UniqueTypeSystem uts = game.getSystem(UniqueTypeSystem.class);
 		ActionSystem aas = game.getSystem(ActionSystem.class);
+		ItemSystem is = game.getSystem(ItemSystem.class);
 
 		Goblin goblin = es.add(Goblin.class);
 
@@ -47,6 +48,8 @@ public class Goblin extends Actor implements Acting {
 
 		ls.addLook(goblin, ls.LOOK_BASIC, "a goblin");
 		es.addTag(goblin, aas.TAG_ACTING);
+		// Goblin can carry up to 5kg
+		es.addTag(goblin, is.TAG_CARRY_WEIGHT, 5000L);
 		rs.add(startLocation, goblin, rs.rvContains);
 
 		return goblin;

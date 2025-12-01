@@ -112,16 +112,17 @@ public class TickSystem extends SingletonGameSystem implements OnSystemInitializ
 			aas.processActingEntitySingleTick(acting, interval);
 			entitySystem.updateTagValue(entity, aas.TAG_LAST_ACTION_CHECK, tickTime.toMilliseconds(), targetTime);
 
-			// Check if entity has a pending action and schedule tick for completion
+			// Check ALL pending actions and schedule ticks for each ready time
 			boolean scheduledActionTick = false;
+			java.util.List<Action> pendingActions = aas.getAllPendingActions(acting);
 
-			Action pendingAction = aas.getPendingAction(acting);
-			if (pendingAction != null) {
+			for (Action pendingAction : pendingActions) {
 				long actionReadyTime = aas.getActionReadyTime(pendingAction);
 				if (actionReadyTime > tickTime.toMilliseconds()
 						&& actionReadyTime <= targetTime.toMilliseconds()) {
 					tickQueue.offer(new ActingTick(acting, actionReadyTime));
 					scheduledActionTick = true;
+					break; // Only schedule the next action, not all of them
 				}
 			}
 

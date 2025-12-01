@@ -285,7 +285,7 @@ public class ProceduralWorldPlugin extends Plugin
 		var axe = com.benleskey.textengine.plugins.highfantasy.entities.Axe.create(game, random);
 		relationshipSystem.add(actor, axe, relationshipSystem.rvContains);
 
-		var clock = com.benleskey.textengine.plugins.highfantasy.entities.GrandfatherClock.create(game, random);
+		var clock = com.benleskey.textengine.plugins.highfantasy.entities.clock.GrandfatherClock.create(game, random);
 		relationshipSystem.add(startingPlace, clock, relationshipSystem.rvContains);
 
 		// Add a wooden chest with items for testing container system

@@ -8,7 +8,7 @@ We need:
 
 - [x] Name generation system - to ensure everybody is uniquely, thematically, and concisely named
 - [x] Player actions in same queue - instead of executing immediately, player actions are enqueued and execute in time with NPC actions
-- [ ] Actions execute() do not return output, just success or failure of even that
+- [ ] Actions execute() should not return output, just success or failure if even that, since all actions just make entities do things and broadcast their state
 - [ ] Dice system - to support randomness, circumstances, combat, social encounters, etc.
 - [ ] High level entities - the city, wilderness areas, monster clans, bandit groups, etc.
 - [ ] Low level entities - monsters, people, shops, buildings
