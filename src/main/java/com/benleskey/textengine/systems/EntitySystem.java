@@ -43,6 +43,7 @@ public class EntitySystem extends SingletonGameSystem implements OnSystemInitial
 	// Common entity tags (initialized in onSystemInitialize)
 	public UniqueType TAG_ENTITY_CREATED; // Time when entity was created (in milliseconds)
 	public UniqueType TAG_AVATAR; // Entity is controlled by a player/client
+	public UniqueType TAG_SKELETON; // Entity is a skeleton that needs to be populated before interaction
 
 	public EntitySystem(Game game) {
 		super(game);
@@ -78,6 +79,7 @@ public class EntitySystem extends SingletonGameSystem implements OnSystemInitial
 		// Initialize entity tags
 		TAG_ENTITY_CREATED = typeSystem.getType("entity_tag_entity_created");
 		TAG_AVATAR = typeSystem.getType("entity_tag_avatar");
+		TAG_SKELETON = typeSystem.getType("entity_tag_skeleton");
 	}
 
 	@SuppressWarnings("null") // Generic type T will never be null
@@ -208,5 +210,43 @@ public class EntitySystem extends SingletonGameSystem implements OnSystemInitial
 	public com.benleskey.textengine.model.Reference updateTagValue(Entity entity, UniqueType tag, long newValue,
 			DTime when) {
 		return tagSystem.updateTagValue(entity, tag, newValue, when);
+	}
+
+	/**
+	 * Check if an entity is a skeleton (placeholder that needs population).
+	 */
+	public boolean isSkeleton(Entity entity) {
+		return tagSystem.hasTag(entity, TAG_SKELETON, worldSystem.getCurrentTime());
+	}
+
+	/**
+	 * Mark an entity as a skeleton (placeholder that needs population before
+	 * interaction).
+	 */
+	public void markAsSkeleton(Entity entity) {
+		tagSystem.addTag(entity, TAG_SKELETON);
+	}
+
+	/**
+	 * Ensure an entity is fully populated before interaction.
+	 * If the entity has TAG_SKELETON, fires OnSkeletonInteraction hook and removes
+	 * the tag.
+	 * This should be called before any significant interaction with an entity
+	 * (entering a place, examining an object, etc.).
+	 * 
+	 * @param entity The entity to ensure is populated
+	 */
+	public synchronized void ensurePopulated(Entity entity) {
+		if (!isSkeleton(entity)) {
+			return; // Already populated
+		}
+
+		log.log("Populating skeleton entity %d", entity.getId());
+
+		// Fire the hook to let plugins populate the entity
+		game.fireSkeletonInteraction(entity);
+
+		// Remove the skeleton tag
+		tagSystem.removeTag(entity, TAG_SKELETON, worldSystem.getCurrentTime());
 	}
 }

@@ -16,6 +16,7 @@ import com.benleskey.textengine.systems.ConnectionSystem;
 import com.benleskey.textengine.systems.CommandHelpSystem;
 import com.benleskey.textengine.systems.DisambiguationSystem;
 import com.benleskey.textengine.systems.EntityDescriptionSystem;
+import com.benleskey.textengine.systems.EntitySystem;
 import com.benleskey.textengine.systems.RelationshipSystem;
 import com.benleskey.textengine.systems.SpatialSystem;
 import com.benleskey.textengine.systems.VisibilitySystem;
@@ -54,6 +55,7 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 	private EntityDescriptionSystem entityDescriptionSystem;
 	private SpatialSystem spatialSystem;
 	private ActionSystem actorActionSystem;
+	private EntitySystem entitySystem;
 
 	public NavigationPlugin(Game game) {
 		super(game);
@@ -75,6 +77,7 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		entityDescriptionSystem = game.getSystem(EntityDescriptionSystem.class);
 		spatialSystem = game.getSystem(SpatialSystem.class);
 		actorActionSystem = game.getSystem(ActionSystem.class);
+		entitySystem = game.getSystem(EntitySystem.class);
 
 		// Register help
 		CommandHelpSystem helpSystem = game.getSystem(CommandHelpSystem.class);
@@ -232,6 +235,10 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		// (For landmarks, matchedExit points to a place that moves us toward the
 		// landmark)
 		Entity destination = matchedExit.getTo();
+
+		// Ensure the destination is fully populated (not a skeleton)
+		// This triggers OnSkeletonInteraction hook for procedural generation
+		entitySystem.ensurePopulated(destination);
 
 		// Use ActionSystem to queue the move action
 

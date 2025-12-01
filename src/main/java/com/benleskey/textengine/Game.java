@@ -247,6 +247,17 @@ public class Game {
 		hooks.doEvent(OnStartClient.class, plugin -> plugin.onStartClient(client));
 	}
 
+	/**
+	 * Fire the OnSkeletonInteraction hook for a skeleton entity.
+	 * Called by EntitySystem.ensurePopulated() when an entity needs to be
+	 * populated.
+	 * 
+	 * @param entity The skeleton entity to populate
+	 */
+	public void fireSkeletonInteraction(com.benleskey.textengine.model.Entity entity) {
+		hooks.doEvent(OnSkeletonInteraction.class, handler -> handler.onSkeletonInteraction(entity));
+	}
+
 	@SuppressWarnings("null") // Generic type T will never be null
 	public <T extends GameSystem> T registerSystem(T system) {
 		systems.put(system.getId(), system);

@@ -11,6 +11,7 @@ import com.benleskey.textengine.entities.Place;
 import com.benleskey.textengine.exceptions.InternalException;
 import com.benleskey.textengine.hooks.core.OnEntityTypesRegistered;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
+import com.benleskey.textengine.hooks.core.OnSkeletonInteraction;
 import com.benleskey.textengine.hooks.core.OnStartClient;
 import com.benleskey.textengine.model.ConnectionDescriptor;
 import com.benleskey.textengine.model.DTime;
@@ -34,7 +35,7 @@ import java.util.*;
  * Uses SCALE_CONTINENT for all spatial operations.
  */
 public class ProceduralWorldPlugin extends Plugin
-		implements OnPluginInitialize, OnEntityTypesRegistered, OnStartClient {
+		implements OnPluginInitialize, OnEntityTypesRegistered, OnStartClient, OnSkeletonInteraction {
 
 	// Generation parameters
 	private Random random;
@@ -316,7 +317,7 @@ public class ProceduralWorldPlugin extends Plugin
 	 * Ensure a place has neighboring places generated.
 	 * Creates 2-4 random exits if the place has fewer than 2 connections.
 	 */
-	public synchronized void ensurePlaceHasNeighbors(Entity place) {
+	private synchronized void ensurePlaceHasNeighbors(Entity place) {
 
 		List<com.benleskey.textengine.model.ConnectionDescriptor> existingExits = connectionSystem.getConnections(place,
 				worldSystem.getCurrentTime());
@@ -389,12 +390,16 @@ public class ProceduralWorldPlugin extends Plugin
 				isNewPlace = false;
 				log.log("Connecting to existing place at (%d, %d) - creating loop!", adjacentPos[0], adjacentPos[1]);
 			} else if (existingPlace == null) {
-				// Empty position - generate new place
+				// Empty position - generate new place as skeleton (will be populated when
+				// visited)
 				String neighborBiome = biomeSystem.selectRandomBiome(random);
 				neighbor = generatePlaceAtPosition(neighborBiome, adjacentPos);
 				placesByBiome.get(neighborBiome).add(neighbor);
 				allPlaces.add(neighbor);
 				isNewPlace = true;
+
+				// Mark as skeleton - will be populated when player navigates to it
+				entitySystem.markAsSkeleton(neighbor);
 			} else {
 				// Position occupied by already-connected place, skip
 				continue;
@@ -604,5 +609,23 @@ public class ProceduralWorldPlugin extends Plugin
 						landmark.getId(), place.getId(), distance);
 			}
 		}
+	}
+
+	/**
+	 * Handle skeleton entity population.
+	 * When a Place skeleton is interacted with (e.g., player navigates to it),
+	 * generate its neighbors so the player has exits to explore.
+	 */
+	@Override
+	public void onSkeletonInteraction(Entity entity) {
+		// Only handle Place entities
+		if (!(entity instanceof Place place)) {
+			return;
+		}
+
+		log.log("Populating skeleton place %d", place.getId());
+
+		// Generate neighbors for this place
+		ensurePlaceHasNeighbors(place);
 	}
 }
