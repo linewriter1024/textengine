@@ -11,7 +11,6 @@ import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.model.ActionValidation;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
-import com.benleskey.textengine.plugins.procgen1.ProceduralWorldPlugin;
 import com.benleskey.textengine.systems.ActionSystem;
 import com.benleskey.textengine.systems.ConnectionSystem;
 import com.benleskey.textengine.systems.DisambiguationSystem;
@@ -61,9 +60,7 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 
 	@Override
 	public Set<Plugin> getDependencies() {
-		return Set.of(
-				game.getPlugin(EntityPlugin.class),
-				game.getPlugin(ProceduralWorldPlugin.class));
+		return Set.of(game.getPlugin(EntityPlugin.class));
 	}
 
 	@Override
@@ -225,16 +222,10 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 			return;
 		}
 
-		// Always use ProceduralWorldPlugin to handle navigation
-		// It will either find existing place or generate new one, and ensure neighbors
-		// exist
-		ProceduralWorldPlugin worldGen = (ProceduralWorldPlugin) game.getPlugin(ProceduralWorldPlugin.class);
-
 		// The matched destination is the place we're navigating to
 		// (For landmarks, matchedExit points to a place that moves us toward the
 		// landmark)
 		Entity destination = matchedExit.getTo();
-		worldGen.ensurePlaceHasNeighbors(destination);
 
 		// Use ActionSystem to queue the move action
 

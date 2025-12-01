@@ -15,8 +15,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Set;
 
 public class EntityTagSystem extends SingletonGameSystem implements OnSystemInitialize {
@@ -26,21 +24,6 @@ public class EntityTagSystem extends SingletonGameSystem implements OnSystemInit
 	private EntitySystem entitySystem;
 	private EventSystem eventSystem;
 	public UniqueType etEntityTag;
-
-	// LRU caches for tag lookups
-	private final Map<String, Boolean> hasTagCache = new LinkedHashMap<String, Boolean>(Game.CACHE_SIZE, 0.75f, true) {
-		@Override
-		protected boolean removeEldestEntry(Map.Entry<String, Boolean> eldest) {
-			return size() > Game.CACHE_SIZE;
-		}
-	};
-
-	private final Map<String, Long> tagValueCache = new LinkedHashMap<String, Long>(Game.CACHE_SIZE, 0.75f, true) {
-		@Override
-		protected boolean removeEldestEntry(Map.Entry<String, Long> eldest) {
-			return size() > Game.CACHE_SIZE;
-		}
-	};
 
 	public EntityTagSystem(Game game) {
 		super(game);
@@ -135,14 +118,6 @@ public class EntityTagSystem extends SingletonGameSystem implements OnSystemInit
 	 * Check if an entity has a specific tag at a given time.
 	 */
 	public synchronized boolean hasTag(Entity entity, UniqueType tag, DTime when) {
-		// Check cache first
-		String cacheKey = entity.getId() + ":" + tag.type() + ":" + when.raw();
-		Boolean cached = hasTagCache.get(cacheKey);
-		if (cached != null) {
-			return cached;
-		}
-
-		// Query database
 		try {
 			// Optimized query: use COUNT with early exit instead of iterating all tags
 			PreparedStatement stmt = game.db().prepareStatement(
@@ -156,13 +131,9 @@ public class EntityTagSystem extends SingletonGameSystem implements OnSystemInit
 
 			try (ResultSet rs = stmt.executeQuery()) {
 				if (rs.next()) {
-					boolean result = rs.getBoolean(1);
-					// Cache the result
-					hasTagCache.put(cacheKey, result);
-					return result;
+					return rs.getBoolean(1);
 				}
 			}
-			hasTagCache.put(cacheKey, false);
 			return false;
 		} catch (SQLException e) {
 			throw new DatabaseException("Unable to check if entity has tag", e);
@@ -188,14 +159,6 @@ public class EntityTagSystem extends SingletonGameSystem implements OnSystemInit
 	 * Returns null if the tag doesn't exist or has no value.
 	 */
 	public synchronized Long getTagValue(Entity entity, UniqueType tag, DTime when) {
-		// Check cache first (using special marker for null values)
-		String cacheKey = "V:" + entity.getId() + ":" + tag.type() + ":" + when.raw();
-		if (tagValueCache.containsKey(cacheKey)) {
-			Long cached = tagValueCache.get(cacheKey);
-			return cached == Long.MIN_VALUE ? null : cached;
-		}
-
-		// Query database
 		try {
 			findTagsByEntityStatement.setLong(1, entity.getId());
 			eventSystem.setValidEventsSubqueryParameters(findTagsByEntityStatement, 2, etEntityTag, when);
@@ -207,18 +170,12 @@ public class EntityTagSystem extends SingletonGameSystem implements OnSystemInit
 					if (tagType == tag.type()) {
 						long value = rs.getLong(3);
 						if (rs.wasNull()) {
-							// Cache null value as Long.MIN_VALUE marker
-							tagValueCache.put(cacheKey, Long.MIN_VALUE);
 							return null;
 						}
-						// Cache the actual value
-						tagValueCache.put(cacheKey, value);
 						return value;
 					}
 				}
 			}
-			// No tag found - cache as null (Long.MIN_VALUE marker)
-			tagValueCache.put(cacheKey, Long.MIN_VALUE);
 			return null;
 		} catch (SQLException e) {
 			throw new DatabaseException("Unable to get tag value", e);

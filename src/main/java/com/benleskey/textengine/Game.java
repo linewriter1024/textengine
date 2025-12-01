@@ -8,7 +8,6 @@ import com.benleskey.textengine.exceptions.DatabaseException;
 import com.benleskey.textengine.exceptions.InternalException;
 import com.benleskey.textengine.hooks.core.*;
 import com.benleskey.textengine.plugins.core.*;
-import com.benleskey.textengine.plugins.procgen1.ProceduralWorldPlugin;
 import com.benleskey.textengine.systems.UniqueTypeSystem;
 import com.benleskey.textengine.util.*;
 import lombok.Builder;
@@ -63,12 +62,8 @@ public class Game {
 		registerPlugin(new Quit(this));
 		registerPlugin(new UnknownCommand(this));
 
-		// Pass seed to ProceduralWorldPlugin (can be null - will use persisted or
-		// generate)
-		registerPlugin(new ProceduralWorldPlugin(this, seed));
-
-		// Register HighFantasyPlugin to populate biomes, items, and landmarks
-		registerPlugin(new com.benleskey.textengine.plugins.highfantasy.HighFantasyPlugin(this));
+		// Register TestWorldPlugin for basic world setup
+		registerPlugin(new TestWorldPlugin(this));
 	}
 
 	public void initialize() throws InternalException {

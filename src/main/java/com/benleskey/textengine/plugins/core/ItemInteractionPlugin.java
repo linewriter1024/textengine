@@ -15,7 +15,6 @@ import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.LookDescriptor;
 import com.benleskey.textengine.model.RelationshipDescriptor;
-import com.benleskey.textengine.plugins.procgen1.ProceduralWorldPlugin;
 import com.benleskey.textengine.systems.ActionSystem;
 import com.benleskey.textengine.systems.DisambiguationSystem;
 import com.benleskey.textengine.systems.EntitySystem;
@@ -89,9 +88,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 
 	@Override
 	public Set<Plugin> getDependencies() {
-		return Set.of(
-				game.getPlugin(EntityPlugin.class),
-				game.getPlugin(ProceduralWorldPlugin.class));
+		return Set.of(game.getPlugin(EntityPlugin.class));
 	}
 
 	@Override
