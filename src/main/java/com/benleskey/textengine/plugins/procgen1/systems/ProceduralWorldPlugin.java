@@ -325,7 +325,7 @@ public class ProceduralWorldPlugin extends Plugin
 
 		// Generate description based on biome using PlaceDescriptionSystem
 		String description = placeDescriptionSystem.generateDescription(biomeName, placeRandom);
-		lookSystem.addLook(place, "basic", description);
+		lookSystem.addLook(place, lookSystem.LOOK_BASIC, description);
 
 		// Track spatial position in SpatialSystem at continent scale
 		spatialSystem.setPosition(place, SpatialSystem.SCALE_CONTINENT, position);
@@ -593,7 +593,7 @@ public class ProceduralWorldPlugin extends Plugin
 			// Create the landmark place
 			Place landmark = entitySystem.add(Place.class);
 			String description = landmarkTemplateSystem.generateDescription(landmarkTypeName, random);
-			lookSystem.addLook(landmark, "basic", description);
+			lookSystem.addLook(landmark, lookSystem.LOOK_BASIC, description);
 
 			// Mark as prominent so it's visible from distance
 			entityTagSystem.addTag(landmark, visibilitySystem.tagProminent);

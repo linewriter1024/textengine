@@ -8,6 +8,6 @@ import lombok.Getter;
 public class LookDescriptor {
 	private Entity entity;
 	private Look look;
-	private String type;
+	private UniqueType type;
 	private String description;
 }

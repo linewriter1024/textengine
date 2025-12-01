@@ -15,12 +15,17 @@ import java.util.List;
 
 public class LookSystem extends SingletonGameSystem implements OnSystemInitialize {
 	public UniqueType etEntityLook;
+
+	// Look type constants
+	public UniqueType LOOK_BASIC;
+
 	private PreparedStatement addLookStatement;
 	private PreparedStatement getCurrentLookStatement;
 	private EntitySystem entitySystem;
 	private EventSystem eventSystem;
 	private WorldSystem worldSystem;
 	private RelationshipSystem relationshipSystem;
+	private UniqueTypeSystem uniqueTypeSystem;
 
 	public LookSystem(Game game) {
 		super(game);
@@ -30,21 +35,25 @@ public class LookSystem extends SingletonGameSystem implements OnSystemInitializ
 	public void onSystemInitialize() {
 		int v = getSchema().getVersionNumber();
 
-		if (v == 0) {
+		// Schema version 2: type is now INTEGER (UniqueType) instead of TEXT
+		if (v < 2) {
 			try {
 				try (Statement s = game.db().createStatement()) {
+					// Drop old table if exists and recreate with new schema
+					s.executeUpdate("DROP TABLE IF EXISTS entity_look");
 					s.executeUpdate(
-							"CREATE TABLE entity_look(look_id INTEGER PRIMARY KEY, entity_id INTEGER, type TEXT, description TEXT)");
+							"CREATE TABLE entity_look(look_id INTEGER PRIMARY KEY, entity_id INTEGER, type INTEGER, description TEXT)");
 				}
 			} catch (SQLException e) {
 				throw new DatabaseException("Unable to create look system tables", e);
 			}
 
-			getSchema().setVersionNumber(1);
+			getSchema().setVersionNumber(2);
 		}
 
 		eventSystem = game.getSystem(EventSystem.class);
 		entitySystem = game.getSystem(EntitySystem.class);
+		uniqueTypeSystem = game.getSystem(UniqueTypeSystem.class);
 
 		try {
 			addLookStatement = game.db().prepareStatement(
@@ -59,16 +68,18 @@ public class LookSystem extends SingletonGameSystem implements OnSystemInitializ
 		worldSystem = game.getSystem(WorldSystem.class);
 		relationshipSystem = game.getSystem(RelationshipSystem.class);
 
-		UniqueTypeSystem uniqueTypeSystem = game.getSystem(UniqueTypeSystem.class);
 		etEntityLook = uniqueTypeSystem.getType("event_entity_look");
+
+		// Initialize look type constants
+		LOOK_BASIC = uniqueTypeSystem.getType("look_basic");
 	}
 
-	public synchronized FullEvent<Look> addLook(Entity entity, String type, String description) {
+	public synchronized FullEvent<Look> addLook(Entity entity, UniqueType type, String description) {
 		try {
 			long id = game.getNewGlobalId();
 			addLookStatement.setLong(1, id);
 			addLookStatement.setLong(2, entity.getId());
-			addLookStatement.setString(3, type);
+			addLookStatement.setLong(3, type.type());
 			addLookStatement.setString(4, description);
 			addLookStatement.executeUpdate();
 			return eventSystem.addEventNow(etEntityLook, new Look(id, game));
@@ -87,7 +98,7 @@ public class LookSystem extends SingletonGameSystem implements OnSystemInitializ
 					result.add(LookDescriptor.builder()
 							.look(new Look(rs.getLong(1), game))
 							.entity(entitySystem.get(rs.getLong(2)))
-							.type(rs.getString(3))
+							.type(new UniqueType(rs.getLong(3), uniqueTypeSystem))
 							.description(rs.getString(4))
 							.build());
 				}

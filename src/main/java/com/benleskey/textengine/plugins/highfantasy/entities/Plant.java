@@ -43,7 +43,7 @@ public class Plant extends Item {
 		String description = DESCRIPTIONS[random.nextInt(DESCRIPTIONS.length)];
 
 		Plant plant = es.add(Plant.class);
-		ls.addLook(plant, "basic", description);
+		ls.addLook(plant, ls.LOOK_BASIC, description);
 		is.addTag(plant, is.TAG_TAKEABLE);
 		is.addTag(plant, is.TAG_WEIGHT, 50); // 50g
 

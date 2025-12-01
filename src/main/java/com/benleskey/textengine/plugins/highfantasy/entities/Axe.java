@@ -40,7 +40,7 @@ public class Axe extends Item {
 		String description = DESCRIPTIONS[random.nextInt(DESCRIPTIONS.length)];
 
 		Axe axe = es.add(Axe.class);
-		ls.addLook(axe, "basic", description);
+		ls.addLook(axe, ls.LOOK_BASIC, description);
 		is.addTag(axe, is.TAG_CUT);
 		is.addTag(axe, is.TAG_TOOL);
 		is.addTag(axe, is.TAG_TAKEABLE);

@@ -43,7 +43,7 @@ public class TakeItemAction extends Action {
 
 	@Override
 	public UniqueType getActionType() {
-		return game.getSystem(ActorActionSystem.class).ACTION_ITEM_TAKE;
+		return game.getSystem(ActionSystem.class).ACTION_ITEM_TAKE;
 	}
 
 	@Override
@@ -52,7 +52,7 @@ public class TakeItemAction extends Action {
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 
-		Actor actor = getActor().orElseThrow();
+		Entity actor = (Entity) getActor().orElseThrow();
 		Entity target = getTarget().orElseThrow();
 
 		// Get item description for error messages
@@ -117,7 +117,7 @@ public class TakeItemAction extends Action {
 		BroadcastSystem bs = game.getSystem(BroadcastSystem.class);
 		EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
 
-		Actor actor = getActor().orElseThrow();
+		Entity actor = (Entity) getActor().orElseThrow();
 		Entity target = getTarget().orElseThrow();
 
 		// Verify item exists and has a container
@@ -129,7 +129,7 @@ public class TakeItemAction extends Action {
 		Entity fromContainer = itemContainers.get(0).getProvider();
 
 		// Get descriptions
-		String actorDesc = eds.getActorDescription(actor, ws.getCurrentTime());
+		String actorDesc = eds.getDescriptionWithArticle(actor, ws.getCurrentTime(), "someone");
 		String itemDesc = getEntityDescription(target);
 
 		// Remove from old container by canceling its relationship event

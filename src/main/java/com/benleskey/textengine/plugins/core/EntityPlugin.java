@@ -32,6 +32,6 @@ public class EntityPlugin extends Plugin implements OnPluginInitialize {
 		game.registerSystem(new BroadcastSystem(game));
 		game.registerSystem(new EntityDescriptionSystem(game));
 		game.registerSystem(new AvatarBroadcastSystem(game));
-		game.registerSystem(new ActorActionSystem(game));
+		game.registerSystem(new ActionSystem(game));
 	}
 }

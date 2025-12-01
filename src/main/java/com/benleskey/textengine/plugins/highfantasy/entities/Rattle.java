@@ -55,7 +55,7 @@ public class Rattle extends Item implements UsableItem {
 		String description = DESCRIPTIONS[random.nextInt(DESCRIPTIONS.length)];
 
 		Rattle rattle = es.add(Rattle.class);
-		ls.addLook(rattle, "basic", description);
+		ls.addLook(rattle, ls.LOOK_BASIC, description);
 		is.addTag(rattle, is.TAG_TOY);
 		is.addTag(rattle, is.TAG_TAKEABLE);
 		is.addTag(rattle, is.TAG_WEIGHT, 100); // 100g
@@ -69,8 +69,8 @@ public class Rattle extends Item implements UsableItem {
 		EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 
-		String actorDesc = eds.getActorDescription((com.benleskey.textengine.entities.Actor) actor,
-				ws.getCurrentTime());
+		String actorDesc = eds.getDescriptionWithArticle(actor,
+				ws.getCurrentTime(), "someone");
 		String itemName = eds.getSimpleDescription(this, ws.getCurrentTime(), "the rattle");
 
 		// Broadcast to all entities in the same location (using new markup system)

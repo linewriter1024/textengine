@@ -4,6 +4,7 @@ import com.benleskey.textengine.Game;
 import com.benleskey.textengine.SingletonGameSystem;
 import com.benleskey.textengine.exceptions.DatabaseException;
 import com.benleskey.textengine.hooks.core.OnSystemInitialize;
+import com.benleskey.textengine.model.BaseReference;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.Reference;
@@ -76,8 +77,8 @@ public class EntityTagSystem extends SingletonGameSystem implements OnSystemInit
 			}
 			addStatement.executeUpdate();
 			// Create an event so the tag is visible at the current time
-			eventSystem.addEventNow(etEntityTag, new Reference(newId, game));
-			return new Reference(newId, game);
+			eventSystem.addEventNow(etEntityTag, new BaseReference(newId, game));
+			return new BaseReference(newId, game);
 		} catch (SQLException e) {
 			throw new DatabaseException("Unable to add entity tag", e);
 		}
@@ -185,7 +186,7 @@ public class EntityTagSystem extends SingletonGameSystem implements OnSystemInit
 					// If this tag matches the type we're removing
 					if (tagType == tag.type()) {
 						// Cancel the tag event
-						eventSystem.cancelEventsByTypeAndReference(etEntityTag, new Reference(tagId, game), when);
+						eventSystem.cancelEventsByTypeAndReference(etEntityTag, new BaseReference(tagId, game), when);
 					}
 				}
 			}

@@ -13,7 +13,7 @@ import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.plugins.core.EntityPlugin;
 import com.benleskey.textengine.plugins.procgen1.systems.ProceduralWorldPlugin;
-import com.benleskey.textengine.systems.ActorActionSystem;
+import com.benleskey.textengine.systems.ActionSystem;
 import com.benleskey.textengine.util.Markup;
 
 import java.util.Set;
@@ -35,7 +35,7 @@ public class WaitCommandPlugin extends Plugin implements OnCoreSystemsReady {
 	private static final String ERR_INVALID_DURATION = "invalid_duration";
 
 	// System fields
-	private ActorActionSystem actorActionSystem;
+	private ActionSystem actorActionSystem;
 
 	// Pattern for parsing durations like "1 minute", "2 hours", "30 seconds", "30"
 	private static final Pattern DURATION_PATTERN = Pattern.compile(
@@ -54,7 +54,7 @@ public class WaitCommandPlugin extends Plugin implements OnCoreSystemsReady {
 	@Override
 	public void onCoreSystemsReady() {
 		// Initialize systems
-		actorActionSystem = game.getSystem(ActorActionSystem.class);
+		actorActionSystem = game.getSystem(ActionSystem.class);
 
 		game.registerCommand(new Command(WAIT, this::handleWait,
 				new CommandVariant(WAIT_DURATION, "^(?:wait)(?:\\s+(.+?))?\\s*$", this::parseWait)));

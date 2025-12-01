@@ -38,7 +38,7 @@ public class RustySword extends Item {
 		String description = DESCRIPTIONS[random.nextInt(DESCRIPTIONS.length)];
 
 		RustySword sword = es.add(RustySword.class);
-		ls.addLook(sword, "basic", description);
+		ls.addLook(sword, ls.LOOK_BASIC, description);
 		is.addTag(sword, is.TAG_TAKEABLE);
 		is.addTag(sword, is.TAG_WEIGHT, 1500); // 1.5kg
 

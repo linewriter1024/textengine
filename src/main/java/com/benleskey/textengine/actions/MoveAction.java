@@ -31,7 +31,7 @@ public class MoveAction extends Action {
 
 	@Override
 	public UniqueType getActionType() {
-		return game.getSystem(ActorActionSystem.class).ACTION_MOVE;
+		return game.getSystem(ActionSystem.class).ACTION_MOVE;
 	}
 
 	@Override
@@ -40,7 +40,7 @@ public class MoveAction extends Action {
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		EntitySystem es = game.getSystem(EntitySystem.class);
 
-		Actor actor = getActor().orElseThrow();
+		Entity actor = (Entity) getActor().orElseThrow();
 		Entity target = getTarget().orElseThrow();
 
 		// Check if actor has a current location
@@ -72,7 +72,7 @@ public class MoveAction extends Action {
 		BroadcastSystem bs = game.getSystem(BroadcastSystem.class);
 		EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
 
-		Actor actor = getActor().orElseThrow();
+		Entity actor = (Entity) getActor().orElseThrow();
 		Entity target = getTarget().orElseThrow();
 
 		// Get current location
@@ -84,7 +84,7 @@ public class MoveAction extends Action {
 		Entity currentLocation = containers.get(0).getProvider();
 
 		// Get actor description
-		String actorDesc = eds.getActorDescription(actor, ws.getCurrentTime());
+		String actorDesc = eds.getDescriptionWithArticle(actor, ws.getCurrentTime(), "someone");
 
 		// Broadcast departure to entities in current location
 		// Using new markup: <capital><entity id="X">name</entity></capital>

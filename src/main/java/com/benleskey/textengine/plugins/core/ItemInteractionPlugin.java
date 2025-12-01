@@ -16,7 +16,7 @@ import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.LookDescriptor;
 import com.benleskey.textengine.model.RelationshipDescriptor;
 import com.benleskey.textengine.plugins.procgen1.systems.ProceduralWorldPlugin;
-import com.benleskey.textengine.systems.ActorActionSystem;
+import com.benleskey.textengine.systems.ActionSystem;
 import com.benleskey.textengine.systems.DisambiguationSystem;
 import com.benleskey.textengine.systems.EntitySystem;
 import com.benleskey.textengine.systems.EntityDescriptionSystem;
@@ -81,7 +81,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 	private EntitySystem entitySystem;
 	private DisambiguationSystem disambiguationSystem;
 	private EntityDescriptionSystem entityDescriptionSystem;
-	private ActorActionSystem actorActionSystem;
+	private ActionSystem actorActionSystem;
 	private TagInteractionSystem tagInteractionSystem;
 	private com.benleskey.textengine.systems.EventSystem eventSystem;
 
@@ -108,7 +108,7 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		entitySystem = game.getSystem(EntitySystem.class);
 		disambiguationSystem = game.getSystem(DisambiguationSystem.class);
 		entityDescriptionSystem = game.getSystem(EntityDescriptionSystem.class);
-		actorActionSystem = game.getSystem(ActorActionSystem.class);
+		actorActionSystem = game.getSystem(ActionSystem.class);
 		tagInteractionSystem = game.getSystem(TagInteractionSystem.class);
 		eventSystem = game.getSystem(com.benleskey.textengine.systems.EventSystem.class);
 
@@ -267,24 +267,24 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 			}
 		}
 
-		// Get items from appropriate location (container or current location)
+		// Get entities from appropriate location (container or current location)
 		Entity itemSource = sourceContainer != null ? sourceContainer : currentLocation;
-		List<Entity> itemsHere = relationshipSystem
+		List<Entity> entitiesHere = relationshipSystem
 				.getReceivingRelationships(itemSource, relationshipSystem.rvContains, worldSystem.getCurrentTime())
 				.stream()
 				.map(RelationshipDescriptor::getReceiver)
-				.filter(e -> e instanceof Item)
+				.filter(e -> !(e instanceof com.benleskey.textengine.entities.Avatar)) // Exclude other players
 				.collect(Collectors.toList());
 
 		// Check if entity_id is provided (machine-readable input)
-		Entity item = null;
+		Entity target = null;
 		if (input.getO(EntitySystem.M_ENTITY_ID).isPresent()) {
 			String entityIdStr = input.get(EntitySystem.M_ENTITY_ID);
 			try {
 				long entityId = Long.parseLong(entityIdStr);
-				item = entitySystem.get(entityId);
-				if (item == null || !itemsHere.contains(item)) {
-					item = null; // Entity not found or not at this location
+				target = entitySystem.get(entityId);
+				if (target == null || !entitiesHere.contains(target)) {
+					target = null; // Entity not found or not at this location
 				}
 			} catch (NumberFormatException e) {
 				// Invalid entity ID
@@ -297,12 +297,12 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		java.util.function.Function<Entity, String> descExtractor = e -> entityDescriptionSystem.getSimpleDescription(e,
 				worldSystem.getCurrentTime());
 
-		// Only do resolution if we don't already have an item from entity_id
-		if (item == null) {
+		// Only do resolution if we don't already have a target from entity_id
+		if (target == null) {
 			DisambiguationSystem.ResolutionResult<Entity> result = disambiguationSystem.resolveEntityWithAmbiguity(
 					client,
 					itemInput,
-					itemsHere,
+					entitiesHere,
 					descExtractor);
 
 			if (result.isNotFound()) {
@@ -320,11 +320,11 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 				return;
 			}
 
-			item = result.getUniqueMatch();
+			target = result.getUniqueMatch();
 		}
 
 		// Calculate time for action - base 5s + 1s per kg
-		Long weightGrams = itemSystem.getTagValue(item, itemSystem.TAG_WEIGHT, worldSystem.getCurrentTime());
+		Long weightGrams = itemSystem.getTagValue(target, itemSystem.TAG_WEIGHT, worldSystem.getCurrentTime());
 		long timeSeconds = 5;
 		if (weightGrams != null) {
 			long weightKg = weightGrams / 1000;
@@ -335,14 +335,14 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 		// Queue the action (validation + execution happens inside)
 
 		ActionValidation validation = actorActionSystem.queueAction((com.benleskey.textengine.entities.Actor) actor,
-				actorActionSystem.ACTION_ITEM_TAKE, item, actionTime);
+				actorActionSystem.ACTION_ITEM_TAKE, target, actionTime);
 
 		if (!validation.isValid()) {
 			client.sendOutput(validation.getErrorOutput());
 			return;
 		}
 
-		// Success - action has already broadcast the result to player
+		// Success - action will be executed by tick system
 	}
 
 	private void handleDrop(Client client, CommandInput input) {
@@ -430,43 +430,43 @@ public class ItemInteractionPlugin extends Plugin implements OnPluginInitialize 
 			return;
 		}
 
-		// Get items from both inventory and current location
-		List<Entity> availableItems = new java.util.ArrayList<>();
+		// Get entities from both inventory and current location
+		List<Entity> availableEntities = new java.util.ArrayList<>();
 
-		// Carried items
-		availableItems.addAll(relationshipSystem
+		// Carried entities
+		availableEntities.addAll(relationshipSystem
 				.getReceivingRelationships(actor, relationshipSystem.rvContains, worldSystem.getCurrentTime())
 				.stream()
 				.map(RelationshipDescriptor::getReceiver)
-				.filter(e -> e instanceof Item)
+				.filter(e -> e != actor) // Don't include self
 				.collect(Collectors.toList()));
 
-		// Items at location
+		// Entities at location
 		var containers = relationshipSystem.getProvidingRelationships(actor, relationshipSystem.rvContains,
 				worldSystem.getCurrentTime());
 		if (!containers.isEmpty()) {
 			Entity currentLocation = containers.get(0).getProvider();
-			availableItems.addAll(relationshipSystem
+			availableEntities.addAll(relationshipSystem
 					.getReceivingRelationships(currentLocation, relationshipSystem.rvContains,
 							worldSystem.getCurrentTime())
 					.stream()
 					.map(RelationshipDescriptor::getReceiver)
-					.filter(e -> e instanceof Item)
+					.filter(e -> e != actor) // Don't include self
 					.collect(Collectors.toList()));
 		}
 
-		// Resolve which item to examine
+		// Resolve which entity to examine
 		String itemInput = input.get(ItemSystem.M_ITEM);
 
-		java.util.function.Function<Entity, String> descExtractor = item -> {
-			List<LookDescriptor> looks = lookSystem.getLooksFromEntity(item, worldSystem.getCurrentTime());
+		java.util.function.Function<Entity, String> descExtractor = entity -> {
+			List<LookDescriptor> looks = lookSystem.getLooksFromEntity(entity, worldSystem.getCurrentTime());
 			return !looks.isEmpty() ? looks.get(0).getDescription() : null;
 		};
 
 		DisambiguationSystem.ResolutionResult<Entity> result = disambiguationSystem.resolveEntityWithAmbiguity(
 				client,
 				itemInput,
-				availableItems,
+				availableEntities,
 				descExtractor);
 
 		if (result.isNotFound()) {

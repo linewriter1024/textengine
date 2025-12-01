@@ -41,7 +41,7 @@ public class Wood extends Item {
 		String description = DESCRIPTIONS[random.nextInt(DESCRIPTIONS.length)];
 
 		Wood wood = es.add(Wood.class);
-		ls.addLook(wood, "basic", description);
+		ls.addLook(wood, ls.LOOK_BASIC, description);
 		is.addTag(wood, is.TAG_TAKEABLE);
 		is.addTag(wood, is.TAG_WEIGHT, 300); // 300g
 

@@ -38,7 +38,7 @@ public class AncientCoin extends Item {
 		String description = DESCRIPTIONS[random.nextInt(DESCRIPTIONS.length)];
 
 		AncientCoin coin = es.add(AncientCoin.class);
-		ls.addLook(coin, "basic", description);
+		ls.addLook(coin, ls.LOOK_BASIC, description);
 		is.addTag(coin, is.TAG_TAKEABLE);
 		is.addTag(coin, is.TAG_WEIGHT, 10); // 10g
 

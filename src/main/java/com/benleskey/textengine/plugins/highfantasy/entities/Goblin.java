@@ -17,11 +17,11 @@ import java.util.Random;
 /**
  * Goblin NPC - patrols between locations and interacts with items.
  * 
- * Implements Acting interface - ActorActionSystem calls onActionReady() when:
+ * Implements Acting interface - ActionSystem calls onActionReady() when:
  * - No pending action exists
  * - Enough time has passed since last check (getActionInterval())
  * 
- * AI logic only - all execution handled by ActorActionSystem.
+ * AI logic only - all execution handled by ActionSystem.
  */
 public class Goblin extends Actor implements Acting {
 
@@ -37,7 +37,7 @@ public class Goblin extends Actor implements Acting {
 		LookSystem ls = game.getSystem(LookSystem.class);
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		UniqueTypeSystem uts = game.getSystem(UniqueTypeSystem.class);
-		ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
+		ActionSystem aas = game.getSystem(ActionSystem.class);
 
 		Goblin goblin = es.add(Goblin.class);
 
@@ -45,7 +45,7 @@ public class Goblin extends Actor implements Acting {
 		rs.add(goblin, roomA, patrolTarget);
 		rs.add(goblin, roomB, patrolTarget);
 
-		ls.addLook(goblin, "basic", "a goblin");
+		ls.addLook(goblin, ls.LOOK_BASIC, "a goblin");
 		es.addTag(goblin, aas.TAG_ACTING);
 		rs.add(startLocation, goblin, rs.rvContains);
 
@@ -61,7 +61,7 @@ public class Goblin extends Actor implements Acting {
 	public void onActionReady() {
 		// AI: Decide what to do (no pending action, ready for new action)
 		LookSystem ls = game.getSystem(LookSystem.class);
-		ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
+		ActionSystem aas = game.getSystem(ActionSystem.class);
 		BroadcastSystem bs = game.getSystem(BroadcastSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 
@@ -98,7 +98,7 @@ public class Goblin extends Actor implements Acting {
 	 * AI: Decide where to move.
 	 * Prefers patrol targets, falls back to random exits.
 	 */
-	private void decideMove(LookSystem.LookEnvironment env, ActorActionSystem aas) {
+	private void decideMove(LookSystem.LookEnvironment env, ActionSystem aas) {
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		UniqueTypeSystem uts = game.getSystem(UniqueTypeSystem.class);
@@ -122,7 +122,7 @@ public class Goblin extends Actor implements Acting {
 			return;
 		}
 
-		// Queue move via ActorActionSystem
+		// Queue move via ActionSystem
 		aas.queueAction(this, aas.ACTION_MOVE, destination, DTime.fromSeconds(60));
 	}
 
@@ -130,7 +130,7 @@ public class Goblin extends Actor implements Acting {
 	 * AI: Decide what to do with items.
 	 * Randomly takes or drops items.
 	 */
-	private void decideItemAction(LookSystem.LookEnvironment env, ActorActionSystem aas) {
+	private void decideItemAction(LookSystem.LookEnvironment env, ActionSystem aas) {
 		ItemSystem is = game.getSystem(ItemSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 

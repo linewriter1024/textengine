@@ -1,38 +1,28 @@
 package com.benleskey.textengine.model;
 
 import com.benleskey.textengine.Game;
-import lombok.Getter;
 
-@Getter
-public class Reference {
-	protected final long id;
-	protected final Game game;
+/**
+ * Interface for all reference types in the game.
+ * References are uniquely identified by their ID.
+ * Use BaseReference for the standard implementation.
+ */
+public interface Reference {
 
-	public Reference(long id, Game game) {
-		this.id = id;
-		this.game = game;
-	}
+	/**
+	 * Get the unique ID of this reference.
+	 */
+	long getId();
 
-	public String getKeyId() {
-		return Long.toString(id);
-	}
+	/**
+	 * Get the game instance this reference belongs to.
+	 */
+	Game getGame();
 
-	@Override
-	public String toString() {
-		return this.getClass().getSimpleName() + "#" + id;
-	}
-
-	@Override
-	public int hashCode() {
-		return Long.hashCode(getId());
-	}
-
-	@Override
-	public boolean equals(Object o) {
-		if (this == o)
-			return true;
-		if (!(o instanceof Reference reference))
-			return false;
-		return id == reference.id;
+	/**
+	 * Get the string key ID for this reference (used in commands).
+	 */
+	default String getKeyId() {
+		return Long.toString(getId());
 	}
 }

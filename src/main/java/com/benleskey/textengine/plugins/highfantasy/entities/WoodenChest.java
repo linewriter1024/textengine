@@ -38,7 +38,7 @@ public class WoodenChest extends Item {
 		String description = DESCRIPTIONS[random.nextInt(DESCRIPTIONS.length)];
 
 		WoodenChest chest = es.add(WoodenChest.class);
-		ls.addLook(chest, "basic", description);
+		ls.addLook(chest, ls.LOOK_BASIC, description);
 		is.addTag(chest, is.TAG_CONTAINER);
 		is.addTag(chest, is.TAG_TAKEABLE);
 		is.addTag(chest, is.TAG_WEIGHT, 5000); // 5kg

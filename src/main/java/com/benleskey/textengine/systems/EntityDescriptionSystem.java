@@ -2,7 +2,6 @@ package com.benleskey.textengine.systems;
 
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.SingletonGameSystem;
-import com.benleskey.textengine.entities.Actor;
 import com.benleskey.textengine.hooks.core.OnSystemInitialize;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
@@ -13,10 +12,7 @@ import java.util.*;
 
 /**
  * Unified system for generating consistent entity descriptions.
- * Provides descriptions for all entity types based on their characteristics:
- * - Player actors: "Player <id>"
- * - NPC actors: look description with article (e.g., "a goblin")
- * - Other entities: look description or fallback
+ * Provides descriptions for all entity types based on their look descriptions.
  * - Tag-based supplementary descriptions (e.g., "This resource is abundant
  * here.")
  */
@@ -25,7 +21,6 @@ public class EntityDescriptionSystem extends SingletonGameSystem implements OnSy
 	// Map from UniqueType tag to list of supplementary descriptions
 	private final Map<UniqueType, List<String>> tagDescriptions = new HashMap<>();
 
-	private EntitySystem entitySystem;
 	private EntityTagSystem entityTagSystem;
 	private LookSystem lookSystem;
 
@@ -35,7 +30,6 @@ public class EntityDescriptionSystem extends SingletonGameSystem implements OnSy
 
 	@Override
 	public void onSystemInitialize() {
-		entitySystem = game.getSystem(EntitySystem.class);
 		entityTagSystem = game.getSystem(EntityTagSystem.class);
 		lookSystem = game.getSystem(LookSystem.class);
 	}
@@ -103,35 +97,10 @@ public class EntityDescriptionSystem extends SingletonGameSystem implements OnSy
 
 	/**
 	 * Get a description of any entity.
-	 * - For player actors: "Player <id>"
-	 * - For NPC actors: look description with article
-	 * - For other entities: look description
+	 * Returns the look description or fallback.
 	 */
 	public String getDescription(Entity entity, DTime currentTime) {
-		// Special handling for actors
-		if (entity instanceof Actor) {
-			return getActorDescription((Actor) entity, currentTime);
-		}
-
-		// For non-actors, use look description
 		return getSimpleDescription(entity, currentTime);
-	}
-
-	/**
-	 * Get a description of an actor suitable for broadcast messages.
-	 * Players: "Player <id>"
-	 * NPCs: look description with article (e.g., "a goblin")
-	 */
-	public String getActorDescription(Actor actor, DTime currentTime) {
-		// Check if this is a player (has TAG_AVATAR)
-		boolean isPlayer = entityTagSystem.hasTag(actor, entitySystem.TAG_AVATAR, currentTime);
-
-		if (isPlayer) {
-			return "Player " + actor.getId();
-		} else {
-			// NPC - use look description with article
-			return getDescriptionWithArticle(actor, currentTime, "someone");
-		}
 	}
 
 	/**

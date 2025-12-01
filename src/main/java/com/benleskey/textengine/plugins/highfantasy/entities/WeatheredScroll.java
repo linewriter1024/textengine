@@ -38,7 +38,7 @@ public class WeatheredScroll extends Item {
 		String description = DESCRIPTIONS[random.nextInt(DESCRIPTIONS.length)];
 
 		WeatheredScroll scroll = es.add(WeatheredScroll.class);
-		ls.addLook(scroll, "basic", description);
+		ls.addLook(scroll, ls.LOOK_BASIC, description);
 		is.addTag(scroll, is.TAG_TAKEABLE);
 		is.addTag(scroll, is.TAG_WEIGHT, 20); // 20g
 

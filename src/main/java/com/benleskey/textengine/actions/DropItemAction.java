@@ -7,7 +7,7 @@ import com.benleskey.textengine.model.Action;
 import com.benleskey.textengine.model.ActionValidation;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.UniqueType;
-import com.benleskey.textengine.systems.ActorActionSystem;
+import com.benleskey.textengine.systems.ActionSystem;
 import com.benleskey.textengine.systems.BroadcastSystem;
 import com.benleskey.textengine.systems.EntityDescriptionSystem;
 import com.benleskey.textengine.systems.EntitySystem;
@@ -40,7 +40,7 @@ public class DropItemAction extends Action {
 
 	@Override
 	public UniqueType getActionType() {
-		return game.getSystem(ActorActionSystem.class).ACTION_ITEM_DROP;
+		return game.getSystem(ActionSystem.class).ACTION_ITEM_DROP;
 	}
 
 	@Override
@@ -48,7 +48,7 @@ public class DropItemAction extends Action {
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 
-		Actor actor = getActor().orElseThrow();
+		Entity actor = (Entity) getActor().orElseThrow();
 		Entity target = getTarget().orElseThrow();
 
 		String itemName = getEntityDescription(target);
@@ -84,7 +84,7 @@ public class DropItemAction extends Action {
 		BroadcastSystem bs = game.getSystem(BroadcastSystem.class);
 		EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
 
-		Actor actor = getActor().orElseThrow();
+		Entity actor = (Entity) getActor().orElseThrow();
 		Entity target = getTarget().orElseThrow();
 
 		// Verify actor has the item
@@ -102,7 +102,7 @@ public class DropItemAction extends Action {
 		Entity currentLocation = actorContainers.get(0).getProvider();
 
 		// Get descriptions
-		String actorDesc = eds.getActorDescription(actor, ws.getCurrentTime());
+		String actorDesc = eds.getDescriptionWithArticle(actor, ws.getCurrentTime(), "someone");
 		String itemDesc = getEntityDescription(target);
 
 		// Remove from actor by canceling its relationship event

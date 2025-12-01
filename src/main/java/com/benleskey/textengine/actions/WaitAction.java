@@ -2,12 +2,12 @@ package com.benleskey.textengine.actions;
 
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.commands.CommandOutput;
-import com.benleskey.textengine.entities.Actor;
 import com.benleskey.textengine.model.Action;
 import com.benleskey.textengine.model.ActionValidation;
 import com.benleskey.textengine.model.DTime;
+import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.UniqueType;
-import com.benleskey.textengine.systems.ActorActionSystem;
+import com.benleskey.textengine.systems.ActionSystem;
 import com.benleskey.textengine.systems.BroadcastSystem;
 import com.benleskey.textengine.systems.EntityDescriptionSystem;
 import com.benleskey.textengine.systems.EntitySystem;
@@ -35,7 +35,7 @@ public class WaitAction extends Action {
 
 	@Override
 	public UniqueType getActionType() {
-		return game.getSystem(ActorActionSystem.class).ACTION_WAIT;
+		return game.getSystem(ActionSystem.class).ACTION_WAIT;
 	}
 
 	@Override
@@ -50,10 +50,10 @@ public class WaitAction extends Action {
 		WorldSystem ws = game.getSystem(WorldSystem.class);
 		EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
 
-		Actor actor = getActor().orElseThrow();
+		Entity actor = (Entity) getActor().orElseThrow();
 		DTime timeRequired = getTimeRequired();
 
-		String actorDesc = eds.getActorDescription(actor, ws.getCurrentTime());
+		String actorDesc = eds.getDescriptionWithArticle(actor, ws.getCurrentTime(), "someone");
 		String durationDesc = getDurationDescription(timeRequired);
 
 		// Broadcast to all entities including the actor

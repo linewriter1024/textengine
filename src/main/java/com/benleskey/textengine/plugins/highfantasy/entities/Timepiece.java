@@ -28,7 +28,7 @@ public class Timepiece extends Item implements DynamicDescription {
 		var is = game.getSystem(ItemSystem.class);
 
 		Timepiece timepiece = es.add(Timepiece.class);
-		ls.addLook(timepiece, "basic", "a pocket timepiece");
+		ls.addLook(timepiece, ls.LOOK_BASIC, "a pocket timepiece");
 
 		// Timepiece is takeable and lightweight
 		is.addTag(timepiece, is.TAG_TAKEABLE);

@@ -16,7 +16,6 @@ import com.benleskey.textengine.actions.TakeItemAction;
 import com.benleskey.textengine.actions.WaitAction;
 import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.entities.Acting;
-import com.benleskey.textengine.entities.Actor;
 import com.benleskey.textengine.exceptions.DatabaseException;
 import com.benleskey.textengine.exceptions.InternalException;
 import com.benleskey.textengine.hooks.core.OnSystemInitialize;
@@ -28,7 +27,8 @@ import com.benleskey.textengine.model.UniqueType;
 import com.benleskey.textengine.util.Markup;
 
 /**
- * ActorActionSystem manages actions for all actors (players and NPCs).
+ * ActionSystem manages actions for all Acting entities (players, NPCs,
+ * objects).
  * 
  * Actions extend Reference and are stored in the database with flexible
  * properties.
@@ -42,7 +42,7 @@ import com.benleskey.textengine.util.Markup;
  * For players:
  * - Commands queue and execute actions instantly (auto-advance time)
  */
-public class ActorActionSystem extends SingletonGameSystem implements OnSystemInitialize {
+public class ActionSystem extends SingletonGameSystem implements OnSystemInitialize {
 
 	// Action type registry
 	private final Map<UniqueType, Class<? extends Action>> actionTypes = new HashMap<>();
@@ -78,7 +78,7 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 	private PreparedStatement getPendingActionStatement;
 	private PreparedStatement getActionCreationTimeStatement;
 
-	public ActorActionSystem(Game game) {
+	public ActionSystem(Game game) {
 		super(game);
 	}
 
@@ -231,7 +231,7 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 	/**
 	 * Create a new action in the database.
 	 */
-	public synchronized <T extends Action> T add(Class<T> clazz, Actor actor, Entity target, DTime timeRequired)
+	public synchronized <T extends Action> T add(Class<T> clazz, Acting actor, Entity target, DTime timeRequired)
 			throws DatabaseException {
 		try {
 			T dummy = get(0, clazz);
@@ -294,13 +294,13 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 	 * Queue an action for an actor.
 	 * Validates the action first. If invalid, returns the validation result with
 	 * error output.
-	 * Players: auto-advance time and execute immediately.
+	 * Players: auto-advance time so action executes in normal tick processing.
 	 * NPCs: store in database for later execution.
 	 * 
 	 * @return ActionValidation indicating success or failure with error output for
 	 *         players
 	 */
-	public ActionValidation queueAction(Actor actor, UniqueType actionType, Entity target, DTime timeRequired)
+	public ActionValidation queueAction(Acting actor, UniqueType actionType, Entity target, DTime timeRequired)
 			throws DatabaseException {
 		// Create the action in the database
 		Class<? extends Action> actionClass = getActionClass(actionType);
@@ -337,7 +337,7 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 	 * Execute an action directly (without queueing).
 	 * Used internally for NPC action execution.
 	 */
-	public boolean executeAction(Actor actor, UniqueType actionType, Entity target, DTime timeRequired) {
+	public boolean executeAction(Acting actor, UniqueType actionType, Entity target, DTime timeRequired) {
 		Class<? extends Action> actionClass = getActionClass(actionType);
 		if (actionClass == null) {
 			return false;
@@ -358,7 +358,7 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 	/**
 	 * Get pending action for an actor.
 	 */
-	public synchronized Action getPendingAction(Actor actor) throws DatabaseException {
+	public synchronized Action getPendingAction(Acting actor) throws DatabaseException {
 		DTime currentTime = worldSystem.getCurrentTime();
 
 		try {
@@ -425,7 +425,7 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 	/**
 	 * Execute and clear a pending action.
 	 */
-	public boolean executePendingAction(Actor actor, Action action, DTime currentTime) throws DatabaseException {
+	public boolean executePendingAction(Acting actor, Action action, DTime currentTime) throws DatabaseException {
 		CommandOutput result = action.execute();
 		eventSystem.cancelEventsByTypeAndReference(ACTION, action, currentTime);
 
@@ -435,7 +435,7 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 	/**
 	 * Get description of pending action for observers.
 	 */
-	public String getPendingActionDescription(Actor actor) throws DatabaseException {
+	public String getPendingActionDescription(Acting actor) throws DatabaseException {
 		Action action = getPendingAction(actor);
 		if (action == null) {
 			return null;
@@ -448,16 +448,16 @@ public class ActorActionSystem extends SingletonGameSystem implements OnSystemIn
 	 * Uses worldSystem.getCurrentTime() for all time references.
 	 * Returns true if processed successfully.
 	 */
-	public boolean processActingEntitySingleTick(Acting acting, Actor actor, DTime interval) throws DatabaseException {
+	public boolean processActingEntitySingleTick(Acting acting, DTime interval) throws DatabaseException {
 		DTime currentTime = worldSystem.getCurrentTime();
 
 		// Check if entity has pending action
-		Action pendingAction = getPendingAction(actor);
+		Action pendingAction = getPendingAction(acting);
 
 		if (pendingAction != null) {
 			// Has pending action - check if ready to execute
 			if (isActionReady(pendingAction, currentTime)) {
-				executePendingAction(actor, pendingAction, currentTime);
+				executePendingAction(acting, pendingAction, currentTime);
 				// Action completed - continue to potentially queue new action
 			} else {
 				// Action not ready yet, wait

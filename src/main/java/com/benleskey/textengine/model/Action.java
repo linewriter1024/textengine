@@ -4,14 +4,14 @@ import java.util.Optional;
 
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.commands.CommandOutput;
-import com.benleskey.textengine.entities.Actor;
-import com.benleskey.textengine.systems.ActorActionSystem;
+import com.benleskey.textengine.entities.Acting;
+import com.benleskey.textengine.systems.ActionSystem;
 import com.benleskey.textengine.systems.EntitySystem;
 import com.benleskey.textengine.util.Logger;
 
 /**
  * Base class for actions that actors (players and NPCs) can perform.
- * Actions are stored in the database and extend Reference for consistent ID
+ * Actions are stored in the database and extend BaseReference for consistent ID
  * handling.
  * 
  * Action properties (actor, target, time required, etc.) are stored in a
@@ -25,7 +25,7 @@ import com.benleskey.textengine.util.Logger;
  * - Implement getDescription() for visibility to other entities
  * - Implement canExecute() to validate preconditions
  */
-public abstract class Action extends Reference {
+public abstract class Action extends BaseReference {
     protected final Logger log;
 
     public Action(long id, Game game) {
@@ -71,7 +71,7 @@ public abstract class Action extends Reference {
      */
     public abstract String getDescription();
 
-    // ========== Property accessors delegating to ActorActionSystem ==========
+    // ========== Property accessors delegating to ActionSystem ==========
 
     /**
      * Get a Reference property value for this action.
@@ -81,7 +81,7 @@ public abstract class Action extends Reference {
      * @return Optional containing the Reference, or empty if not set
      */
     protected <T extends Reference> Optional<T> getRefProperty(UniqueType key, Class<T> clazz) {
-        ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
+        ActionSystem aas = game.getSystem(ActionSystem.class);
         return aas.getActionProperty(this, key)
                 .map(id -> {
                     if (Entity.class.isAssignableFrom(clazz)) {
@@ -107,7 +107,7 @@ public abstract class Action extends Reference {
      * @param value The Reference value
      */
     protected void setRefProperty(UniqueType key, Reference value) {
-        ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
+        ActionSystem aas = game.getSystem(ActionSystem.class);
         aas.setActionProperty(this, key, value.getId());
     }
 
@@ -118,7 +118,7 @@ public abstract class Action extends Reference {
      * @return Optional containing the UniqueType, or empty if not set
      */
     protected Optional<UniqueType> getTypeProperty(UniqueType key) {
-        ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
+        ActionSystem aas = game.getSystem(ActionSystem.class);
         return aas.getActionProperty(this, key)
                 .map(id -> new UniqueType(id, game.getSystem(com.benleskey.textengine.systems.UniqueTypeSystem.class)));
     }
@@ -130,7 +130,7 @@ public abstract class Action extends Reference {
      * @param value The UniqueType value
      */
     protected void setTypeProperty(UniqueType key, UniqueType value) {
-        ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
+        ActionSystem aas = game.getSystem(ActionSystem.class);
         aas.setActionProperty(this, key, value.type());
     }
 
@@ -141,7 +141,7 @@ public abstract class Action extends Reference {
      * @return Optional containing the long value, or empty if not set
      */
     protected Optional<Long> getLongProperty(UniqueType key) {
-        ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
+        ActionSystem aas = game.getSystem(ActionSystem.class);
         return aas.getActionProperty(this, key);
     }
 
@@ -152,7 +152,7 @@ public abstract class Action extends Reference {
      * @param value The long value
      */
     protected void setLongProperty(UniqueType key, long value) {
-        ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
+        ActionSystem aas = game.getSystem(ActionSystem.class);
         aas.setActionProperty(this, key, value);
     }
 
@@ -163,9 +163,12 @@ public abstract class Action extends Reference {
      * 
      * @return Optional containing the actor, or empty if not set
      */
-    public Optional<Actor> getActor() {
-        ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
-        return getRefProperty(aas.PROP_ACTOR, Actor.class);
+    public Optional<Acting> getActor() {
+        ActionSystem aas = game.getSystem(ActionSystem.class);
+        // All Acting entities are also Entity, so we query for Entity and cast
+        return getRefProperty(aas.PROP_ACTOR, Entity.class)
+                .filter(e -> e instanceof Acting)
+                .map(e -> (Acting) e);
     }
 
     /**
@@ -173,9 +176,10 @@ public abstract class Action extends Reference {
      * 
      * @param actor The actor
      */
-    public void setActor(Actor actor) {
-        ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
-        setRefProperty(aas.PROP_ACTOR, actor);
+    public void setActor(Acting actor) {
+        ActionSystem aas = game.getSystem(ActionSystem.class);
+        // Acting extends Entity which extends Reference
+        setRefProperty(aas.PROP_ACTOR, (Reference) actor);
     }
 
     /**
@@ -184,7 +188,7 @@ public abstract class Action extends Reference {
      * @return Optional containing the target entity, or empty if not set
      */
     public Optional<Entity> getTarget() {
-        ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
+        ActionSystem aas = game.getSystem(ActionSystem.class);
         return getRefProperty(aas.PROP_TARGET, Entity.class);
     }
 
@@ -194,7 +198,7 @@ public abstract class Action extends Reference {
      * @param target The target entity
      */
     public void setTarget(Entity target) {
-        ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
+        ActionSystem aas = game.getSystem(ActionSystem.class);
         setRefProperty(aas.PROP_TARGET, target);
     }
 
@@ -204,7 +208,7 @@ public abstract class Action extends Reference {
      * @return Time required, or zero if not set
      */
     public DTime getTimeRequired() {
-        ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
+        ActionSystem aas = game.getSystem(ActionSystem.class);
         return getLongProperty(aas.PROP_TIME_REQUIRED)
                 .map(ms -> DTime.fromMilliseconds(ms))
                 .orElse(DTime.fromMilliseconds(0));
@@ -216,7 +220,7 @@ public abstract class Action extends Reference {
      * @param timeRequired Time required
      */
     public void setTimeRequired(DTime timeRequired) {
-        ActorActionSystem aas = game.getSystem(ActorActionSystem.class);
+        ActionSystem aas = game.getSystem(ActionSystem.class);
         setLongProperty(aas.PROP_TIME_REQUIRED, timeRequired.toMilliseconds());
     }
 }

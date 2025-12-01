@@ -12,7 +12,7 @@ import com.benleskey.textengine.model.ActionValidation;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.plugins.procgen1.systems.ProceduralWorldPlugin;
-import com.benleskey.textengine.systems.ActorActionSystem;
+import com.benleskey.textengine.systems.ActionSystem;
 import com.benleskey.textengine.systems.ConnectionSystem;
 import com.benleskey.textengine.systems.DisambiguationSystem;
 import com.benleskey.textengine.systems.EntityDescriptionSystem;
@@ -55,7 +55,7 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 	private VisibilitySystem visibilitySystem;
 	private EntityDescriptionSystem entityDescriptionSystem;
 	private SpatialSystem spatialSystem;
-	private ActorActionSystem actorActionSystem;
+	private ActionSystem actorActionSystem;
 
 	public NavigationPlugin(Game game) {
 		super(game);
@@ -78,7 +78,7 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		visibilitySystem = game.getSystem(VisibilitySystem.class);
 		entityDescriptionSystem = game.getSystem(EntityDescriptionSystem.class);
 		spatialSystem = game.getSystem(SpatialSystem.class);
-		actorActionSystem = game.getSystem(ActorActionSystem.class);
+		actorActionSystem = game.getSystem(ActionSystem.class);
 
 		game.registerCommand(new Command(GO, this::handleGo,
 				// Match: go north, go n, go castle, go #1234 (entity ID), etc.
@@ -238,7 +238,7 @@ public class NavigationPlugin extends Plugin implements OnPluginInitialize {
 		Entity destination = matchedExit.getTo();
 		worldGen.ensurePlaceHasNeighbors(destination);
 
-		// Use ActorActionSystem to queue the move action
+		// Use ActionSystem to queue the move action
 
 		DTime moveTime = DTime.fromSeconds(60);
 

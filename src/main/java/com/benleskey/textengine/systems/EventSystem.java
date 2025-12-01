@@ -4,6 +4,7 @@ import com.benleskey.textengine.Game;
 import com.benleskey.textengine.SingletonGameSystem;
 import com.benleskey.textengine.exceptions.DatabaseException;
 import com.benleskey.textengine.hooks.core.OnSystemInitialize;
+import com.benleskey.textengine.model.BaseReference;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.FullEvent;
 import com.benleskey.textengine.model.Reference;
@@ -79,7 +80,7 @@ public class EventSystem extends SingletonGameSystem implements OnSystemInitiali
 	 * @param eventId The ID of the event to cancel
 	 */
 	public synchronized void cancelEvent(long eventId) {
-		addEventNow(etCancel, new Reference(eventId, game));
+		addEventNow(etCancel, new BaseReference(eventId, game));
 	}
 
 	/**

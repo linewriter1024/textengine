@@ -1,21 +1,19 @@
 package com.benleskey.textengine.model;
 
-import com.benleskey.textengine.Game;
 import com.benleskey.textengine.commands.CommandOutput;
-import com.benleskey.textengine.util.Logger;
 
-public abstract class Entity extends Reference {
-	protected final Logger log;
+/**
+ * Interface for all game entities.
+ * Entities are References that are uniquely identified by their ID and have a
+ * type.
+ * Use BaseEntity for the standard implementation.
+ */
+public interface Entity extends Reference {
 
-	public Entity(long id, Game game) {
-		super(id, game);
-		// Create entity-specific logger with class name and ID prefix
-		this.log = game.log.withPrefix(this.getClass().getSimpleName() + "#" + id);
-	}
-
-	public UniqueType getEntityType() {
-		return game.getUniqueTypeSystem().getType(this.getClass().getCanonicalName());
-	}
+	/**
+	 * Get the entity type as a UniqueType.
+	 */
+	UniqueType getEntityType();
 
 	/**
 	 * Receive a broadcast event from another entity.
@@ -24,7 +22,7 @@ public abstract class Entity extends Reference {
 	 * 
 	 * @param output The broadcast output to receive
 	 */
-	public void receiveBroadcast(CommandOutput output) {
+	default void receiveBroadcast(CommandOutput output) {
 		// Default: do nothing
 	}
 }

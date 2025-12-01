@@ -1,25 +1,31 @@
 package com.benleskey.textengine.plugins.highfantasy.entities;
 
 import com.benleskey.textengine.Game;
-import com.benleskey.textengine.commands.CommandOutput;
+import com.benleskey.textengine.entities.Acting;
 import com.benleskey.textengine.entities.DynamicDescription;
 import com.benleskey.textengine.entities.Item;
-import com.benleskey.textengine.entities.Tickable;
 import com.benleskey.textengine.model.DTime;
+import com.benleskey.textengine.model.UniqueType;
 import com.benleskey.textengine.plugins.highfantasy.GameCalendar;
+import com.benleskey.textengine.plugins.highfantasy.HighFantasyPlugin;
+import com.benleskey.textengine.systems.ActionSystem;
+import com.benleskey.textengine.systems.EntitySystem;
 import com.benleskey.textengine.systems.ItemSystem;
 import com.benleskey.textengine.systems.LookSystem;
-import com.benleskey.textengine.util.Markup;
+import com.benleskey.textengine.systems.UniqueTypeSystem;
+import com.benleskey.textengine.systems.WorldSystem;
 
 import java.util.Random;
 
 /**
- * A grandfather clock that ticks every minute and chimes on the hour.
+ * A grandfather clock that chimes on the hour.
  * Too heavy to move (100kg).
+ * Implements Acting to queue ChimeActions when the hour changes.
  */
-public class GrandfatherClock extends Item implements Tickable, DynamicDescription {
+public class GrandfatherClock extends Item implements Acting, DynamicDescription {
 
-	private int lastChimeHour = -1;
+	// Tag to track last hour chimed (prevents multiple chimes in same hour)
+	private static UniqueType TAG_LAST_CHIME_HOUR;
 
 	public GrandfatherClock(long id, Game game) {
 		super(id, game);
@@ -29,59 +35,72 @@ public class GrandfatherClock extends Item implements Tickable, DynamicDescripti
 	 * Create a grandfather clock with proper tags and weight.
 	 */
 	public static GrandfatherClock create(Game game, Random random) {
-		var es = game.getSystem(com.benleskey.textengine.systems.EntitySystem.class);
+		var es = game.getSystem(EntitySystem.class);
 		var ls = game.getSystem(LookSystem.class);
 		var is = game.getSystem(ItemSystem.class);
+		var aas = game.getSystem(ActionSystem.class);
+		var uts = game.getSystem(UniqueTypeSystem.class);
+
+		// Initialize tag if needed
+		if (TAG_LAST_CHIME_HOUR == null) {
+			TAG_LAST_CHIME_HOUR = uts.getType("clock_last_chime_hour");
+		}
 
 		GrandfatherClock clock = es.add(GrandfatherClock.class);
-		ls.addLook(clock, "basic", "a grandfather clock");
+		ls.addLook(clock, ls.LOOK_BASIC, "a grandfather clock");
 
 		// Clock is too heavy to take
 		is.addTag(clock, is.TAG_TAKEABLE);
 		is.addTag(clock, is.TAG_WEIGHT, 100000L); // 100kg - too heavy to carry
-		es.addTag(clock, es.TAG_TICKABLE); // Receives tick updates
+		es.addTag(clock, aas.TAG_ACTING); // Can perform actions (chiming)
+		// Initialize last chime hour to -1 (never chimed)
+		es.addTag(clock, TAG_LAST_CHIME_HOUR, -1L);
 
 		return clock;
 	}
 
 	@Override
-	public DTime getTickInterval() {
-		// Tick every minute
+	public DTime getActionInterval() {
+		// Check every minute for hour changes
 		return DTime.fromSeconds(60);
 	}
 
 	@Override
-	public void onTick(DTime currentTime, DTime timeSinceLastTick) {
-		GameCalendar.CalendarDate date = GameCalendar.fromDTime(currentTime);
-		int currentHour = date.hour();
-		int currentMinute = date.minute();
+	public void onActionReady() {
+		WorldSystem ws = game.getSystem(WorldSystem.class);
+		ActionSystem aas = game.getSystem(ActionSystem.class);
+		EntitySystem es = game.getSystem(EntitySystem.class);
+		UniqueTypeSystem uts = game.getSystem(UniqueTypeSystem.class);
 
-		// Only chime on the hour (minute 0)
-		if (currentMinute == 0 && currentHour != lastChimeHour) {
-			// Chime on the hour
-			int chimeCount = currentHour % 12;
-			if (chimeCount == 0)
-				chimeCount = 12;
-
-			String chimes = "BONG ".repeat(chimeCount).trim();
-			CommandOutput chimeOutput = CommandOutput.make("clock_chime")
-					.put("entity_id", String.valueOf(getId()))
-					.text(Markup.escape(String.format("The grandfather clock chimes %d %s. %s",
-							chimeCount,
-							chimeCount == 1 ? "time" : "times",
-							chimes)));
-
-			// Broadcast to all nearby entities using BroadcastSystem
-			game.getSystem(com.benleskey.textengine.systems.BroadcastSystem.class).broadcast(this, chimeOutput);
-
-			lastChimeHour = currentHour;
+		// Ensure tag is initialized
+		if (TAG_LAST_CHIME_HOUR == null) {
+			TAG_LAST_CHIME_HOUR = uts.getType("clock_last_chime_hour");
 		}
-		// No output for regular ticks - clock ticks silently
+
+		DTime currentTime = ws.getCurrentTime();
+		GameCalendar.CalendarDate date = GameCalendar.fromDTime(currentTime);
+		int currentMinute = date.minute();
+		int currentHour = date.hour();
+
+		// Get total hours since epoch for unique hour tracking
+		long totalHours = currentTime.toMilliseconds() / (1000 * 60 * 60);
+
+		// Check if we already chimed this hour
+		Long lastChimeHour = es.getTagValue(this, TAG_LAST_CHIME_HOUR, currentTime);
+
+		// Only chime on the hour (minute 0) and if we haven't chimed this hour yet
+		if (currentMinute == 0 && (lastChimeHour == null || lastChimeHour != totalHours)) {
+			log.log("Queueing chime action for hour %d (total hour %d)", currentHour, totalHours);
+			// Mark that we've chimed this hour
+			es.updateTagValue(this, TAG_LAST_CHIME_HOUR, totalHours, currentTime);
+			// Queue a chime action that takes 1 second
+			aas.queueAction(this, HighFantasyPlugin.ACTION_CHIME, this, DTime.fromSeconds(1));
+		}
 	}
 
 	@Override
 	public String getDynamicDescription() {
-		var ws = game.getSystem(com.benleskey.textengine.systems.WorldSystem.class);
+		var ws = game.getSystem(WorldSystem.class);
 		return "The clock shows: " + GameCalendar.formatFull(ws.getCurrentTime());
 	}
 }

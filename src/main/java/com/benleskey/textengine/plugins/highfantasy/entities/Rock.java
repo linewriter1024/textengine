@@ -41,7 +41,7 @@ public class Rock extends Item {
 		String description = DESCRIPTIONS[random.nextInt(DESCRIPTIONS.length)];
 
 		Rock rock = es.add(Rock.class);
-		ls.addLook(rock, "basic", description);
+		ls.addLook(rock, ls.LOOK_BASIC, description);
 		is.addTag(rock, is.TAG_TAKEABLE);
 		is.addTag(rock, is.TAG_WEIGHT, 500); // 500g = 0.5kg
 

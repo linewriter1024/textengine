@@ -1,7 +1,7 @@
 package com.benleskey.textengine.entities;
 
 import com.benleskey.textengine.Game;
-import com.benleskey.textengine.model.Entity;
+import com.benleskey.textengine.model.BaseEntity;
 
 /**
  * Represents an item in the game world.
@@ -9,7 +9,7 @@ import com.benleskey.textengine.model.Entity;
  * actors.
  * Examples: stones, grass, swords, containers, etc.
  */
-public class Item extends Entity {
+public class Item extends BaseEntity {
 
 	public Item(long id, Game game) {
 		super(id, game);

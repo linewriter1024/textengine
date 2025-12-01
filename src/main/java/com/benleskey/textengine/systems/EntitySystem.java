@@ -33,9 +33,6 @@ public class EntitySystem extends SingletonGameSystem implements OnSystemInitial
 
 	// Common entity tags (initialized in onSystemInitialize)
 	public UniqueType TAG_ENTITY_CREATED; // Time when entity was created (in milliseconds)
-	public UniqueType TAG_TICKABLE; // Entity receives periodic tick updates
-	public UniqueType TAG_LAST_TICK; // Last time entity was ticked (in milliseconds)
-	public UniqueType TAG_ACTOR; // Entity can perform actions (player, NPC)
 	public UniqueType TAG_AVATAR; // Entity is controlled by a player/client
 
 	public EntitySystem(Game game) {
@@ -71,9 +68,6 @@ public class EntitySystem extends SingletonGameSystem implements OnSystemInitial
 
 		// Initialize entity tags
 		TAG_ENTITY_CREATED = typeSystem.getType("entity_tag_entity_created");
-		TAG_TICKABLE = typeSystem.getType("entity_tag_tickable");
-		TAG_LAST_TICK = typeSystem.getType("entity_tag_last_tick");
-		TAG_ACTOR = typeSystem.getType("entity_tag_actor");
 		TAG_AVATAR = typeSystem.getType("entity_tag_avatar");
 	}
 

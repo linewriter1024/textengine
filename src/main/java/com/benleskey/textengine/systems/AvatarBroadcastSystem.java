@@ -97,7 +97,7 @@ public class AvatarBroadcastSystem extends SingletonGameSystem {
 
 		long locationEntityId = Long.parseLong(toLocationId);
 		String destDesc = eds.getSimpleDescription(es.get(locationEntityId), ws.getCurrentTime(), "somewhere");
-		String actorDesc = eds.getActorDescription(avatar, ws.getCurrentTime());
+		String actorDesc = eds.getDescriptionWithArticle(avatar, ws.getCurrentTime(), "someone");
 
 		// Create new broadcast: "You arrive at <destination>"
 		return CommandOutput.make(MoveAction.BROADCAST_ARRIVES)

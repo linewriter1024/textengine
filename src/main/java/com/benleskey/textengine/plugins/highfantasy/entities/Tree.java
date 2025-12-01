@@ -55,7 +55,7 @@ public class Tree extends Item implements Cuttable {
 		String description = DESCRIPTIONS[random.nextInt(DESCRIPTIONS.length)];
 
 		Tree tree = es.add(Tree.class);
-		ls.addLook(tree, "basic", description);
+		ls.addLook(tree, ls.LOOK_BASIC, description);
 		is.addTag(tree, is.TAG_CUTTABLE);
 		is.addTag(tree, is.TAG_TAKEABLE);
 		is.addTag(tree, is.TAG_WEIGHT, 50000); // 50kg - too heavy to carry

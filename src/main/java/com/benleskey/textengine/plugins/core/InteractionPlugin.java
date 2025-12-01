@@ -13,7 +13,7 @@ import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.LookDescriptor;
 import com.benleskey.textengine.plugins.procgen1.systems.ProceduralWorldPlugin;
 import com.benleskey.textengine.model.ConnectionDescriptor;
-import com.benleskey.textengine.systems.ActorActionSystem;
+import com.benleskey.textengine.systems.ActionSystem;
 import com.benleskey.textengine.systems.DisambiguationSystem;
 import com.benleskey.textengine.systems.EntityDescriptionSystem;
 import com.benleskey.textengine.systems.LookSystem;
@@ -54,7 +54,7 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 	private DisambiguationSystem disambiguationSystem;
 	private SpatialSystem spatialSystem;
 	private EntityDescriptionSystem entityDescriptionSystem;
-	private ActorActionSystem actorActionSystem;
+	private ActionSystem actorActionSystem;
 
 	public InteractionPlugin(Game game) {
 		super(game);
@@ -78,7 +78,7 @@ public class InteractionPlugin extends Plugin implements OnPluginInitialize {
 		disambiguationSystem = game.getSystem(DisambiguationSystem.class);
 		spatialSystem = game.getSystem(SpatialSystem.class);
 		entityDescriptionSystem = game.getSystem(EntityDescriptionSystem.class);
-		actorActionSystem = game.getSystem(ActorActionSystem.class);
+		actorActionSystem = game.getSystem(ActionSystem.class);
 
 		game.registerCommand(new Command(LOOK, (client, input) -> {
 			Entity entity = client.getEntity().orElse(null);

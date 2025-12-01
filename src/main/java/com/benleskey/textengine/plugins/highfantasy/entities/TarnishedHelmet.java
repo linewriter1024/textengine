@@ -38,7 +38,7 @@ public class TarnishedHelmet extends Item {
 		String description = DESCRIPTIONS[random.nextInt(DESCRIPTIONS.length)];
 
 		TarnishedHelmet helmet = es.add(TarnishedHelmet.class);
-		ls.addLook(helmet, "basic", description);
+		ls.addLook(helmet, ls.LOOK_BASIC, description);
 		is.addTag(helmet, is.TAG_TAKEABLE);
 		is.addTag(helmet, is.TAG_WEIGHT, 2000); // 2kg
 
