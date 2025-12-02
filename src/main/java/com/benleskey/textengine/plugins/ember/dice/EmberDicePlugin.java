@@ -273,7 +273,7 @@ public class EmberDicePlugin extends Plugin implements OnPluginInitialize {
                 }
 
                 String textContent = String.format(
-                                "Contested Simulation: %dd%d (A) vs %d%d (B) sampled over %d rolls:\nA wins (including ties): %d (%.3f%%)\nB wins: %d (%.3f%%)\n\nDelta distribution (A successes - B successes):\n%s\nRange: [%d, %d]",
+                                "Contested Simulation: %dd%d (A) vs %dd%d (B) sampled over %d rolls:\nA wins (including ties): %d (%.3f%%)\nB wins: %d (%.3f%%)\n\nDelta distribution (A successes - B successes):\n%s\nRange: [%d, %d]",
                                 poolSizeA,
                                 rollA.dieSize,
                                 poolSizeB,
