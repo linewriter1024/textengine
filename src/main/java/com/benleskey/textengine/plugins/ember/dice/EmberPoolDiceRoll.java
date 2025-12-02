@@ -7,7 +7,7 @@ import com.benleskey.textengine.systems.DiceSystem;
  */
 public class EmberPoolDiceRoll extends DiceSystem.PoolDiceRoll {
     public static final int DEFAULT_DIE_SIZE = 10;
-    public static final int DEFAULT_THRESHOLD = 9;
+    public static final int DEFAULT_THRESHOLD = 7;
     public static final int DEFAULT_EXPLOSION_THRESHOLD = 10;
 
     /**
