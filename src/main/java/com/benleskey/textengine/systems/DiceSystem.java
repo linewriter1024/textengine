@@ -68,7 +68,7 @@ public class DiceSystem extends SingletonGameSystem implements OnSystemInitializ
      * Roll a contested pool where two sides roll against each other.
      * The initiator wins on ties.
      * 
-     * @param random Random instance for dice rolls
+     * @param random        Random instance for dice rolls
      * @param contestedRoll ContestedPoolDiceRoll containing both rolls
      * @return ContestedPoolDiceResult containing both results and winner
      */

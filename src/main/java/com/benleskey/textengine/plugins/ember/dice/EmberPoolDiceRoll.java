@@ -16,6 +16,17 @@ public class EmberPoolDiceRoll extends DiceSystem.PoolDiceRoll {
      * @param poolSize Number of dice to roll (typically attribute + skill)
      */
     public EmberPoolDiceRoll(int poolSize) {
-        super(poolSize, DEFAULT_DIE_SIZE, DEFAULT_THRESHOLD, DEFAULT_EXPLOSION_THRESHOLD);
+        this(poolSize, DEFAULT_THRESHOLD, DEFAULT_EXPLOSION_THRESHOLD);
+    }
+
+    public EmberPoolDiceRoll(int poolSize, int threshold, int explosionThreshold) {
+        super(poolSize, DEFAULT_DIE_SIZE, threshold, explosionThreshold);
+    }
+
+    public static EmberPoolDiceRoll fromOffsets(int poolSize, int thresholdDecrease, int explosionThresholdDecrease) {
+        return new EmberPoolDiceRoll(
+                poolSize,
+                DEFAULT_THRESHOLD - thresholdDecrease,
+                DEFAULT_EXPLOSION_THRESHOLD - explosionThresholdDecrease);
     }
 }

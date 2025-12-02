@@ -295,7 +295,8 @@ public class EmberDicePlugin extends Plugin implements OnPluginInitialize {
                 Random random = new Random();
 
                 for (int i = 0; i < samples; i++) {
-                        DiceSystem.ContestedPoolDiceResult contestedResult = diceSystem.rollContestedPool(random, contestedRoll);
+                        DiceSystem.ContestedPoolDiceResult contestedResult = diceSystem.rollContestedPool(random,
+                                        contestedRoll);
                         int delta = contestedResult.getDelta();
 
                         deltaCount.put(delta, deltaCount.getOrDefault(delta, 0) + 1);
