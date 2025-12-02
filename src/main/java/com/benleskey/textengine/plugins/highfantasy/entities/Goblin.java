@@ -7,6 +7,7 @@ import com.benleskey.textengine.Game;
 import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.entities.Actor;
 import com.benleskey.textengine.model.ActionValidation;
+import com.benleskey.textengine.model.BaseEntity;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.UniqueType;
@@ -29,7 +30,7 @@ import com.benleskey.textengine.util.Markup;
  * 
  * AI logic only - all execution handled by ActionSystem.
  */
-public class Goblin extends Actor {
+public class Goblin extends BaseEntity implements Actor {
 
 	private final Random random;
 

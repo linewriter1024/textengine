@@ -12,15 +12,15 @@ public class GrouplessPropertiesSubSystem<TProperty, TValue> extends PropertiesS
 		super(game, tableName, PropertiesSubSystem.longHandler(), property, value);
 	}
 
-	Optional<TValue> get(TProperty property) {
+	public Optional<TValue> get(TProperty property) {
 		return get(GROUP, property);
 	}
 
-	void set(TProperty property, TValue value) {
+	public void set(TProperty property, TValue value) {
 		set(GROUP, property, value);
 	}
 
-	boolean insertIfAbsent(TProperty property, TValue value)
+	public boolean insertIfAbsent(TProperty property, TValue value)
 			throws com.benleskey.textengine.exceptions.DatabaseException {
 		return insertIfAbsent(GROUP, property, value);
 	}

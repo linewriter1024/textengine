@@ -4,7 +4,7 @@ We have a rough prototype architecture in the highfantasy and procgen1 plugins. 
 
 The first real game will be a simple adventure ["West Marches"](https://arsludi.lamemage.com/index.php/78/grand-experiments-west-marches/)-style game.
 
-There will be a hub city, populated with people living their lives, politics, markets, etc. This will enable developing the social side of the game. Then, there will be quests, shops, etc. in the city to send the player (and NPCs) out into the wilderness to progressively more dangerous areas to collect items, bounties, rescues, and so forth.
+There will be cities, populated with people living their lives, politics, markets, etc. This will enable developing the social side of the game. Then, there will be quests, shops, etc. in the cities to send the player (and NPCs) out into the wilderness to progressively more dangerous areas to collect items, bounties, rescues, and so forth.
 
 Project code name: Ember
 Plugin path: plugins/ember
@@ -18,7 +18,7 @@ Every place, person, region, organization, etc. must have a unique name generate
 We need:
 
 - [ ] Procedurally generated world
-- [ ] High level entities - the city, wilderness areas, monster clans, bandit groups, etc.
+- [ ] High level entities - the cities, wilderness areas, monster clans, bandit groups, etc.
 - [ ] Low level entities - monsters, people, shops, buildings
 - [ ] Combat
 

@@ -18,6 +18,7 @@ import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.plugins.core.EntityPlugin;
 import com.benleskey.textengine.plugins.core.EventPlugin;
+import com.benleskey.textengine.plugins.highfantasy.entities.SimpleAvatar;
 import com.benleskey.textengine.plugins.procgen1.systems.ItemTemplateSystem;
 import com.benleskey.textengine.plugins.procgen1.systems.LandmarkTemplateSystem;
 import com.benleskey.textengine.plugins.procgen1.systems.PlaceDescriptionSystem;
@@ -117,9 +118,8 @@ public class ProceduralWorldPlugin extends Plugin
 
 		// Register base entity types (custom types registered by content plugins in
 		// OnCoreSystemsReady)
-		entitySystem.registerEntityType(Avatar.class);
+		entitySystem.registerEntityType(SimpleAvatar.class);
 		entitySystem.registerEntityType(Place.class);
-		entitySystem.registerEntityType(Actor.class);
 		entitySystem.registerEntityType(Item.class);
 
 		// Check if world already exists
@@ -139,7 +139,7 @@ public class ProceduralWorldPlugin extends Plugin
 	public void onStartClient(Client client) throws InternalException {
 
 		// Try to find existing actor or create new one
-		Actor actor = findOrCreatePlayerActor();
+		Avatar actor = findOrCreatePlayerActor();
 		client.setEntity(actor);
 
 		// Add a rattle to player's starting inventory
@@ -223,27 +223,26 @@ public class ProceduralWorldPlugin extends Plugin
 	/**
 	 * Find existing player actor or create a new one with starting inventory.
 	 */
-	private Actor findOrCreatePlayerActor() throws InternalException {
+	private Avatar findOrCreatePlayerActor() throws InternalException {
 
 		// Try to find existing avatar (player-controlled actor) in the starting
 		// location
 		List<com.benleskey.textengine.model.RelationshipDescriptor> actorsInStartingPlace = relationshipSystem
 				.getReceivingRelationships(startingPlace, relationshipSystem.rvContains, worldSystem.getCurrentTime())
 				.stream()
-				.filter(rd -> rd.getReceiver() instanceof Actor)
 				.filter(rd -> entityTagSystem.hasTag(rd.getReceiver(), entitySystem.TAG_AVATAR,
 						worldSystem.getCurrentTime())) // Only avatars
 				.toList();
 
 		if (!actorsInStartingPlace.isEmpty()) {
 			// Reuse existing actor
-			Actor existingActor = (Actor) actorsInStartingPlace.get(0).getReceiver();
+			Avatar existingActor = (Avatar) actorsInStartingPlace.get(0).getReceiver();
 			log.log("Reconnecting to existing actor %s", existingActor);
 			return existingActor;
 		}
 
 		// Create new actor
-		Avatar actor = Avatar.create(game);
+		Avatar actor = SimpleAvatar.create(game);
 		itemSystem.addTag(actor, itemSystem.TAG_CARRY_WEIGHT, 10000);
 		relationshipSystem.add(startingPlace, actor, relationshipSystem.rvContains);
 		log.log("Created new actor %s", actor);

@@ -68,9 +68,10 @@ public class Game {
 		registerPlugin(new Quit(this));
 		registerPlugin(new HelpCommandPlugin(this));
 		registerPlugin(new UnknownCommand(this));
+		registerPlugin(new ClientStartPlugin(this));
 
-		// Register tentative plugins (activated only if needed as dependencies)
 		registerTentativePlugin(new com.benleskey.textengine.plugins.procgen1.ProceduralWorldPlugin(this));
+		registerTentativePlugin(new com.benleskey.textengine.plugins.procgen2.ProceduralWorldPlugin(this));
 	}
 
 	public void initialize() throws InternalException {
@@ -362,6 +363,9 @@ public class Game {
 		Plugin p = plugins.get(plugin.getCanonicalName());
 		if (p == null) {
 			p = tentativePlugins.get(plugin.getCanonicalName());
+		}
+		if (p == null) {
+			throw new InternalException(String.format("Cannot find plugin: %s", plugin.getCanonicalName()));
 		}
 		return p;
 	}

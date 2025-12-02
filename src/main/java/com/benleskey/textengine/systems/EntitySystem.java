@@ -96,6 +96,9 @@ public class EntitySystem extends SingletonGameSystem implements OnSystemInitial
 		try {
 			T dummy = get(0, clazz);
 			UniqueType type = dummy.getEntityType();
+			if (entityTypes.get(type) == null) {
+				throw new InternalException("Attempted to create entity of unregistered type: " + type);
+			}
 			if (!entityTypes.get(type).isInstance(dummy)) {
 				throw new InternalException("Attempted to create entity with incorrect class. Got " + clazz
 						+ " but the registered class for " + type + " is " + entityTypes.get(type));

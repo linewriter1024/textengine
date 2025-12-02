@@ -1,17 +1,19 @@
 package com.benleskey.textengine;
 
-import com.benleskey.textengine.commands.CommandInput;
-import com.benleskey.textengine.commands.CommandOutput;
-import com.benleskey.textengine.model.Entity;
-import com.benleskey.textengine.util.Markup;
-import lombok.Getter;
-import lombok.Setter;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Flow;
+
+import com.benleskey.textengine.commands.CommandInput;
+import com.benleskey.textengine.commands.CommandOutput;
+import com.benleskey.textengine.entities.Avatar;
+import com.benleskey.textengine.model.Entity;
+import com.benleskey.textengine.util.Markup;
+
+import lombok.Getter;
+import lombok.Setter;
 
 @Getter
 @Setter
@@ -29,7 +31,7 @@ public abstract class Client {
 			.text(Markup.escape("You are not connected to an in-world entity"));
 
 	protected Game game;
-	protected Optional<Entity> entity;
+	protected Optional<Avatar> entity;
 	protected boolean alive;
 	protected String id = "?";
 
@@ -78,7 +80,7 @@ public abstract class Client {
 		}
 	}
 
-	public void setEntity(Entity newEntity) {
+	public void setEntity(Avatar newEntity) {
 		this.entity = Optional.ofNullable(newEntity);
 		this.entity.ifPresentOrElse(entity -> {
 			sendOutput(CommandOutput.make(M_CONTROLLING_ENTITY).put(M_ENTITY, entity.getId()));

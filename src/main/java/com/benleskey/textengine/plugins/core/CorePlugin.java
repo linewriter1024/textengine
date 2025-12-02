@@ -7,10 +7,10 @@ import com.benleskey.textengine.commands.CommandInput;
 import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.commands.CommandVariant;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
+import com.benleskey.textengine.systems.CommandCompletionSystem;
 import com.benleskey.textengine.systems.CommandHelpSystem;
 import com.benleskey.textengine.systems.TickSystem;
 import com.benleskey.textengine.systems.UniqueTypeSystem;
-import com.benleskey.textengine.systems.CommandCompletionSystem;
 import com.benleskey.textengine.systems.WorldSystem;
 import com.benleskey.textengine.util.Markup;
 
