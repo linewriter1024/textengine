@@ -16,26 +16,21 @@ import com.benleskey.textengine.util.Markup;
 /**
  * EmberDicePlugin provides dice rolling for the Ember game.
  * 
- * Includes the debug:emberroll command with pool rolls using
+ * Includes the debug:embersim command for contested rolls using
  * Ember's default thresholds
  */
 public class EmberDicePlugin extends Plugin implements OnPluginInitialize {
 
-        public static final String DEBUG_EMBER_ROLL = "debug:emberroll";
         public static final String DEBUG_EMBER_SIM = "debug:embersim";
-        public static final String M_POOL_SIZE = "pool_size";
-        public static final String M_DICE = "dice";
-        public static final String M_SUCCESSES = "successes";
-        public static final String M_EXPLOSIONS = "explosions";
-        public static final String M_DIFFICULTY = "difficulty";
-        public static final String M_SAMPLES = "samples";
-        public static final String M_SUCCESS = "success";
-        public static final String M_DELTA = "delta";
-        public static final String M_MIN_DELTA = "min_delta";
-        public static final String M_MAX_DELTA = "max_delta";
         public static final String M_POOL_SIZE_A = "pool_size_a";
         public static final String M_POOL_SIZE_B = "pool_size_b";
-        public static final String M_MODE = "mode"; // "simple" or "contested"
+        public static final String M_SAMPLES = "samples";
+        public static final String M_MIN_DELTA = "min_delta";
+        public static final String M_MAX_DELTA = "max_delta";
+        public static final String M_THRESHOLD_DECREASE_A = "threshold_decrease_a";
+        public static final String M_EXPLOSION_THRESHOLD_DECREASE_A = "explosion_threshold_decrease_a";
+        public static final String M_THRESHOLD_DECREASE_B = "threshold_decrease_b";
+        public static final String M_EXPLOSION_THRESHOLD_DECREASE_B = "explosion_threshold_decrease_b";
 
         private DiceSystem diceSystem;
 
@@ -49,224 +44,106 @@ public class EmberDicePlugin extends Plugin implements OnPluginInitialize {
 
                 // Register help
                 CommandHelpSystem helpSystem = game.getSystem(CommandHelpSystem.class);
-                helpSystem.registerHelp("debug:emberroll <poolSize> <difficulty>",
-                                "Roll Ember dice");
-                helpSystem.registerHelp("debug:embersim <poolSize> <difficulty> [samples]",
-                                "Simulate many Ember dice rolls and return delta distribution.");
-                helpSystem.registerHelp("debug:embersim <poolA> v <poolB> [samples]",
+                helpSystem.registerHelp("debug:embersim <poolA> <poolB> [samples]",
                                 "Simulate contested rolls: poolA vs poolB. Returns delta distribution (poolA - poolB).");
+                helpSystem.registerHelp(
+                                "debug:embersim <poolA> <thresholdDecreaseA> <explosionDecreaseA> <poolB> <thresholdDecreaseB> <explosionDecreaseB> [samples]",
+                                "Simulate contested rolls with custom Ember offsets. Returns delta distribution (poolA - poolB).");
 
-                // Register debug:emberroll command: "debug:emberroll [pool_size] [difficulty]"
-                // Both parameters are required
-                game.registerCommand(new Command(DEBUG_EMBER_ROLL, this::handleEmberRoll,
-                                new CommandVariant("ember_roll", "^debug:emberroll\\s+(\\d+)\\s+(\\d+)\\s*$",
-                                                args -> {
-                                                        int poolSize = Integer.parseInt(args.group(1));
-                                                        int difficulty = Integer.parseInt(args.group(2));
-                                                        return CommandInput.makeNone()
-                                                                        .put(M_POOL_SIZE, poolSize)
-                                                                        .put(M_DIFFICULTY, difficulty);
-                                                })));
-
-                // Register ember simulation command: "debug:embersim [pool_size] [difficulty]
-                // [samples]?"
+                // Register ember simulation command with support for both syntaxes
                 game.registerCommand(new Command(DEBUG_EMBER_SIM, this::handleEmberSim,
+                                new CommandVariant("ember_sim_contested_samples_offsets",
+                                                "^debug:embersim\\s+(\\d+)\\s+(-?\\d+)\\s+(-?\\d+)\\s+(\\d+)\\s+(-?\\d+)\\s+(-?\\d+)\\s+(\\d+)\\s*$",
+                                                args -> {
+                                                        int poolSizeA = Integer.parseInt(args.group(1));
+                                                        int thresholdDecreaseA = Integer.parseInt(args.group(2));
+                                                        int explosionDecreaseA = Integer.parseInt(args.group(3));
+                                                        int poolSizeB = Integer.parseInt(args.group(4));
+                                                        int thresholdDecreaseB = Integer.parseInt(args.group(5));
+                                                        int explosionDecreaseB = Integer.parseInt(args.group(6));
+                                                        int samples = Integer.parseInt(args.group(7));
+                                                        return CommandInput.makeNone()
+                                                                        .put(M_POOL_SIZE_A, poolSizeA)
+                                                                        .put(M_THRESHOLD_DECREASE_A, thresholdDecreaseA)
+                                                                        .put(M_EXPLOSION_THRESHOLD_DECREASE_A,
+                                                                                        explosionDecreaseA)
+                                                                        .put(M_POOL_SIZE_B, poolSizeB)
+                                                                        .put(M_THRESHOLD_DECREASE_B, thresholdDecreaseB)
+                                                                        .put(M_EXPLOSION_THRESHOLD_DECREASE_B,
+                                                                                        explosionDecreaseB)
+                                                                        .put(M_SAMPLES, samples)
+                                                                        .put("mode", "contested_offsets");
+                                                }),
+                                new CommandVariant("ember_sim_contested_offsets",
+                                                "^debug:embersim\\s+(\\d+)\\s+(-?\\d+)\\s+(-?\\d+)\\s+(\\d+)\\s+(-?\\d+)\\s+(-?\\d+)\\s*$",
+                                                args -> {
+                                                        int poolSizeA = Integer.parseInt(args.group(1));
+                                                        int thresholdDecreaseA = Integer.parseInt(args.group(2));
+                                                        int explosionDecreaseA = Integer.parseInt(args.group(3));
+                                                        int poolSizeB = Integer.parseInt(args.group(4));
+                                                        int thresholdDecreaseB = Integer.parseInt(args.group(5));
+                                                        int explosionDecreaseB = Integer.parseInt(args.group(6));
+                                                        int samples = 1000000;
+                                                        return CommandInput.makeNone()
+                                                                        .put(M_POOL_SIZE_A, poolSizeA)
+                                                                        .put(M_THRESHOLD_DECREASE_A, thresholdDecreaseA)
+                                                                        .put(M_EXPLOSION_THRESHOLD_DECREASE_A,
+                                                                                        explosionDecreaseA)
+                                                                        .put(M_POOL_SIZE_B, poolSizeB)
+                                                                        .put(M_THRESHOLD_DECREASE_B, thresholdDecreaseB)
+                                                                        .put(M_EXPLOSION_THRESHOLD_DECREASE_B,
+                                                                                        explosionDecreaseB)
+                                                                        .put(M_SAMPLES, samples)
+                                                                        .put("mode", "contested_offsets");
+                                                }),
                                 new CommandVariant("ember_sim_contested_samples",
-                                                "^debug:embersim\\s+(\\d+)\\s+v\\s+(\\d+)\\s+(\\d+)\\s*$",
+                                                "^debug:embersim\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s*$",
                                                 args -> {
                                                         int poolSizeA = Integer.parseInt(args.group(1));
                                                         int poolSizeB = Integer.parseInt(args.group(2));
                                                         int samples = Integer.parseInt(args.group(3));
                                                         return CommandInput.makeNone()
                                                                         .put(M_POOL_SIZE_A, poolSizeA)
+                                                                        .put(M_THRESHOLD_DECREASE_A, 0)
+                                                                        .put(M_EXPLOSION_THRESHOLD_DECREASE_A, 0)
                                                                         .put(M_POOL_SIZE_B, poolSizeB)
+                                                                        .put(M_THRESHOLD_DECREASE_B, 0)
+                                                                        .put(M_EXPLOSION_THRESHOLD_DECREASE_B, 0)
                                                                         .put(M_SAMPLES, samples)
-                                                                        .put(M_MODE, "contested");
+                                                                        .put("mode", "contested");
                                                 }),
                                 new CommandVariant("ember_sim_contested",
-                                                "^debug:embersim\\s+(\\d+)\\s+v\\s+(\\d+)\\s*$",
+                                                "^debug:embersim\\s+(\\d+)\\s+(\\d+)\\s*$",
                                                 args -> {
                                                         int poolSizeA = Integer.parseInt(args.group(1));
                                                         int poolSizeB = Integer.parseInt(args.group(2));
                                                         int samples = 1000000;
                                                         return CommandInput.makeNone()
                                                                         .put(M_POOL_SIZE_A, poolSizeA)
+                                                                        .put(M_THRESHOLD_DECREASE_A, 0)
+                                                                        .put(M_EXPLOSION_THRESHOLD_DECREASE_A, 0)
                                                                         .put(M_POOL_SIZE_B, poolSizeB)
+                                                                        .put(M_THRESHOLD_DECREASE_B, 0)
+                                                                        .put(M_EXPLOSION_THRESHOLD_DECREASE_B, 0)
                                                                         .put(M_SAMPLES, samples)
-                                                                        .put(M_MODE, "contested");
-                                                }),
-                                new CommandVariant("ember_sim", "^debug:embersim\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s*$",
-                                                args -> {
-                                                        int poolSize = Integer.parseInt(args.group(1));
-                                                        int difficulty = Integer.parseInt(args.group(2));
-                                                        int samples = Integer.parseInt(args.group(3));
-                                                        return CommandInput.makeNone()
-                                                                        .put(M_POOL_SIZE, poolSize)
-                                                                        .put(M_DIFFICULTY, difficulty)
-                                                                        .put(M_SAMPLES, samples)
-                                                                        .put(M_MODE, "simple");
-                                                }),
-                                new CommandVariant("ember_sim_default", "^debug:embersim\\s+(\\d+)\\s+(\\d+)\\s*$",
-                                                args -> {
-                                                        int poolSize = Integer.parseInt(args.group(1));
-                                                        int difficulty = Integer.parseInt(args.group(2));
-                                                        // default sample size
-                                                        int samples = 1000000;
-                                                        return CommandInput.makeNone()
-                                                                        .put(M_POOL_SIZE, poolSize)
-                                                                        .put(M_DIFFICULTY, difficulty)
-                                                                        .put(M_SAMPLES, samples)
-                                                                        .put(M_MODE, "simple");
+                                                                        .put("mode", "contested");
                                                 })));
-        }
-
-        private void handleEmberRoll(com.benleskey.textengine.Client client, CommandInput input) {
-                int poolSize = input.get(M_POOL_SIZE);
-                int difficulty = input.get(M_DIFFICULTY);
-
-                // Create Ember-style roll with default thresholds
-                EmberPoolDiceRoll roll = new EmberPoolDiceRoll(poolSize);
-
-                // Roll using DiceSystem with the Ember roll's parameters
-                DiceSystem.PoolDiceResult result = diceSystem.rollPool(new Random(), roll);
-
-                // Evaluate outcome
-                DiceSystem.Outcome outcome = result.getOutcome(difficulty);
-                boolean success = outcome.isSuccess();
-                int delta = outcome.getDelta();
-
-                // Build response
-                CommandOutput output = CommandOutput.make(DEBUG_EMBER_ROLL)
-                                .put(M_POOL_SIZE, poolSize)
-                                .put(M_DIFFICULTY, difficulty)
-                                .put(M_DICE, result.getDiceString())
-                                .put(M_SUCCESSES, result.successes)
-                                .put(M_EXPLOSIONS, result.explosions)
-                                .put(M_SUCCESS, success)
-                                .put(M_DELTA, delta);
-
-                // Format user-friendly text
-                String textContent = String.format(
-                                "Ember Roll %dd%d (difficulty %d, threshold %d, explosion at %d):\nDice: %s\nSuccesses: %d%s\n%s (delta: %+d)",
-                                poolSize,
-                                roll.dieSize,
-                                difficulty,
-                                roll.threshold,
-                                roll.explosionThreshold,
-                                result.getDiceString(),
-                                result.successes,
-                                result.explosions > 0 ? " (including " + result.explosions + " from explosions)" : "",
-                                success ? "Success" : "Failure",
-                                delta);
-
-                output.text(Markup.escape(textContent));
-                client.sendOutput(output);
         }
 
         private void handleEmberSim(com.benleskey.textengine.Client client, CommandInput input) {
-                String mode = input.get(M_MODE);
-                if ("contested".equals(mode)) {
+                String mode = input.get("mode");
+                if ("contested".equals(mode) || "contested_offsets".equals(mode)) {
                         handleEmberSimContested(client, input);
-                } else {
-                        handleEmberSimSimple(client, input);
                 }
-        }
-
-        private void handleEmberSimSimple(com.benleskey.textengine.Client client, CommandInput input) {
-                int poolSize = input.get(M_POOL_SIZE);
-                int difficulty = input.get(M_DIFFICULTY);
-                int samples = input.get(M_SAMPLES);
-
-                if (samples <= 0) {
-                        samples = 1000000;
-                }
-                if (difficulty <= 0) {
-                        CommandOutput errorOutput = CommandOutput.make(DEBUG_EMBER_SIM)
-                                        .error("invalid_difficulty")
-                                        .text(Markup.escape("Error: difficulty must be >= 1"));
-                        client.sendOutput(errorOutput);
-                        return;
-                }
-                if (poolSize < 0) {
-                        CommandOutput errorOutput = CommandOutput.make(DEBUG_EMBER_SIM)
-                                        .error("invalid_pool")
-                                        .text(Markup.escape("Error: pool size must be >= 0"));
-                        client.sendOutput(errorOutput);
-                        return;
-                }
-                EmberPoolDiceRoll roll = new EmberPoolDiceRoll(poolSize);
-
-                // Track deltas instead of fixed categories
-                java.util.Map<Integer, Integer> deltaCount = new java.util.TreeMap<>();
-                int successCount = 0;
-                int minDelta = Integer.MAX_VALUE;
-                int maxDelta = Integer.MIN_VALUE;
-
-                Random random = new Random();
-
-                for (int i = 0; i < samples; i++) {
-                        DiceSystem.PoolDiceResult result = diceSystem.rollPool(random, roll);
-                        DiceSystem.Outcome outcome = result.getOutcome(difficulty);
-                        int delta = outcome.getDelta();
-
-                        deltaCount.put(delta, deltaCount.getOrDefault(delta, 0) + 1);
-                        if (outcome.isSuccess()) {
-                                successCount++;
-                        }
-                        minDelta = Math.min(minDelta, delta);
-                        maxDelta = Math.max(maxDelta, delta);
-                }
-
-                // Build response with all delta values
-                CommandOutput output = CommandOutput.make(DEBUG_EMBER_SIM)
-                                .put(M_POOL_SIZE, poolSize)
-                                .put(M_DIFFICULTY, difficulty)
-                                .put(M_SAMPLES, samples)
-                                .put(M_SUCCESS, successCount)
-                                .put(M_MIN_DELTA, minDelta)
-                                .put(M_MAX_DELTA, maxDelta);
-
-                // Add individual delta counts to output with cumulative probabilities
-                StringBuilder deltaStr = new StringBuilder();
-                int cumulativeCount = 0;
-                // Iterate in reverse to accumulate from highest delta downward (P(delta >= x))
-                for (int delta = maxDelta; delta >= minDelta; delta--) {
-                        int count = deltaCount.getOrDefault(delta, 0);
-                        if (count == 0) {
-                                continue; // Skip deltas with no samples
-                        }
-                        cumulativeCount += count;
-                        double pct = count / (double) samples * 100.0;
-                        double cumulativePct = cumulativeCount / (double) samples * 100.0;
-                        output.put("delta_" + delta, count);
-                        output.put("cumulative_delta_" + delta, cumulativeCount);
-                        if (deltaStr.length() > 0) {
-                                deltaStr.append("\n");
-                        }
-                        deltaStr.append(String.format("  Δ %+d: %d (%.3f%%) | P(Δ ≥ %+d): %.3f%%",
-                                        delta, count, pct, delta, cumulativePct));
-                }
-
-                String textContent = String.format(
-                                "Ember Simulation %dd%d (difficulty %d, threshold %d, explosion at %d) sampled over %d rolls:\nDelta distribution (successes - requirement):\n%s\nRange: [%d, %d]\nSuccess: %d (%.3f%%)",
-                                poolSize,
-                                roll.dieSize,
-                                difficulty,
-                                roll.threshold,
-                                roll.explosionThreshold,
-                                samples,
-                                deltaStr.toString(),
-                                minDelta,
-                                maxDelta, successCount,
-                                successCount / (double) samples * 100.0);
-
-                output.text(Markup.escape(textContent));
-                client.sendOutput(output);
         }
 
         private void handleEmberSimContested(com.benleskey.textengine.Client client, CommandInput input) {
                 int poolSizeA = input.get(M_POOL_SIZE_A);
                 int poolSizeB = input.get(M_POOL_SIZE_B);
+                int thresholdDecreaseA = input.get(M_THRESHOLD_DECREASE_A);
+                int explosionThresholdDecreaseA = input.get(M_EXPLOSION_THRESHOLD_DECREASE_A);
+                int thresholdDecreaseB = input.get(M_THRESHOLD_DECREASE_B);
+                int explosionThresholdDecreaseB = input.get(M_EXPLOSION_THRESHOLD_DECREASE_B);
                 int samples = input.get(M_SAMPLES);
 
                 if (samples <= 0) {
@@ -280,8 +157,10 @@ public class EmberDicePlugin extends Plugin implements OnPluginInitialize {
                         return;
                 }
 
-                EmberPoolDiceRoll rollA = new EmberPoolDiceRoll(poolSizeA);
-                EmberPoolDiceRoll rollB = new EmberPoolDiceRoll(poolSizeB);
+                EmberPoolDiceRoll rollA = EmberPoolDiceRoll.fromOffsets(poolSizeA, thresholdDecreaseA,
+                                explosionThresholdDecreaseA);
+                EmberPoolDiceRoll rollB = EmberPoolDiceRoll.fromOffsets(poolSizeB, thresholdDecreaseB,
+                                explosionThresholdDecreaseB);
                 DiceSystem.ContestedPoolDiceRoll contestedRoll = new DiceSystem.ContestedPoolDiceRoll(rollA, rollB);
 
                 // Track deltas: positive = A wins, negative = B wins

@@ -10,7 +10,8 @@ import java.util.Random;
 /**
  * DiceSystem implements a Dice Pool System.
  * 
- * Core mechanic: Roll X dice, count successes, compare to difficulty.
+ * Core mechanic: Roll X dice, count successes, and use contested rolls to
+ * compare against opposing pools.
  * Threshold for success: configurable per roll
  * Exploding dice: Rolling equal to explosion threshold causes another roll.
  */
@@ -178,37 +179,6 @@ public class DiceSystem extends SingletonGameSystem implements OnSystemInitializ
     }
 
     /**
-     * Encapsulates an outcome: both the dice successes and the requirement.
-     * Allows querying success (successes >= requirement) and delta (successes -
-     * requirement).
-     */
-    public static class Outcome {
-        public final int successes;
-        public final int requirement;
-
-        public Outcome(int successes, int requirement) {
-            this.successes = successes;
-            this.requirement = requirement;
-        }
-
-        /**
-         * Returns true if successes >= requirement.
-         */
-        public boolean isSuccess() {
-            return successes >= requirement;
-        }
-
-        /**
-         * Returns the delta: successes - requirement.
-         * Positive means exceeded requirement, negative means fell short, zero is exact
-         * match.
-         */
-        public int getDelta() {
-            return successes - requirement;
-        }
-    }
-
-    /**
      * Encapsulates all parameters for a pool dice roll.
      */
     public static class PoolDiceRoll {
@@ -227,11 +197,11 @@ public class DiceSystem extends SingletonGameSystem implements OnSystemInitializ
          * @throws IllegalArgumentException if explosionThreshold <= threshold
          */
         public PoolDiceRoll(int poolSize, int dieSize, int threshold, int explosionThreshold) {
-            if (explosionThreshold <= threshold) {
+            if (explosionThreshold <= 1) {
                 throw new IllegalArgumentException(
                         String.format(
-                                "Explosion threshold (%d) must be greater than success threshold (%d) to prevent every roll from exploding",
-                                explosionThreshold, threshold));
+                                "Explosion threshold (%d) must be greater than 1 to prevent every roll from exploding",
+                                explosionThreshold));
             }
             this.poolSize = poolSize;
             this.dieSize = dieSize;
@@ -286,16 +256,6 @@ public class DiceSystem extends SingletonGameSystem implements OnSystemInitializ
                 sb.append(dice[i]);
             }
             return sb.toString();
-        }
-
-        /**
-         * Determine outcome based on successes vs. requirement.
-         * 
-         * @param requirement Successes needed for base success
-         * @return Outcome holding both successes and requirement
-         */
-        public Outcome getOutcome(int requirement) {
-            return new DiceSystem.Outcome(successes, requirement);
         }
 
         @Override
