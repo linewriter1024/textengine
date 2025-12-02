@@ -33,11 +33,9 @@ public class CorePlugin extends Plugin implements OnPluginInitialize {
 		game.registerSystem(new TickSystem(game));
 		game.registerSystem(new SpatialSystem(game));
 
-		// Register help
+		// Register seed command
 		CommandHelpSystem helpSystem = game.getSystem(CommandHelpSystem.class);
 		helpSystem.registerHelp("seed", "Display the world generation seed.");
-
-		// Register seed command
 		game.registerCommand(new Command(SEED, (c, i) -> {
 			WorldSystem ws = game.getSystem(WorldSystem.class);
 			long seed = ws.getSeed();
