@@ -44,6 +44,8 @@ public class DicePlugin extends Plugin implements OnPluginInitialize {
     public static final String M_NOTATION = "notation";
     public static final String M_TOTAL = "total";
     public static final String M_GENERIC_DICE = "generic_dice";
+    public static final String M_SUCCESS = "success";
+    public static final String M_DELTA = "delta";
 
     private DiceSystem diceSystem;
 
@@ -114,6 +116,8 @@ public class DicePlugin extends Plugin implements OnPluginInitialize {
 
         // Evaluate outcome
         DiceSystem.Outcome outcome = result.getOutcome(difficulty);
+        boolean success = outcome.isSuccess();
+        int delta = outcome.getDelta();
 
         // Build response
         CommandOutput output = CommandOutput.make(ROLL)
@@ -125,11 +129,12 @@ public class DicePlugin extends Plugin implements OnPluginInitialize {
                 .put(M_DICE, result.getDiceString())
                 .put(M_SUCCESSES, result.successes)
                 .put(M_EXPLOSIONS, result.explosions)
-                .put(M_OUTCOME, outcome.name().toLowerCase());
+                .put(M_SUCCESS, success)
+                .put(M_DELTA, delta);
 
         // Format user-friendly text
         String textContent = String.format(
-                "%dd%d (difficulty %d, threshold %d+, explosion at %d+):\nDice: %s\nSuccesses: %d%s\nOutcome: %s",
+                "%dd%d (difficulty %d, threshold %d+, explosion at %d+):\nDice: %s\nSuccesses: %d%s\n%s (delta: %+d)",
                 poolSize,
                 dieSize,
                 difficulty,
@@ -138,7 +143,8 @@ public class DicePlugin extends Plugin implements OnPluginInitialize {
                 result.getDiceString(),
                 result.successes,
                 result.explosions > 0 ? " (including " + result.explosions + " from explosions)" : "",
-                outcome.label);
+                success ? "Success" : "Failure",
+                delta);
 
         output.text(Markup.escape(textContent));
         client.sendOutput(output);

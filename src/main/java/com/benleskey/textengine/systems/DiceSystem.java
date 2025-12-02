@@ -143,29 +143,6 @@ public class DiceSystem extends SingletonGameSystem implements OnSystemInitializ
     }
 
     /**
-     * Determine outcome quality for pool dice based on successes vs. requirement.
-     * 
-     * @param successes   Actual successes rolled
-     * @param requirement Successes needed for base success
-     * @return Outcome describing quality
-     */
-    public static Outcome getPoolOutcome(int successes, int requirement) {
-        double ratio = (double) successes / requirement;
-
-        if (ratio >= 2.0) {
-            return Outcome.CRITICAL_SUCCESS;
-        } else if (ratio >= 1.0) {
-            return Outcome.SUCCESS;
-        } else if (ratio >= 0.5) {
-            return Outcome.MIXED_SUCCESS;
-        } else if (successes > 0) {
-            return Outcome.FAILURE;
-        } else {
-            return Outcome.CRITICAL_FAILURE;
-        }
-    }
-
-    /**
      * Count additional successes from explosions in pool rolls, adding exploded
      * dice to the list.
      */
@@ -186,19 +163,34 @@ public class DiceSystem extends SingletonGameSystem implements OnSystemInitializ
         return additionalSuccesses;
     }
 
-    public enum Outcome {
-        CRITICAL_FAILURE("Critical Failure", "0-49% of successes needed"),
-        FAILURE("Failure", "Below required successes"),
-        MIXED_SUCCESS("Mixed Success", "Exactly as many successes as needed"),
-        SUCCESS("Success", "150% of required successes"),
-        CRITICAL_SUCCESS("Critical Success", "200%+ of required successes");
+    /**
+     * Encapsulates an outcome: both the dice successes and the requirement.
+     * Allows querying success (successes >= requirement) and delta (successes -
+     * requirement).
+     */
+    public static class Outcome {
+        public final int successes;
+        public final int requirement;
 
-        public final String label;
-        public final String description;
+        public Outcome(int successes, int requirement) {
+            this.successes = successes;
+            this.requirement = requirement;
+        }
 
-        Outcome(String label, String description) {
-            this.label = label;
-            this.description = description;
+        /**
+         * Returns true if successes >= requirement.
+         */
+        public boolean isSuccess() {
+            return successes >= requirement;
+        }
+
+        /**
+         * Returns the delta: successes - requirement.
+         * Positive means exceeded requirement, negative means fell short, zero is exact
+         * match.
+         */
+        public int getDelta() {
+            return successes - requirement;
         }
     }
 
@@ -264,13 +256,13 @@ public class DiceSystem extends SingletonGameSystem implements OnSystemInitializ
         }
 
         /**
-         * Determine outcome quality based on successes vs. requirement.
+         * Determine outcome based on successes vs. requirement.
          * 
          * @param requirement Successes needed for base success
-         * @return Outcome describing quality
+         * @return Outcome holding both successes and requirement
          */
         public Outcome getOutcome(int requirement) {
-            return DiceSystem.getPoolOutcome(successes, requirement);
+            return new DiceSystem.Outcome(successes, requirement);
         }
 
         @Override
