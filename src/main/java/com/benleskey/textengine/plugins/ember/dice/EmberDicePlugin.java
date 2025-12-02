@@ -282,6 +282,7 @@ public class EmberDicePlugin extends Plugin implements OnPluginInitialize {
 
                 EmberPoolDiceRoll rollA = new EmberPoolDiceRoll(poolSizeA);
                 EmberPoolDiceRoll rollB = new EmberPoolDiceRoll(poolSizeB);
+                DiceSystem.ContestedPoolDiceRoll contestedRoll = new DiceSystem.ContestedPoolDiceRoll(rollA, rollB);
 
                 // Track deltas: positive = A wins, negative = B wins
                 java.util.Map<Integer, Integer> deltaCount = new java.util.TreeMap<>();
@@ -294,15 +295,11 @@ public class EmberDicePlugin extends Plugin implements OnPluginInitialize {
                 Random random = new Random();
 
                 for (int i = 0; i < samples; i++) {
-                        DiceSystem.PoolDiceResult resultA = diceSystem.rollPool(random, rollA);
-                        DiceSystem.PoolDiceResult resultB = diceSystem.rollPool(random, rollB);
-                        int successesA = resultA.successes;
-                        int successesB = resultB.successes;
-                        int delta = successesA - successesB;
+                        DiceSystem.ContestedPoolDiceResult contestedResult = diceSystem.rollContestedPool(random, contestedRoll);
+                        int delta = contestedResult.getDelta();
 
                         deltaCount.put(delta, deltaCount.getOrDefault(delta, 0) + 1);
-                        if (delta >= 0) {
-                                // Initiators (A) win ties
+                        if (contestedResult.initiatorWon()) {
                                 aWins++;
                         } else {
                                 bWins++;

@@ -65,6 +65,20 @@ public class DiceSystem extends SingletonGameSystem implements OnSystemInitializ
     }
 
     /**
+     * Roll a contested pool where two sides roll against each other.
+     * The initiator wins on ties.
+     * 
+     * @param random Random instance for dice rolls
+     * @param contestedRoll ContestedPoolDiceRoll containing both rolls
+     * @return ContestedPoolDiceResult containing both results and winner
+     */
+    public ContestedPoolDiceResult rollContestedPool(Random random, ContestedPoolDiceRoll contestedRoll) {
+        PoolDiceResult initiatorResult = rollPool(random, contestedRoll.initiator);
+        PoolDiceResult opposerResult = rollPool(random, contestedRoll.opposer);
+        return new ContestedPoolDiceResult(initiatorResult, opposerResult);
+    }
+
+    /**
      * Roll generic dice notation (nDx+c).
      * 
      * @param random   Random instance for dice rolls
@@ -227,6 +241,25 @@ public class DiceSystem extends SingletonGameSystem implements OnSystemInitializ
     }
 
     /**
+     * Encapsulates parameters for a contested pool roll between two sides.
+     */
+    public static class ContestedPoolDiceRoll {
+        public final PoolDiceRoll initiator;
+        public final PoolDiceRoll opposer;
+
+        /**
+         * Create a contested pool dice roll configuration.
+         * 
+         * @param initiator Roll parameters for the initiating side (wins on ties)
+         * @param opposer   Roll parameters for the opposing side
+         */
+        public ContestedPoolDiceRoll(PoolDiceRoll initiator, PoolDiceRoll opposer) {
+            this.initiator = initiator;
+            this.opposer = opposer;
+        }
+    }
+
+    /**
      * Immutable result of a pool dice roll.
      */
     public static class PoolDiceResult {
@@ -270,6 +303,45 @@ public class DiceSystem extends SingletonGameSystem implements OnSystemInitializ
             return String.format(
                     "PoolDiceResult{pool=%d, threshold=%d, successes=%d, explosions=%d}",
                     poolSize, threshold, successes, explosions);
+        }
+    }
+
+    /**
+     * Immutable result of a contested pool dice roll.
+     */
+    public static class ContestedPoolDiceResult {
+        public final PoolDiceResult initiatorResult;
+        public final PoolDiceResult opposerResult;
+
+        public ContestedPoolDiceResult(PoolDiceResult initiatorResult, PoolDiceResult opposerResult) {
+            this.initiatorResult = initiatorResult;
+            this.opposerResult = opposerResult;
+        }
+
+        /**
+         * Check if the initiator won (ties count as initiator victory).
+         * 
+         * @return true if initiator's successes >= opposer's successes
+         */
+        public boolean initiatorWon() {
+            return initiatorResult.successes >= opposerResult.successes;
+        }
+
+        /**
+         * Get the delta (initiator successes - opposer successes).
+         * Positive means initiator won, negative means opposer won, zero is a tie.
+         * 
+         * @return delta between initiator and opposer successes
+         */
+        public int getDelta() {
+            return initiatorResult.successes - opposerResult.successes;
+        }
+
+        @Override
+        public String toString() {
+            return String.format(
+                    "ContestedPoolDiceResult{initiator=%s, opposer=%s, delta=%d, initiatorWon=%b}",
+                    initiatorResult, opposerResult, getDelta(), initiatorWon());
         }
     }
 
