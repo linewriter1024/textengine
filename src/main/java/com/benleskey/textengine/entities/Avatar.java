@@ -8,7 +8,7 @@ import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.systems.AvatarBroadcastSystem;
 
-public class Avatar extends Actor implements Acting {
+public class Avatar extends Actor {
 
     public Avatar(long id, Game game) {
         super(id, game);

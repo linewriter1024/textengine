@@ -8,6 +8,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import org.jspecify.annotations.NonNull;
+
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.SingletonGameSystem;
 import com.benleskey.textengine.actions.DropItemAction;
@@ -211,6 +213,8 @@ public class ActionSystem extends SingletonGameSystem implements OnSystemInitial
 	/**
 	 * Get an action by its ID with a specific class.
 	 */
+	@SuppressWarnings("null")
+	@NonNull
 	public synchronized <T extends Action> T get(long id, Class<T> clazz) {
 		try {
 			return clazz.getDeclaredConstructor(long.class, Game.class).newInstance(id, game);
@@ -245,6 +249,7 @@ public class ActionSystem extends SingletonGameSystem implements OnSystemInitial
 	/**
 	 * Create a new action in the database.
 	 */
+	@NonNull
 	public synchronized <T extends Action> T add(Class<T> clazz, Acting actor, Entity target, DTime timeRequired)
 			throws DatabaseException {
 		try {

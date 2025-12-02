@@ -3,7 +3,6 @@ package com.benleskey.textengine.systems;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.benleskey.textengine.Client;
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.SingletonGameSystem;
 import com.benleskey.textengine.actions.MoveAction;

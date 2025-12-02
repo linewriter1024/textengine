@@ -1,18 +1,24 @@
 package com.benleskey.textengine.plugins.highfantasy.entities;
 
+import java.util.List;
+import java.util.Random;
+
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.commands.CommandOutput;
-import com.benleskey.textengine.entities.Acting;
 import com.benleskey.textengine.entities.Actor;
 import com.benleskey.textengine.model.ActionValidation;
 import com.benleskey.textengine.model.DTime;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.UniqueType;
-import com.benleskey.textengine.systems.*;
+import com.benleskey.textengine.systems.ActionSystem;
+import com.benleskey.textengine.systems.BroadcastSystem;
+import com.benleskey.textengine.systems.EntitySystem;
+import com.benleskey.textengine.systems.ItemSystem;
+import com.benleskey.textengine.systems.LookSystem;
+import com.benleskey.textengine.systems.RelationshipSystem;
+import com.benleskey.textengine.systems.UniqueTypeSystem;
+import com.benleskey.textengine.systems.WorldSystem;
 import com.benleskey.textengine.util.Markup;
-
-import java.util.List;
-import java.util.Random;
 
 /**
  * Goblin NPC - patrols between locations and interacts with items.
@@ -23,7 +29,7 @@ import java.util.Random;
  * 
  * AI logic only - all execution handled by ActionSystem.
  */
-public class Goblin extends Actor implements Acting {
+public class Goblin extends Actor {
 
 	private final Random random;
 

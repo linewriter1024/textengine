@@ -1,16 +1,14 @@
 package com.benleskey.textengine.systems;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.SingletonGameSystem;
-import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.exceptions.InternalException;
 import com.benleskey.textengine.hooks.core.OnSystemInitialize;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.UniqueType;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
 
 /**
  * Generic system for registering and executing tag-based interactions between
