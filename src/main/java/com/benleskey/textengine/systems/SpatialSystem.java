@@ -5,8 +5,14 @@ import com.benleskey.textengine.SingletonGameSystem;
 import com.benleskey.textengine.hooks.core.OnSystemInitialize;
 import com.benleskey.textengine.model.Entity;
 import com.benleskey.textengine.model.UniqueType;
+import com.benleskey.textengine.model.FullEvent;
+import com.benleskey.textengine.exceptions.DatabaseException;
 
 import java.util.*;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 
 /**
  * SpatialSystem manages entity positions in n-dimensional space with scale
@@ -22,8 +28,14 @@ public class SpatialSystem extends SingletonGameSystem implements OnSystemInitia
 	// generation
 	public static UniqueType SCALE_CONTINENT;
 
+	// Event type for spatial positions
+	public UniqueType etEntityPosition;
+
 	// Dimensionality of the space (2D, 3D, etc.)
 	private int dimensions = 2;
+
+	private PreparedStatement addPositionStatement;
+	private PreparedStatement getCurrentPositionStatement;
 
 	public SpatialSystem(Game game) {
 		super(game);
@@ -49,47 +61,43 @@ public class SpatialSystem extends SingletonGameSystem implements OnSystemInitia
 	@Override
 	public void onSystemInitialize() {
 		int v = getSchema().getVersionNumber();
+
+		// Replace old spatial_position with event-backed entity_position
 		if (v == 0) {
-			// Create spatial_position table
-			// Stores entity positions with scale separation
-			// Uses flexible column structure to support N dimensions
-			try (var stmt = game.db().prepareStatement("""
-						CREATE TABLE spatial_position (
-							entity_id INTEGER NOT NULL,
-							scale_id INTEGER NOT NULL,
-							x INTEGER NOT NULL,
-							y INTEGER NOT NULL,
-							z INTEGER DEFAULT 0,
-							w INTEGER DEFAULT 0,
-							PRIMARY KEY (entity_id, scale_id)
-						)
-					""")) {
-				stmt.execute();
-			} catch (Exception e) {
-				throw new RuntimeException("Failed to create spatial_position table", e);
-			}
-
-			try (var stmt = game.db().prepareStatement("""
-						CREATE INDEX idx_spatial_scale ON spatial_position(scale_id)
-					""")) {
-				stmt.execute();
-			} catch (Exception e) {
-				throw new RuntimeException("Failed to create spatial index", e);
-			}
-
-			try (var stmt = game.db().prepareStatement("""
-						CREATE INDEX idx_spatial_coords ON spatial_position(scale_id, x, y)
-					""")) {
-				stmt.execute();
-			} catch (Exception e) {
-				throw new RuntimeException("Failed to create coordinate index", e);
+			try {
+				try (Statement s = game.db().createStatement()) {
+					// Create entity_position schema (no legacy handling)
+					s.executeUpdate(
+							"CREATE TABLE entity_position(position_id INTEGER PRIMARY KEY, entity_id INTEGER, scale_id INTEGER, x INTEGER, y INTEGER, z INTEGER DEFAULT 0, w INTEGER DEFAULT 0)");
+					// Indexes for common lookups
+					s.executeUpdate("CREATE INDEX idx_entity_position_entity ON entity_position(entity_id)");
+					s.executeUpdate("CREATE INDEX idx_entity_position_scale ON entity_position(scale_id)");
+					s.executeUpdate("CREATE INDEX idx_entity_position_coords ON entity_position(scale_id, x, y)");
+				}
+			} catch (SQLException e) {
+				throw new DatabaseException("Unable to create spatial position tables", e);
 			}
 
 			getSchema().setVersionNumber(1);
 		}
 
-		// Initialize the scale constant we're currently using
-		SCALE_CONTINENT = game.getUniqueTypeSystem().getType("scale_continent");
+		var uniqueTypeSystem = game.getSystem(UniqueTypeSystem.class);
+
+		// Prepare statements (EventSystem exists due to SpatialPlugin dependency)
+		try {
+			addPositionStatement = game.db().prepareStatement(
+					"INSERT INTO entity_position (position_id, entity_id, scale_id, x, y, z, w) VALUES (?, ?, ?, ?, ?, ?, ?)");
+			var es = game.getSystem(EventSystem.class);
+			getCurrentPositionStatement = game.db().prepareStatement(
+					"SELECT entity_position.x, entity_position.y, entity_position.z, entity_position.w FROM entity_position WHERE entity_position.entity_id = ? AND entity_position.scale_id = ? AND entity_position.position_id IN "
+							+ es.getValidEventsSubquery("entity_position.position_id"));
+		} catch (SQLException e) {
+			throw new DatabaseException("Unable to prepare spatial statements", e);
+		}
+
+		// Initialize types
+		SCALE_CONTINENT = uniqueTypeSystem.getType("scale_continent");
+		etEntityPosition = uniqueTypeSystem.getType("event_entity_position");
 	}
 
 	/**
@@ -100,7 +108,7 @@ public class SpatialSystem extends SingletonGameSystem implements OnSystemInitia
 	 * @param coords Coordinates (must match dimensionality, up to 4 dimensions
 	 *               supported)
 	 */
-	public void setPosition(Entity entity, UniqueType scale, int... coords) {
+	public FullEvent<?> setPosition(Entity entity, UniqueType scale, int... coords) {
 		if (coords.length != dimensions) {
 			throw new IllegalArgumentException(
 					String.format("Expected %d coordinates, got %d", dimensions, coords.length));
@@ -109,19 +117,20 @@ public class SpatialSystem extends SingletonGameSystem implements OnSystemInitia
 			throw new IllegalArgumentException("Maximum 4 dimensions supported in current schema");
 		}
 
-		try (var stmt = game.db().prepareStatement("""
-					INSERT OR REPLACE INTO spatial_position (entity_id, scale_id, x, y, z, w)
-					VALUES (?, ?, ?, ?, ?, ?)
-				""")) {
-			stmt.setLong(1, entity.getId());
-			stmt.setLong(2, scale.type());
-			stmt.setInt(3, coords.length > 0 ? coords[0] : 0);
-			stmt.setInt(4, coords.length > 1 ? coords[1] : 0);
-			stmt.setInt(5, coords.length > 2 ? coords[2] : 0);
-			stmt.setInt(6, coords.length > 3 ? coords[3] : 0);
-			stmt.executeUpdate();
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to set position", e);
+		try {
+			long id = game.getNewGlobalId();
+			addPositionStatement.setLong(1, id);
+			addPositionStatement.setLong(2, entity.getId());
+			addPositionStatement.setLong(3, scale.type());
+			addPositionStatement.setInt(4, coords.length > 0 ? coords[0] : 0);
+			addPositionStatement.setInt(5, coords.length > 1 ? coords[1] : 0);
+			addPositionStatement.setInt(6, coords.length > 2 ? coords[2] : 0);
+			addPositionStatement.setInt(7, coords.length > 3 ? coords[3] : 0);
+			addPositionStatement.executeUpdate();
+			return game.getSystem(EventSystem.class).addEventNow(etEntityPosition,
+					new com.benleskey.textengine.model.BaseReference(id, game));
+		} catch (SQLException e) {
+			throw new DatabaseException("Failed to set position", e);
 		}
 	}
 
@@ -133,14 +142,13 @@ public class SpatialSystem extends SingletonGameSystem implements OnSystemInitia
 	 * @return Coordinates, or null if entity has no position at this scale
 	 */
 	public int[] getPosition(Entity entity, UniqueType scale) {
-		try (var stmt = game.db().prepareStatement("""
-					SELECT x, y, z, w FROM spatial_position
-					WHERE entity_id = ? AND scale_id = ?
-				""")) {
-			stmt.setLong(1, entity.getId());
-			stmt.setLong(2, scale.type());
-
-			try (var rs = stmt.executeQuery()) {
+		try {
+			getCurrentPositionStatement.setLong(1, entity.getId());
+			getCurrentPositionStatement.setLong(2, scale.type());
+			var es = game.getSystem(EventSystem.class);
+			es.setValidEventsSubqueryParameters(getCurrentPositionStatement, 3, etEntityPosition,
+					game.getSystem(WorldSystem.class).getCurrentTime());
+			try (ResultSet rs = getCurrentPositionStatement.executeQuery()) {
 				if (rs.next()) {
 					int[] coords = new int[dimensions];
 					for (int i = 0; i < dimensions && i < 4; i++) {
@@ -149,8 +157,8 @@ public class SpatialSystem extends SingletonGameSystem implements OnSystemInitia
 					return coords;
 				}
 			}
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to get position", e);
+		} catch (SQLException e) {
+			throw new DatabaseException("Failed to get position", e);
 		}
 		return null;
 	}
@@ -168,12 +176,11 @@ public class SpatialSystem extends SingletonGameSystem implements OnSystemInitia
 					String.format("Expected %d coordinates, got %d", dimensions, coords.length));
 		}
 
-		try (var stmt = game.db().prepareStatement("""
-					SELECT entity_id FROM spatial_position
-					WHERE scale_id = ? AND x = ? AND y = ?
-					AND (z = ? OR ? >= 3)
-					AND (w = ? OR ? >= 4)
-				""")) {
+		try {
+			var es = game.getSystem(EventSystem.class);
+			PreparedStatement stmt = game.db().prepareStatement(
+					"SELECT entity_position.entity_id FROM entity_position WHERE entity_position.scale_id = ? AND entity_position.x = ? AND entity_position.y = ? AND (entity_position.z = ? OR ? >= 3) AND (entity_position.w = ? OR ? >= 4) AND entity_position.position_id IN "
+							+ es.getValidEventsSubquery("entity_position.position_id"));
 			stmt.setLong(1, scale.type());
 			stmt.setInt(2, coords.length > 0 ? coords[0] : 0);
 			stmt.setInt(3, coords.length > 1 ? coords[1] : 0);
@@ -181,14 +188,16 @@ public class SpatialSystem extends SingletonGameSystem implements OnSystemInitia
 			stmt.setInt(5, dimensions);
 			stmt.setInt(6, coords.length > 3 ? coords[3] : 0);
 			stmt.setInt(7, dimensions);
-
-			try (var rs = stmt.executeQuery()) {
+			// valid events subquery params
+			es.setValidEventsSubqueryParameters(stmt, 8, etEntityPosition,
+					game.getSystem(WorldSystem.class).getCurrentTime());
+			try (ResultSet rs = stmt.executeQuery()) {
 				if (rs.next()) {
 					return game.getSystem(EntitySystem.class).get(rs.getLong(1));
 				}
 			}
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to get entity at position", e);
+		} catch (SQLException e) {
+			throw new DatabaseException("Failed to get entity at position", e);
 		}
 		return null;
 	}
@@ -266,13 +275,16 @@ public class SpatialSystem extends SingletonGameSystem implements OnSystemInitia
 	public List<Entity> getEntitiesInRange(UniqueType scale, int[] coords, double maxDistance) {
 		List<Entity> result = new ArrayList<>();
 
-		try (var stmt = game.db().prepareStatement("""
-					SELECT entity_id, x, y, z, w FROM spatial_position
-					WHERE scale_id = ?
-				""")) {
+		try {
+			var es = game.getSystem(EventSystem.class);
+			PreparedStatement stmt = game.db().prepareStatement(
+					"SELECT entity_position.entity_id, entity_position.x, entity_position.y, entity_position.z, entity_position.w FROM entity_position WHERE entity_position.scale_id = ? AND entity_position.position_id IN "
+							+ es.getValidEventsSubquery("entity_position.position_id"));
 			stmt.setLong(1, scale.type());
+			es.setValidEventsSubqueryParameters(stmt, 2, etEntityPosition,
+					game.getSystem(WorldSystem.class).getCurrentTime());
 
-			try (var rs = stmt.executeQuery()) {
+			try (ResultSet rs = stmt.executeQuery()) {
 				while (rs.next()) {
 					int[] entityCoords = new int[dimensions];
 					for (int i = 0; i < dimensions && i < 4; i++) {
@@ -287,29 +299,38 @@ public class SpatialSystem extends SingletonGameSystem implements OnSystemInitia
 					}
 				}
 			}
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to get entities in range", e);
+		} catch (SQLException e) {
+			throw new DatabaseException("Failed to get entities in range", e);
 		}
 
 		return result;
 	}
 
 	/**
-	 * Remove position data for an entity at a specific scale.
-	 * 
-	 * @param entity The entity
-	 * @param scale  The spatial scale
+	 * Remove position events for an entity at a specific scale.
+	 * Cancels all valid position events (even if typically only one exists).
 	 */
 	public void removePosition(Entity entity, UniqueType scale) {
-		try (var stmt = game.db().prepareStatement("""
-					DELETE FROM spatial_position
-					WHERE entity_id = ? AND scale_id = ?
-				""")) {
-			stmt.setLong(1, entity.getId());
-			stmt.setLong(2, scale.type());
-			stmt.executeUpdate();
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to remove position", e);
+		EventSystem es = game.getSystem(EventSystem.class);
+		try {
+			PreparedStatement findStmt = game.db().prepareStatement(
+					"SELECT event.event_id FROM event " +
+							"JOIN entity_position ON entity_position.position_id = event.reference " +
+							"WHERE event.type = ? AND entity_position.entity_id = ? AND entity_position.scale_id = ? " +
+							"AND entity_position.position_id IN "
+							+ es.getValidEventsSubquery("entity_position.position_id"));
+			findStmt.setLong(1, etEntityPosition.type());
+			findStmt.setLong(2, entity.getId());
+			findStmt.setLong(3, scale.type());
+			es.setValidEventsSubqueryParameters(findStmt, 4, etEntityPosition,
+					game.getSystem(WorldSystem.class).getCurrentTime());
+			try (ResultSet rs = findStmt.executeQuery()) {
+				while (rs.next()) {
+					es.cancelEvent(rs.getLong(1));
+				}
+			}
+		} catch (SQLException e) {
+			throw new DatabaseException("Failed to remove position", e);
 		}
 	}
 
@@ -323,10 +344,12 @@ public class SpatialSystem extends SingletonGameSystem implements OnSystemInitia
 		Set<Entity> result = new HashSet<>();
 
 		try (var stmt = game.db().prepareStatement("""
-					SELECT entity_id FROM spatial_position
-					WHERE scale_id = ?
-				""")) {
+				SELECT entity_position.entity_id FROM entity_position
+				WHERE entity_position.scale_id = ? AND entity_position.position_id IN
+				""" + game.getSystem(EventSystem.class).getValidEventsSubquery("entity_position.position_id"))) {
 			stmt.setLong(1, scale.type());
+			game.getSystem(EventSystem.class).setValidEventsSubqueryParameters(stmt, 2, etEntityPosition,
+					game.getSystem(WorldSystem.class).getCurrentTime());
 
 			try (var rs = stmt.executeQuery()) {
 				while (rs.next()) {
@@ -336,8 +359,8 @@ public class SpatialSystem extends SingletonGameSystem implements OnSystemInitia
 					}
 				}
 			}
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to get all positioned entities", e);
+		} catch (SQLException e) {
+			throw new DatabaseException("Failed to get all positioned entities", e);
 		}
 
 		return result;

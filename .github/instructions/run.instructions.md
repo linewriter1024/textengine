@@ -6,6 +6,8 @@ applyTo: "**"
 
 Always use scripted input via `printf` for reproducible testing.
 
+**No need to build separately**—`mvn exec:java` automatically compiles if needed.
+
 ## Seeds for Deterministic Generation
 
 ```bash

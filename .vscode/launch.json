@@ -6,6 +6,20 @@
     "configurations": [
         {
             "type": "java",
+            "name": "LlmProvider",
+            "request": "launch",
+            "mainClass": "com.benleskey.textengine.llm.LlmProvider",
+            "projectName": "textengine"
+        },
+        {
+            "type": "java",
+            "name": "DialogGenerator",
+            "request": "launch",
+            "mainClass": "com.benleskey.textengine.llm.DialogGenerator",
+            "projectName": "textengine"
+        },
+        {
+            "type": "java",
             "name": "Current File",
             "request": "launch",
             "mainClass": "${file}"
@@ -16,7 +30,11 @@
             "request": "launch",
             "mainClass": "com.benleskey.textengine.cli.Main",
             "projectName": "textengine",
-            "args": ["--showlog", "--plugin", "com.benleskey.textengine.plugins.ember.EmberPlugin"]
+            "args": [
+                "--showlog",
+                "--plugin",
+                "com.benleskey.textengine.plugins.ember.EmberPlugin"
+            ]
         },
         {
             "type": "java",
@@ -24,7 +42,11 @@
             "request": "launch",
             "mainClass": "com.benleskey.textengine.cli.Main",
             "projectName": "textengine",
-            "args": ["--showlog", "--plugin", "com.benleskey.textengine.plugins.highfantasy.HighFantasyPlugin"]
+            "args": [
+                "--showlog",
+                "--plugin",
+                "com.benleskey.textengine.plugins.highfantasy.HighFantasyPlugin"
+            ]
         }
     ]
 }

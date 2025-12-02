@@ -21,5 +21,8 @@ public class EventPlugin extends Plugin implements OnPluginInitialize {
 	@Override
 	public void onPluginInitialize() {
 		game.registerSystem(new EventSystem(game));
+		// Register SpatialSystem AFTER EventSystem so it can prepare statements that
+		// depend on the event schema and subqueries
+		game.registerSystem(new SpatialSystem(game));
 	}
 }

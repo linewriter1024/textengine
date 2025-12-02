@@ -8,7 +8,6 @@ import com.benleskey.textengine.commands.CommandOutput;
 import com.benleskey.textengine.commands.CommandVariant;
 import com.benleskey.textengine.hooks.core.OnPluginInitialize;
 import com.benleskey.textengine.systems.CommandHelpSystem;
-import com.benleskey.textengine.systems.SpatialSystem;
 import com.benleskey.textengine.systems.TickSystem;
 import com.benleskey.textengine.systems.UniqueTypeSystem;
 import com.benleskey.textengine.systems.CommandCompletionSystem;
@@ -31,7 +30,6 @@ public class CorePlugin extends Plugin implements OnPluginInitialize {
 		game.registerSystem(new CommandCompletionSystem(game));
 		game.registerSystem(new WorldSystem(game));
 		game.registerSystem(new TickSystem(game));
-		game.registerSystem(new SpatialSystem(game));
 
 		// Register seed command
 		CommandHelpSystem helpSystem = game.getSystem(CommandHelpSystem.class);

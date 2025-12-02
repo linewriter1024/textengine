@@ -10,6 +10,7 @@ Critical patterns and gotchas.
 - Reduce complexity at every opportunity.
 - Seek out ways to reduce complexity and/or code size.
 - When making a change, reduce the complexity of any related code or code you touch.
+- Avoid useless comments; prefer concise, meaningful documentation. Remove commentary that restates obvious code behavior.
 
 ## Database Schema Changes
 

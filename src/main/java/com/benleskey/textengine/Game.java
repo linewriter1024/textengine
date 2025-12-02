@@ -59,6 +59,7 @@ public class Game {
 		registerPlugin(new NameGenerationPlugin(this));
 		registerPlugin(new EntityPlugin(this));
 		registerPlugin(new EventPlugin(this));
+		registerPlugin(new SpatialPlugin(this));
 		registerPlugin(new InteractionPlugin(this));
 		registerPlugin(new ItemInteractionPlugin(this));
 		registerPlugin(new NavigationPlugin(this));
