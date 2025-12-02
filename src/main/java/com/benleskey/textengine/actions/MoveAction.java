@@ -22,8 +22,6 @@ public class MoveAction extends Action {
 	public static final String ERR_DESTINATION_NOT_FOUND = "destination_not_found";
 	public static final String BROADCAST_LEAVES = "actor_leaves";
 	public static final String BROADCAST_ARRIVES = "actor_arrives";
-	// Note: M_ACTOR_ID, M_ACTOR_NAME defined in EntitySystem
-	// Note: M_FROM, M_TO defined in RelationshipSystem
 
 	public MoveAction(long id, Game game) {
 		super(id, game);
@@ -38,10 +36,8 @@ public class MoveAction extends Action {
 	public ActionValidation canExecute() {
 		RelationshipSystem rs = game.getSystem(RelationshipSystem.class);
 		WorldSystem ws = game.getSystem(WorldSystem.class);
-		EntitySystem es = game.getSystem(EntitySystem.class);
 
 		Entity actor = (Entity) getActor().orElseThrow();
-		Entity target = getTarget().orElseThrow();
 
 		// Check if actor has a current location
 		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
@@ -50,16 +46,6 @@ public class MoveAction extends Action {
 					CommandOutput.make(CMD_GO)
 							.error(ERR_NOWHERE)
 							.text(Markup.escape("You are nowhere.")));
-		}
-
-		// Check if destination still exists
-		try {
-			es.get(target.getId());
-		} catch (Exception e) {
-			return ActionValidation.failure(
-					CommandOutput.make(CMD_GO)
-							.error(ERR_DESTINATION_NOT_FOUND)
-							.text(Markup.escape("That destination doesn't exist.")));
 		}
 
 		return ActionValidation.success();
@@ -72,8 +58,8 @@ public class MoveAction extends Action {
 		BroadcastSystem bs = game.getSystem(BroadcastSystem.class);
 		EntityDescriptionSystem eds = game.getSystem(EntityDescriptionSystem.class);
 
-		Entity actor = (Entity) getActor().orElseThrow();
-		Entity target = getTarget().orElseThrow();
+		var actor = getActor().orElseThrow();
+		var target = getTarget().orElseThrow();
 
 		// Get current location
 		var containers = rs.getProvidingRelationships(actor, rs.rvContains, ws.getCurrentTime());
