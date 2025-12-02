@@ -1,10 +1,17 @@
 package com.benleskey.textengine.plugins.procgen1;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
+
 import com.benleskey.textengine.Client;
 import com.benleskey.textengine.Game;
 import com.benleskey.textengine.Plugin;
 import com.benleskey.textengine.commands.CommandInput;
-import com.benleskey.textengine.entities.Actor;
 import com.benleskey.textengine.entities.Avatar;
 import com.benleskey.textengine.entities.Item;
 import com.benleskey.textengine.entities.Place;
@@ -22,9 +29,16 @@ import com.benleskey.textengine.plugins.highfantasy.entities.SimpleAvatar;
 import com.benleskey.textengine.plugins.procgen1.systems.ItemTemplateSystem;
 import com.benleskey.textengine.plugins.procgen1.systems.LandmarkTemplateSystem;
 import com.benleskey.textengine.plugins.procgen1.systems.PlaceDescriptionSystem;
-import com.benleskey.textengine.systems.*;
-
-import java.util.*;
+import com.benleskey.textengine.systems.ConnectionSystem;
+import com.benleskey.textengine.systems.EntitySystem;
+import com.benleskey.textengine.systems.EntityTagSystem;
+import com.benleskey.textengine.systems.EventSystem;
+import com.benleskey.textengine.systems.ItemSystem;
+import com.benleskey.textengine.systems.LookSystem;
+import com.benleskey.textengine.systems.RelationshipSystem;
+import com.benleskey.textengine.systems.SpatialSystem;
+import com.benleskey.textengine.systems.VisibilitySystem;
+import com.benleskey.textengine.systems.WorldSystem;
 
 /**
  * Generic procedural world generation plugin.

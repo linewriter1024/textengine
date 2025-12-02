@@ -14,13 +14,13 @@ import com.benleskey.textengine.hooks.core.OnStartClient;
 public class ClientStartSystem extends SingletonGameSystem
         implements OnStartClient, OnCoreSystemsReady {
 
-    private GrouplessPropertiesSubSystem<String, Long> referencePoints;
+    private GrouplessPropertiesSubSystem<String, Long> clientAvatars;
     private EntitySystem entitySystem;
 
     public ClientStartSystem(Game game) {
         super(game);
 
-        referencePoints = game.registerSystem(new GrouplessPropertiesSubSystem<>(game, "client_avatars",
+        clientAvatars = game.registerSystem(new GrouplessPropertiesSubSystem<>(game, "client_avatars",
                 PropertiesSubSystem.stringHandler(), PropertiesSubSystem.longHandler()));
     }
 
@@ -35,8 +35,11 @@ public class ClientStartSystem extends SingletonGameSystem
     }
 
     Avatar findOrCreatePlayerEntity(Client client) {
-        return referencePoints.get(client.getId()).map(id -> entitySystem.get(id)).map(entity -> (Avatar) entity)
+        Avatar avatar = clientAvatars.get(client.getAccountIdentifier()).map(id -> entitySystem.get(id))
+                .map(entity -> (Avatar) entity)
                 .orElseGet(() -> createNewPlayerEntity(client));
+        clientAvatars.insertIfAbsent(client.getAccountIdentifier(), avatar.getId());
+        return avatar;
     }
 
     Avatar createNewPlayerEntity(Client client) {

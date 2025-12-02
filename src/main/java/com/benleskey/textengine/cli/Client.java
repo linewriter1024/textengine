@@ -162,4 +162,9 @@ public class Client extends com.benleskey.textengine.Client {
 			}
 		}
 	}
+
+	@Override
+	public String getAccountIdentifier() {
+		return "singleplayer";
+	}
 }

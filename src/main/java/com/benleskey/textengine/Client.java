@@ -65,6 +65,8 @@ public abstract class Client {
 		this.numericIdMap.clear();
 	}
 
+	public abstract String getAccountIdentifier();
+
 	public abstract CommandInput waitForInput();
 
 	public abstract void sendOutput(CommandOutput output);
@@ -93,6 +95,6 @@ public abstract class Client {
 
 	@Override
 	public String toString() {
-		return "Client#" + id;
+		return String.format("Client#%s [%s]", getId(), getAccountIdentifier());
 	}
 }
