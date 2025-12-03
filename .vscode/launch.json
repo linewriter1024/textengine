@@ -33,7 +33,7 @@
             "args": [
                 "--showlog",
                 "--plugin",
-                "com.benleskey.textengine.plugins.ember.EmberPlugin"
+                "com.benleskey.textengine.plugins.games.ember.EmberPlugin"
             ]
         },
         {
@@ -45,7 +45,7 @@
             "args": [
                 "--showlog",
                 "--plugin",
-                "com.benleskey.textengine.plugins.highfantasy.HighFantasyPlugin"
+                "com.benleskey.textengine.plugins.games.highfantasy.HighFantasyPlugin"
             ]
         }
     ]

@@ -70,8 +70,8 @@ public class Game {
 		registerPlugin(new UnknownCommand(this));
 		registerPlugin(new ClientStartPlugin(this));
 
-		registerTentativePlugin(new com.benleskey.textengine.plugins.procgen1.ProceduralWorldPlugin(this));
-		registerTentativePlugin(new com.benleskey.textengine.plugins.procgen2.ProceduralWorldPlugin(this));
+		registerTentativePlugin(new com.benleskey.textengine.plugins.worldgen.procgen1.ProceduralWorldPlugin(this));
+		registerTentativePlugin(new com.benleskey.textengine.plugins.worldgen.glowgen.GlowgenPlugin(this));
 	}
 
 	public void initialize() throws InternalException {
